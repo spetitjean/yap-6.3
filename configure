@@ -615,7 +615,6 @@ IN_SWI
 IN_YAP
 PROLOG_SYSTEM
 M4GENABSMI
-INSTALL_PRISM
 MATLAB_INCLUDE
 INSTALL_MATLAB
 REAL_LIBS
@@ -694,7 +693,6 @@ CPLINT_SHLIB_LD
 CPLINT_LDFLAGS
 CPLINT_CFLAGS
 CPLINT_LIBS
-ENABLE_PRISM
 ENABLE_GECODE
 REXE
 INSTALL_INFO
@@ -797,7 +795,6 @@ enable_max_memory
 enable_debug_yap
 enable_eam
 enable_cygwin
-enable_prism
 enable_dynamic_loading
 enable_static_compilation
 enable_use_malloc
@@ -1472,7 +1469,6 @@ Optional Features:
  --enable-debug-yap         enable C-debugging for YAP
  --enable-eam               enable EAM on YAP
  --enable-cygwin            use cygwin library in WIN32
- --enable-prism            use PRISM system in YAP
  --enable-dynamic-loading   compile YAP as a DLL
  --enable-static-compilation   compile YAP statically
  --enable-use-malloc        use malloc to allocate memory
@@ -4539,13 +4535,6 @@ else
   cygwin=no
 fi
 
-# Check whether --enable-prism was given.
-if test "${enable_prism+set}" = set; then :
-  enableval=$enable_prism; prism="$enableval"
-else
-  prism=yes
-fi
-
 # Check whether --enable-dynamic_loading was given.
 if test "${enable_dynamic_loading+set}" = set; then :
   enableval=$enable_dynamic_loading; dynamic_loading="$enableval"
@@ -4970,13 +4959,6 @@ _ACEOF
 
 fi
 
-
-if test "$yap_cv_prism" = no
-then
-  INSTALL_PRISM="@# "
-else
-  INSTALL_PRISM=""
-fi
 
 if test "$yap_cv_matlab" = no
 then
@@ -7342,12 +7324,6 @@ else
   ENABLE_GECODE=""
 fi
 
-
-if test "$use_prism" = no; then
-  ENABLE_PRISM="@# "
-else
-  ENABLE_PRISM=""
-fi
 
 
 if test "$use_chr" = no; then
@@ -10812,13 +10788,6 @@ mkdir -p  packages/PLStream
 mkdir -p  packages/PLStream/libtai
 mkdir -p  packages/pldoc
 mkdir -p  packages/plunit
-mkdir -p  packages/prism
-mkdir -p  packages/prism/src
-mkdir -p  packages/prism/src/c
-mkdir -p  packages/prism/src/c/core
-mkdir -p  packages/prism/src/c/mp
-mkdir -p  packages/prism/src/c/up
-mkdir -p  packages/prism/src/prolog
 mkdir -p  packages/ProbLog
 mkdir -p  packages/ProbLog/simplecudd
 mkdir -p  packages/ProbLog/simplecudd_lfi
@@ -10977,12 +10946,6 @@ ac_config_files="$ac_config_files library/gecode/Makefile"
 
 fi
 
-if test "$ENABLE_PRISM" = ""; then
-ac_config_files="$ac_config_files packages/prism/src/c/Makefile"
-
-ac_config_files="$ac_config_files packages/prism/src/prolog/Makefile"
-
-fi
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -11739,8 +11702,6 @@ do
     "packages/real/Makefile") CONFIG_FILES="$CONFIG_FILES packages/real/Makefile" ;;
     "packages/CLPBN/horus/Makefile") CONFIG_FILES="$CONFIG_FILES packages/CLPBN/horus/Makefile" ;;
     "library/gecode/Makefile") CONFIG_FILES="$CONFIG_FILES library/gecode/Makefile" ;;
-    "packages/prism/src/c/Makefile") CONFIG_FILES="$CONFIG_FILES packages/prism/src/c/Makefile" ;;
-    "packages/prism/src/prolog/Makefile") CONFIG_FILES="$CONFIG_FILES packages/prism/src/prolog/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5 ;;
   esac

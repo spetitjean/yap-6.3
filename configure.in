@@ -179,9 +179,6 @@ AC_ARG_ENABLE(eam,
 AC_ARG_ENABLE(cygwin,
 	[ --enable-cygwin            use cygwin library in WIN32 ],
 	cygwin="$enableval", cygwin=no)
-AC_ARG_ENABLE(prism,
-	[ --enable-prism            use PRISM system in YAP ],
-	prism="$enableval", prism=yes)
 AC_ARG_ENABLE(dynamic_loading,
 	[ --enable-dynamic-loading   compile YAP as a DLL ],
 	dynamic_loading="$enableval", dynamic_loading=no)
@@ -472,12 +469,6 @@ else
 fi
 
 
-if test "$yap_cv_prism" = no 
-then
-  INSTALL_PRISM="@# "
-else
-  INSTALL_PRISM=""
-fi
 
 dnl condor does not like dynamic linking on Linux, DEC, and HP-UX platforms.
 if test "$yap_cv_matlab" = no 
@@ -949,12 +940,6 @@ else
 fi
 AC_SUBST(ENABLE_GECODE)
 
-if test "$use_prism" = no; then
-  ENABLE_PRISM="@# "
-else
-  ENABLE_PRISM=""
-fi
-AC_SUBST(ENABLE_PRISM)
 
 if test "$use_chr" = no; then
   ENABLE_CHR="@# "
@@ -1832,7 +1817,6 @@ AC_SUBST(REAL_INCLUDES)
 AC_SUBST(REAL_LIBS)
 AC_SUBST(INSTALL_MATLAB)
 AC_SUBST(MATLAB_INCLUDE)
-AC_SUBST(INSTALL_PRISM)
 
 dnl check for threaded code
 AC_MSG_CHECKING(for gcc threaded code)
@@ -2331,13 +2315,6 @@ mkdir -p  packages/PLStream
 mkdir -p  packages/PLStream/libtai
 mkdir -p  packages/pldoc
 mkdir -p  packages/plunit
-mkdir -p  packages/prism
-mkdir -p  packages/prism/src
-mkdir -p  packages/prism/src/c
-mkdir -p  packages/prism/src/c/core
-mkdir -p  packages/prism/src/c/mp
-mkdir -p  packages/prism/src/c/up
-mkdir -p  packages/prism/src/prolog
 mkdir -p  packages/ProbLog
 mkdir -p  packages/ProbLog/simplecudd
 mkdir -p  packages/ProbLog/simplecudd_lfi
@@ -2447,11 +2424,6 @@ fi
 
 if test "$ENABLE_GECODE" = ""; then
 AC_CONFIG_FILES([library/gecode/Makefile])
-fi
-
-if test "$ENABLE_PRISM" = ""; then
-AC_CONFIG_FILES([packages/prism/src/c/Makefile])
-AC_CONFIG_FILES([packages/prism/src/prolog/Makefile])
 fi
 
 AC_OUTPUT()
