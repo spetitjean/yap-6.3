@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 
+
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -1898,12 +1899,15 @@ X_API YAP_opaque_tag_t YAP_NewOpaqueType(struct YAP_opaque_handler_struct *f) {
     return i + USER_BLOB_START;
 }
 
+
+
 X_API Term YAP_NewOpaqueObject(YAP_opaque_tag_t blob_tag, size_t bytes) {
   CELL *pt;
   Term t = Yap_AllocExternalDataInStack((CELL) blob_tag, bytes, &pt);
-    if (t == TermNil)
-        return 0L;
-  blob_tag = pt[1];
+  if (t == TermNil)
+    return 0L;
+  //Simon: I removed this
+  //blob_tag = pt[1];
   if (blob_tag < USER_BLOB_START ||
       blob_tag >= USER_BLOB_END) {
     Yap_Error(SYSTEM_ERROR_INTERNAL, AbsAppl(pt), "clean opaque: bad blob with tag " UInt_FORMAT ,blob_tag);

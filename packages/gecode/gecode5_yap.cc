@@ -156,11 +156,12 @@ extern "C"
     return * (FloatAssign*) YAP_OpaqueObjectFromTerm(t);
   }
 
-static inline BoolAssign&
-  gecode_BoolAssign_from_term(YAP_Term t)
-  {
-    return * (BoolAssign*) YAP_OpaqueObjectFromTerm(t);
-  }
+// static inline BoolAssign&
+//   gecode_BoolAssign_from_term(YAP_Term t)
+//   {
+//     return * (BoolAssign*) YAP_OpaqueObjectFromTerm(t);
+//   }
+
 
   static inline IntAssign&
   gecode_IntAssign_from_term(YAP_Term t)
@@ -349,37 +350,37 @@ static YAP_Term gecode_BOOL_VAR_RND;
   static YAP_Term gecode_BOOL_VAR_CHB_MIN;
   static YAP_Term gecode_BOOL_VAR_CHB_MAX;
 
-  static inline BoolVarBranch
-  gecode_BoolVarBranch_from_term(YAP_Term t)
-  {
-    if (YAP_IsAtomTerm(t)) {
-      if ( t == gecode_BOOL_VAR_NONE)
-	return BOOL_VAR_NONE();
-       if ( t == gecode_BOOL_VAR_RND)
-	return BOOL_VAR_RND(Rnd());
-  //     if ( t == gecode_BOOL_VAR_MERIT_MIN)
-	// return BOOL_VAR_MERIT_MIN();
-  //     if ( t == gecode_BOOL_VAR_MERIT_MAX)
-	// return BOOL_VAR_MERIT_MAX();
-      if ( t == gecode_BOOL_VAR_DEGREE_MIN)
-	return BOOL_VAR_DEGREE_MIN();
-      if ( t == gecode_BOOL_VAR_DEGREE_MAX)
-	return BOOL_VAR_DEGREE_MAX();
-      if ( t == gecode_BOOL_VAR_AFC_MIN)
-	return BOOL_VAR_AFC_MIN();
-      if ( t == gecode_BOOL_VAR_AFC_MAX)
-	return BOOL_VAR_AFC_MAX();
-      if ( t == gecode_BOOL_VAR_ACTION_MIN)
-	return BOOL_VAR_ACTION_MIN();
-      if ( t == gecode_BOOL_VAR_ACTION_MAX)
-	return BOOL_VAR_ACTION_MAX();
-      if ( t == gecode_BOOL_VAR_CHB_MIN)
-	return BOOL_VAR_CHB_MIN();
-      if ( t == gecode_BOOL_VAR_CHB_MAX)
-	return BOOL_VAR_CHB_MAX();
-    }
-    cerr << "unsupported INT VAR" << endl; exit(1);
-  }
+  // static inline BoolVarBranch
+  // gecode_BoolVarBranch_from_term(YAP_Term t)
+  // {
+  //   if (YAP_IsAtomTerm(t)) {
+  //     if ( t == gecode_BOOL_VAR_NONE)
+  // 	return BOOL_VAR_NONE();
+  //      if ( t == gecode_BOOL_VAR_RND)
+  // 	return BOOL_VAR_RND(Rnd());
+  // //     if ( t == gecode_BOOL_VAR_MERIT_MIN)
+  // 	// return BOOL_VAR_MERIT_MIN();
+  // //     if ( t == gecode_BOOL_VAR_MERIT_MAX)
+  // 	// return BOOL_VAR_MERIT_MAX();
+  //     if ( t == gecode_BOOL_VAR_DEGREE_MIN)
+  // 	return BOOL_VAR_DEGREE_MIN();
+  //     if ( t == gecode_BOOL_VAR_DEGREE_MAX)
+  // 	return BOOL_VAR_DEGREE_MAX();
+  //     if ( t == gecode_BOOL_VAR_AFC_MIN)
+  // 	return BOOL_VAR_AFC_MIN();
+  //     if ( t == gecode_BOOL_VAR_AFC_MAX)
+  // 	return BOOL_VAR_AFC_MAX();
+  //     if ( t == gecode_BOOL_VAR_ACTION_MIN)
+  // 	return BOOL_VAR_ACTION_MIN();
+  //     if ( t == gecode_BOOL_VAR_ACTION_MAX)
+  // 	return BOOL_VAR_ACTION_MAX();
+  //     if ( t == gecode_BOOL_VAR_CHB_MIN)
+  // 	return BOOL_VAR_CHB_MIN();
+  //     if ( t == gecode_BOOL_VAR_CHB_MAX)
+  // 	return BOOL_VAR_CHB_MAX();
+  //   }
+  //   cerr << "unsupported INT VAR" << endl; exit(1);
+  // }
 
   static YAP_Term gecode_FLOAT_VAR_NONE;
   static YAP_Term gecode_FLOAT_VAR_DEGREE_MIN;
@@ -463,19 +464,19 @@ static YAP_Term gecode_BOOL_VAR_RND;
   static YAP_Term gecode_BOOL_VAL_MAX;
   static YAP_Term gecode_BOOL_VAL_RND;
 
-  static inline BoolValBranch
-  gecode_BoolValBranch_from_term(YAP_Term t)
-  {
-    if (YAP_IsAtomTerm(t)) {
-      if ( t == gecode_BOOL_VAL_MIN)
-	return BOOL_VAL_MIN();
-    if ( t == gecode_BOOL_VAL_MAX)
-  return BOOL_VAL_MAX();
-  if ( t == gecode_BOOL_VAL_RND)
-return BOOL_VAL_RND(Rnd());
-    }
-    cerr << "unsupported BOOL VAL" << endl; exit(1);
-  }
+//   static inline BoolValBranch
+//   gecode_BoolValBranch_from_term(YAP_Term t)
+//   {
+//     if (YAP_IsAtomTerm(t)) {
+//       if ( t == gecode_BOOL_VAL_MIN)
+// 	return BOOL_VAL_MIN();
+//     if ( t == gecode_BOOL_VAL_MAX)
+//   return BOOL_VAL_MAX();
+//   if ( t == gecode_BOOL_VAL_RND)
+// return BOOL_VAL_RND(Rnd());
+//     }
+//     cerr << "unsupported BOOL VAL" << endl; exit(1);
+//   }
   //
   // static inline BoolVal&
   // gecode_BoolVal_from_term(YAP_Term t)
