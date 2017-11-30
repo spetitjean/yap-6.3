@@ -432,6 +432,8 @@ static YAP_Term gecode_BOOL_VAR_RND;
   static YAP_Term gecode_INT_VAL_RANGE_MAX;
   static YAP_Term gecode_INT_VALUES_MIN;
   static YAP_Term gecode_INT_VALUES_MAX;
+  static YAP_Term gecode_BOOL_VAL_MIN;
+  static YAP_Term gecode_BOOL_VAL_MAX;
 
   static inline IntValBranch
   gecode_IntValBranch_from_term(YAP_Term t)

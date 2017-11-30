@@ -557,6 +557,19 @@ is_IntValBranch_(X,X) :- is_IntValBranch_(X).
 is_IntValBranch(X,Y) :- nonvar(X), is_IntValBranch_(X,Y).
 is_IntValBranch(X) :- is_IntValBranch(X,_).
 
+%% Simon: I added this
+
+is_BoolValBranch_('BOOL_VAL_RND'(_)).
+is_BoolValBranch_('BOOL_VAL_MIN').
+is_BoolValBranch_('BOOL_VAL_MAX').
+
+is_BoolValBranch_(X,X) :- is_BoolValBranch_(X).
+
+is_BoolValBranch(X,Y) :- nonvar(X), is_BoolValBranch_(X,Y).
+is_BoolValBranch(X) :- is_BoolValBranch(X,_).
+
+%% End Simon
+
 is_SetValBranch_('SET_VAL_RND_INC'(_)).
 is_SetValBranch_('SET_VAL_RND_EXC'(_)).
 is_SetValBranch_('SET_VAL'(_,_)).

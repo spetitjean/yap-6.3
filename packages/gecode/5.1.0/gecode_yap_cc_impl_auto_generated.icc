@@ -29,7 +29,7 @@ static RestartMode gecode_RestartMode_from_term(YAP_Term X)
   if (X==gecode_RM_LINEAR) return RM_LINEAR;
   if (X==gecode_RM_LUBY) return RM_LUBY;
   if (X==gecode_RM_GEOMETRIC) return RM_GEOMETRIC;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [RestartMode]" << endl; exit(1);
 }
 
 static YAP_Term gecode_FRT_EQ;
@@ -47,7 +47,7 @@ static FloatRelType gecode_FloatRelType_from_term(YAP_Term X)
   if (X==gecode_FRT_LE) return FRT_LE;
   if (X==gecode_FRT_GQ) return FRT_GQ;
   if (X==gecode_FRT_GR) return FRT_GR;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [FloatRelType]" << endl; exit(1);
 }
 
 static YAP_Term gecode_RM_EQV;
@@ -59,7 +59,7 @@ static ReifyMode gecode_ReifyMode_from_term(YAP_Term X)
   if (X==gecode_RM_EQV) return RM_EQV;
   if (X==gecode_RM_IMP) return RM_IMP;
   if (X==gecode_RM_PMI) return RM_PMI;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [ReifyMode]" << endl; exit(1);
 }
 
 static YAP_Term gecode_IRT_EQ;
@@ -77,7 +77,7 @@ static IntRelType gecode_IntRelType_from_term(YAP_Term X)
   if (X==gecode_IRT_LE) return IRT_LE;
   if (X==gecode_IRT_GQ) return IRT_GQ;
   if (X==gecode_IRT_GR) return IRT_GR;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [IntRelType]" << endl; exit(1);
 }
 
 static YAP_Term gecode_BOT_AND;
@@ -93,7 +93,7 @@ static BoolOpType gecode_BoolOpType_from_term(YAP_Term X)
   if (X==gecode_BOT_IMP) return BOT_IMP;
   if (X==gecode_BOT_EQV) return BOT_EQV;
   if (X==gecode_BOT_XOR) return BOT_XOR;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [BoolOpType]" << endl; exit(1);
 }
 
 static YAP_Term gecode_IPL_DEF;
@@ -117,7 +117,7 @@ static IntPropLevel gecode_IntPropLevel_from_term(YAP_Term X)
   if (X==gecode_IPL_BASIC) return IPL_BASIC;
   if (X==gecode_IPL_ADVANCED) return IPL_ADVANCED;
   if (X==gecode_IPL_BASIC_ADVANCED) return IPL_BASIC_ADVANCED;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [IntPropLevel]" << endl; exit(1);
 }
 
 static YAP_Term gecode_TT_FIXP;
@@ -129,7 +129,7 @@ static TaskType gecode_TaskType_from_term(YAP_Term X)
   if (X==gecode_TT_FIXP) return TT_FIXP;
   if (X==gecode_TT_FIXS) return TT_FIXS;
   if (X==gecode_TT_FIXE) return TT_FIXE;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [TaskType]" << endl; exit(1);
 }
 
 static YAP_Term gecode_TE_INIT;
@@ -149,7 +149,7 @@ static TraceEvent gecode_TraceEvent_from_term(YAP_Term X)
   if (X==gecode_TE_DONE) return TE_DONE;
   if (X==gecode_TE_PROPAGATE) return TE_PROPAGATE;
   if (X==gecode_TE_COMMIT) return TE_COMMIT;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [TraceEvent]" << endl; exit(1);
 }
 
 static YAP_Term gecode_SRT_EQ;
@@ -175,7 +175,7 @@ static SetRelType gecode_SetRelType_from_term(YAP_Term X)
   if (X==gecode_SRT_LE) return SRT_LE;
   if (X==gecode_SRT_GQ) return SRT_GQ;
   if (X==gecode_SRT_GR) return SRT_GR;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [SetRelType]" << endl; exit(1);
 }
 
 static YAP_Term gecode_SOT_UNION;
@@ -189,7 +189,7 @@ static SetOpType gecode_SetOpType_from_term(YAP_Term X)
   if (X==gecode_SOT_DUNION) return SOT_DUNION;
   if (X==gecode_SOT_INTER) return SOT_INTER;
   if (X==gecode_SOT_MINUS) return SOT_MINUS;
-  cerr << "this should never happen" << endl; exit(1);
+  cerr << "this should never happen [SetOpType]" << endl; exit(1);
 }
 
 static YAP_Bool gecode_constraint_min_336(void)
@@ -1438,6 +1438,30 @@ static YAP_Bool gecode_constraint_rel_421(void)
   BoolVarArgs X2 = gecode_BoolVarArgs_from_term(space,YAP_ARG2);
   IntRelType X3 = gecode_IntRelType_from_term(YAP_ARG3);
   rel(*space,X2,X3);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_rel_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  SetOpType X3 = gecode_SetOpType_from_term(YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  SetRelType X5 = gecode_SetRelType_from_term(YAP_ARG5);
+  SetVar X6 = gecode_SetVar_from_term(space,YAP_ARG6);
+  rel(*space,X2,X3,X4,X5,X6);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_rel_fix2(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  SetOpType X3 = gecode_SetOpType_from_term(YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  SetRelType X5 = gecode_SetRelType_from_term(YAP_ARG5);
+  IntSet X6 = gecode_IntSet_from_term(YAP_ARG6);
+  rel(*space,X2,X3,X4,X5,X6);
   return TRUE;
 }
 
@@ -3689,6 +3713,26 @@ static YAP_Bool gecode_constraint_rel_429(void)
   return TRUE;
 }
 
+static YAP_Bool gecode_constraint_rel_429_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetOpType X2 = gecode_SetOpType_from_term(YAP_ARG2);
+  SetVarArgs X3 = gecode_SetVarArgs_from_term(space,YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  rel(*space,X2,X3,X4);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_rel_427_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetOpType X2 = gecode_SetOpType_from_term(YAP_ARG2);
+  IntVarArgs X3 = gecode_IntVarArgs_from_term(space,YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  rel(*space,X2,X3,X4);
+  return TRUE;
+}
+
 static YAP_Bool gecode_constraint_rel_443(void)
 {
   GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
@@ -3896,6 +3940,15 @@ static YAP_Bool gecode_constraint_rel_411(void)
   SetRelType X3 = gecode_SetRelType_from_term(YAP_ARG3);
   SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
   rel(*space,X2,X3,X4);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_cardinality_68(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  IntVar X3 = gecode_IntVar_from_term(space,YAP_ARG3);
+  cardinality(*space,X2,X3);
   return TRUE;
 }
 
