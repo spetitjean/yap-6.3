@@ -846,7 +846,16 @@ cardinality(X0,X1,X2,X3) :-
                          ;  throw(error(type_error(int(X3)),gecode_argument_error(cardinality(X0,X1,X2,X3),arg=4))))
                      ;  throw(error(type_error(int(X2)),gecode_argument_error(cardinality(X0,X1,X2,X3),arg=3))))
                  ;  throw(error(type_error('SetVarArgs'(X1)),gecode_argument_error(cardinality(X0,X1,X2,X3),arg=2)))))
-         ;  throw(error(type_error('Space'(X0)),gecode_argument_error(cardinality(X0,X1,X2,X3),arg=1)))).
+        ;  throw(error(type_error('Space'(X0)),gecode_argument_error(cardinality(X0,X1,X2,X3),arg=1)))).
+
+cardinality(X0,X1,X2) :-
+        (is_Space_or_Clause(X0,Y0)
+         -> (is_SetVar(X1,Y1)
+             -> (is_IntVar(X2,Y2)
+                 -> gecode_constraint_cardinality_68(Y0,Y1,Y2)
+                 ;  throw(gecode_argument_error(cardinality(X0,X1,X2),arg=3)))
+             ;  throw(gecode_argument_error(cardinality(X0,X1,X2),arg=2)))
+         ;  throw(gecode_argument_error(cardinality(X0,X1,X2),arg=1))).
 
 channel(X0,X1,X2) :-
         (is_Space_or_Clause(X0,Y0)
@@ -3106,8 +3115,20 @@ rel(X0,X1,X2,X3) :-
                                                                      -> gecode_constraint_rel_443(Y0,Y1,Y2,Y3)
                                                                      ;  throw(error(type_error(int(X3)),gecode_argument_error(rel(X0,X1,X2,X3),arg=4))))))))
                                                  ;  throw(error(type_error('IntRelType'(X2)),gecode_argument_error(rel(X0,X1,X2,X3),arg=3))))
-                                             ;  throw(error(type_error('IntVarArgs'(X1)),gecode_argument_error(rel(X0,X1,X2,X3),arg=2))))))))))))
-         ;  throw(error(type_error('Space'(X0)),gecode_argument_error(rel(X0,X1,X2,X3),arg=1)))).
+                                       %%      ;  throw(error(type_error('IntVarArgs'(X1)),gecode_argument_error(rel(X0,X1,X2,X3),arg=2))))))))))))
+						%%;  throw(error(type_error('Space'(X0)),gecode_argument_error(rel(X0,X1,X2,X3),arg=1)))).
+					    ;  (is_SetOpType(X1,Y1)
+					       -> (is_SetVarArgs(X2,Y2)
+						  -> (is_SetVar(X3,Y3)
+						     -> gecode_constraint_rel_429_fix(Y0,Y1,Y2,Y3)
+						     ;  throw(gecode_argument_error(rel(X0,X1,X2,X3),arg=4)))
+						  ;  (is_IntVarArgs(X2,Y2)
+						     -> (is_SetVar(X3,Y3)
+							-> gecode_constraint_rel_427_fix(Y0,Y1,Y2,Y3)
+							;  throw(gecode_argument_error(rel(X0,X1,X2,X3),arg=4)))
+						     ;  throw(gecode_argument_error(rel(X0,X1,X2,X3),arg=3))))
+                                               ;  throw(error(type_error('IntVar'(X1)),gecode_argument_error(rel(X0,X1,X2,X3),arg=2)))))))))))))
+             ;  throw(error(type_error('Space'(X0)),gecode_argument_error(rel(X0,X1,X2,X3),arg=1)))).
 
 rel(X0,X1,X2,X3,X4) :-
         (is_Space_or_Clause(X0,Y0)
@@ -3300,8 +3321,31 @@ rel(X0,X1,X2,X3,X4,X5) :-
                                  ;  throw(error(type_error('Reify'(X4)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=5))))
                              ;  throw(error(type_error(int(X3)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=4)))))
                      ;  throw(error(type_error('IntRelType'(X2)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=3))))
-                 ;  throw(error(type_error('IntVar'(X1)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=2)))))
-         ;  throw(error(type_error('Space'(X0)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=1)))).
+               %%   ;  throw(error(type_error('IntVar'(X1)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=2)))))
+		    %% ;  throw(error(type_error('Space'(X0)),gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=1)))).
+		%% Simon: I added this
+                ;  (is_SetVar(X1,Y1)
+                         -> (is_SetOpType(X2,Y2)
+                             -> (is_IntSet(X3,Y3)
+                                 -> (is_SetRelType(X4,Y4)
+                                     -> (is_IntSet(X5,Y5)
+                                         -> gecode_constraint_rel_fix4(Y0,Y1,Y2,Y3,Y4,Y5)
+                                         ;  (is_SetVar(X5,Y5)
+                                             -> gecode_constraint_rel_fix3(Y0,Y1,Y2,Y3,Y4,Y5)
+                                             ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=6))))
+                                     ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=5)))
+                                 ;  (is_SetVar(X3,Y3)
+                                     -> (is_SetRelType(X4,Y4)
+                                         -> (is_IntSet(X5,Y5)
+                                             -> gecode_constraint_rel_fix2(Y0,Y1,Y2,Y3,Y4,Y5)
+                                             ;  (is_SetVar(X5,Y5)
+                                                -> gecode_constraint_rel_fix(Y0,Y1,Y2,Y3,Y4,Y5)
+                                                 ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=6))))
+                                         ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=5)))
+                                     ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=4))))
+                             ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=3)))
+                         ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=2)))))
+         ;  throw(gecode_argument_error(rel(X0,X1,X2,X3,X4,X5),arg=1))).
 
 rel(X0,X1,X2) :-
         (is_Space_or_Clause(X0,Y0)

@@ -292,6 +292,7 @@ YAP_UserCPredicate("gecode_constraint_branch_84", gecode_constraint_branch_84, 7
 YAP_UserCPredicate("gecode_constraint_branch_90", gecode_constraint_branch_90, 7);
 YAP_UserCPredicate("gecode_constraint_cardinality_91", gecode_constraint_cardinality_91, 4);
 YAP_UserCPredicate("gecode_constraint_cardinality_92", gecode_constraint_cardinality_92, 4);
+ YAP_UserCPredicate("gecode_constraint_cardinality_68", gecode_constraint_cardinality_68, 3); 
 YAP_UserCPredicate("gecode_constraint_channel_93", gecode_constraint_channel_93, 3);
 YAP_UserCPredicate("gecode_constraint_channel_95", gecode_constraint_channel_95, 3);
 YAP_UserCPredicate("gecode_constraint_channel_96", gecode_constraint_channel_96, 3);
@@ -582,6 +583,12 @@ YAP_UserCPredicate("gecode_constraint_precede_379", gecode_constraint_precede_37
 YAP_UserCPredicate("gecode_constraint_precede_380", gecode_constraint_precede_380, 4);
 YAP_UserCPredicate("gecode_constraint_precede_381", gecode_constraint_precede_381, 4);
 YAP_UserCPredicate("gecode_constraint_precede_382", gecode_constraint_precede_382, 5);
+YAP_UserCPredicate("gecode_constraint_rel_fix", gecode_constraint_rel_fix, 6);
+YAP_UserCPredicate("gecode_constraint_rel_fix2", gecode_constraint_rel_fix2, 6);
+//YAP_UserCPredicate("gecode_constraint_rel_fix3", gecode_constraint_rel_fix3, 6);
+//YAP_UserCPredicate("gecode_constraint_rel_fix4", gecode_constraint_rel_fix4, 6);
+YAP_UserCPredicate("gecode_constraint_rel_429_fix", gecode_constraint_rel_429_fix, 4);
+YAP_UserCPredicate("gecode_constraint_rel_427_fix", gecode_constraint_rel_427_fix, 4);
 YAP_UserCPredicate("gecode_constraint_rel_383", gecode_constraint_rel_383, 4);
 YAP_UserCPredicate("gecode_constraint_rel_385", gecode_constraint_rel_385, 4);
 YAP_UserCPredicate("gecode_constraint_rel_391", gecode_constraint_rel_391, 4);

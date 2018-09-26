@@ -1164,6 +1164,15 @@ static YAP_Bool gecode_constraint_cardinality_92(void)
   return TRUE;
 }
 
+static YAP_Bool gecode_constraint_cardinality_68(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  IntVar X3 = gecode_IntVar_from_term(space,YAP_ARG3);
+  cardinality(*space,X2,X3);
+  return TRUE;
+}
+
 static YAP_Bool gecode_constraint_channel_93(void)
 {
   GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
@@ -4390,6 +4399,48 @@ static YAP_Bool gecode_constraint_precede_382(void)
   int X4 = gecode_int_from_term(YAP_ARG4);
   IntPropLevel X5 = gecode_IntPropLevel_from_term(YAP_ARG5);
   precede(*space,X2,X3,X4,X5);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_rel_429_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetOpType X2 = gecode_SetOpType_from_term(YAP_ARG2);
+  SetVarArgs X3 = gecode_SetVarArgs_from_term(space,YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  rel(*space,X2,X3,X4);
+  return TRUE;
+}
+static YAP_Bool gecode_constraint_rel_427_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetOpType X2 = gecode_SetOpType_from_term(YAP_ARG2);
+  IntVarArgs X3 = gecode_IntVarArgs_from_term(space,YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  rel(*space,X2,X3,X4);
+  return TRUE;
+}
+
+static YAP_Bool gecode_constraint_rel_fix(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  SetOpType X3 = gecode_SetOpType_from_term(YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  SetRelType X5 = gecode_SetRelType_from_term(YAP_ARG5);
+  SetVar X6 = gecode_SetVar_from_term(space,YAP_ARG6);
+  rel(*space,X2,X3,X4,X5,X6);
+  return TRUE;
+}
+static YAP_Bool gecode_constraint_rel_fix2(void)
+{
+  GenericSpace* space = gecode_Space_from_term(YAP_ARG1);
+  SetVar X2 = gecode_SetVar_from_term(space,YAP_ARG2);
+  SetOpType X3 = gecode_SetOpType_from_term(YAP_ARG3);
+  SetVar X4 = gecode_SetVar_from_term(space,YAP_ARG4);
+  SetRelType X5 = gecode_SetRelType_from_term(YAP_ARG5);
+  IntSet X6 = gecode_IntSet_from_term(YAP_ARG6);
+  rel(*space,X2,X3,X4,X5,X6);
   return TRUE;
 }
 
