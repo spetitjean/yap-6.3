@@ -709,6 +709,7 @@ DefStackSpace
 DefHeapSpace
 GECODE_EXTRALIBS
 GECODE_VERSION
+GECODE_MAJOR
 EGREP
 GREP
 CPP
@@ -4340,6 +4341,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 GECODE_VERSION=unknown-gecode-version
 GECODE_EXTRALIBS="-lgecodesupport -lgecodekernel -lgecodeint -lgecodeset -lgecodesearch"
+#GECODE_MAJOR="6"
 
 
 if test "$use_gecode" = yes; then
@@ -4363,6 +4365,7 @@ main ()
 
   FILE* out = fopen("conftest.out","w");
   fprintf(out,"%s\n",GECODE_VERSION);
+  //fprintf(out,"%s\n",GECODE_MAJOR);
   fclose(out);
   return 0;
 
@@ -4371,9 +4374,12 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_run "$LINENO"; then :
-  GECODE_VERSION=$(cat conftest.out)
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $GECODE_VERSION" >&5
-$as_echo "$GECODE_VERSION" >&6; }
+GECODE_VERSION=$(cat conftest.out)
+GECODE_MAJOR=`echo $GECODE_VERSION| sed 's/\(^.\).*/\1/'`
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $GECODE_VERSION" >&5
+    $as_echo "$GECODE_VERSION" >&6;
+  }
 else
   as_fn_error $? "cannot determine gecode version" "$LINENO" 5
 fi

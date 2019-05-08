@@ -99,7 +99,10 @@ AC_COMPILE_IFELSE([
   ])
 GECODE_VERSION=unknown-gecode-version
 GECODE_EXTRALIBS="-lgecodesupport -lgecodekernel -lgecodeint -lgecodeset -lgecodesearch"
+GECODE_MAJOR=`echo $GECODE_VERSION| sed 's/\(^.\).*/\1/'`
+
 AC_SUBST(GECODE_VERSION)
+AC_SUBST(GECODE_MAJOR)
 AC_SUBST(GECODE_EXTRALIBS)
 if test "$use_gecode" = yes; then
   AC_MSG_CHECKING([gecode version])
