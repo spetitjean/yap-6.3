@@ -16,11 +16,42 @@
 *									 *
 *************************************************************************/
 
+/**
+  * @file   pl/hacks.yap
+  * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+  * @date   Thu Oct 19 12:02:56 2017
+  *
+  * @brief  Access to the YAP engine internal data
+  */
+
 :- module('$hacks',
 	  [display_stack_info/4,
 	   display_stack_info/6,
-	   display_pc/3,
+	   display_pc/4,
+       fully_strip_module/3,
 	   code_location/3]).
+
+/**
+ * @namespace yap_hacks
+ *
+ * @defgroup Hacks Low-level access
+ * @ingroup builtins
+ * @{
+ *
+**/
+
+
+/** yap_hacks:context_variables(-NamedVariables)
+  Access variable names.
+
+  Unify NamedVariables with a list of terms _Name_=_V_
+  giving the names of the variables occurring in the last term read.
+  Notice that variable names option must have been on.
+*/
+
+yap_hacks:context_variables(NamedVariables) :-
+	'$context_variables'(NamedVariables).
+
 
 prolog:'$stack_dump' :-
 	yap_hacks:current_choicepoints(CPs),
@@ -35,17 +66,17 @@ prolog:'$stack_dump' :-
 run_formats([], _).
 run_formats([Com-Args|StackInfo], Stream) :-
 	format(Stream, Com, Args),
-	run_formats(StackInfo, user_error).
+	run_formats(StackInfo, Stream).
 
 display_stack_info(CPs,Envs,Lim,PC) :-
-	display_stack_info(CPs,Envs,Lim,CP,Lines,[]),
+	display_stack_info(CPs,Envs,Lim,PC,Lines,[]),
 	flush_output(user_output),
 	flush_output(user_error),
 	print_message_lines(user_error, '', Lines).
 
 code_location(Info,Where,Location) :-
 	integer(Where) , !,
-	'$pred_for_code'(Where,Name,Arity,Mod,Clause),
+	pred_for_code(Where,Name,Arity,Mod,Clause),
 	construct_code(Clause,Name,Arity,Mod,Info,Location).
 code_location(Info,_,Info).
 
@@ -62,21 +93,29 @@ construct_code(Cl,Name,Arity,Mod,Where,Location) :-
 	atom_concat([Where,' at ',Mod,':',Name,'/',ArityAtom,' (clause ',ClAtom,')'],Location).
 
 '$prepare_loc'(Info,Where,Location) :- integer(Where), !,
-	'$pred_for_code'(Where,Name,Arity,Mod,Clause),
+	pred_for_code(Where,Name,Arity,Mod,Clause),
 	'$construct_code'(Clause,Name,Arity,Mod,Info,Location).
 '$prepare_loc'(Info,_,Info).
 
-display_pc(PC) -->
+display_pc(PC, PP, Source) -->
 	{ integer(PC) },
-	{ '$pred_for_code'(PC,Name,Arity,Mod,Clause) },
-	pc_code(Clause,Name,Arity,Mod).
+	{ pred_for_code(PC,Name,Arity,Mod,Clause) },
+	pc_code(Clause, PP, Name, Arity, Mod, Source).
 
-pc_code(-1,Name,Arity,Mod) --> !,
-	[ ' indexing code of ~a:~q/~d' - [Mod,Name,Arity] ].
-pc_code(Cl,Name,Arity,Mod) -->
+pc_code(0,_PP,_Name,_Arity,_Mod, 'top level or system code' - []) --> !.
+pc_code(-1,_PP,Name,Arity,Mod, '~a:~q/~d' - [Mod,Name,Arity]) --> !,
+	{ functor(S, Name,Arity),
+	nth_clause(Mod:S,1,Ref),
+	clause_property(Ref, file(File)),
+	clause_property(Ref, line_count(Line)) },
+	[ '~a:~d:0, ' - [File,Line] ].
+pc_code(Cl,Name,Arity,Mod, 'clause ~d for ~a:~q/~d'-[Cl,Mod,Name,Arity]) -->
 	{ Cl > 0 },
-	[ ' clause ~d of ~a:~q/~d' - [Cl,Mod,Name,Arity] ].
-
+	{ functor(S, Name,Arity),
+	nth_clause(Mod:S,Cl,Ref),
+	clause_property(Ref, file(File)),
+	clause_property(Ref, line_count(Line)) },
+	[ '~a:~d:0, ' - [File,Line] ].
 
 display_stack_info(_,_,0,_) --> !.
 display_stack_info([],[],_,_) --> [].
@@ -114,7 +153,7 @@ show_cp(CP, Continuation) -->
 	  { scratch_goal(Name,Arity,Mod,Caller) },
 	  [ '0x~16r~t*~16+ ~d~16+ ~q ~n'-
 		[Addr, ClNo, Caller] ]
-	  
+
 	    ;
 	  [ '0x~16r~t *~16+~a ~d~16+ ~q:' -
 		[Addr, Continuation, ClNo, Mod]]
@@ -126,6 +165,7 @@ show_cp(CP, Continuation) -->
 show_env(Env,Cont,NCont) -->
 	{
 	 yap_hacks:continuation(Env, Addr, NCont, _),
+	format('0x~16r 0x~16r~n',[Env,NCont]),
 	 yap_hacks:cp_to_predicate(Cont, Mod, Name, Arity, ClId)
 	},
         [ '0x~16r~t  ~16+ ~d~16+ ~q:' -
@@ -135,7 +175,7 @@ show_env(Env,Cont,NCont) -->
 	['~@.~n' - write_term(G,Opts)].
 
 clean_goal(G,Mod,NG) :-
-	beautify_hidden_goal(G,Mod,[NG],[]), !.
+	fail, beautify_hidden_goal(G,Mod,[NG],[]), !.
 clean_goal(G,_,G).
 
 scratch_goal(N,0,Mod,Mod:N) :-
@@ -144,7 +184,7 @@ scratch_goal(N,A,Mod,NG) :-
 	list_of_qmarks(A,L),
 	G=..[N|L],
 	(
-	  beautify_hidden_goal(G,Mod,[NG],[])
+	  fail,beautify_hidden_goal(G,Mod,[NG],[])
 	;
 	  G = NG
 	),
@@ -155,8 +195,11 @@ list_of_qmarks(I,[?|L]) :-
 	I1 is I-1,
 	list_of_qmarks(I1,L).
 
+fully_strip_module( T, M, TF) :-
+    '$yap_strip_module'( T, M, TF).
 
-beautify_hidden_goal('$yes_no'(G,Query), prolog) -->
+
+beautify_hidden_goal('$yes_no'(G,_Query), prolog) -->
 	!,
 	{ Call =.. [(?), G] },
 	[Call].
@@ -179,34 +222,30 @@ beautify_hidden_goal('$continue_with_command'(top,V,P,G,_),prolog) -->
 	['Query'(G,V,P)].
 beautify_hidden_goal('$continue_with_command'(Command,V,P,G,Source),prolog) -->
 	['TopLevel'(Command,G,V,P,Source)].
-beautify_hidden_goal('$spycall'(G,M,InControl,Redo),prolog) -->
-	['DebuggerCall'(M:G, InControl, Redo)].
-beautify_hidden_goal('$do_spy'(Goal, Mod, CP, InControl),prolog) -->
-	['DebuggerCall'(Mod:Goal, InControl)].
 beautify_hidden_goal('$system_catch'(G,Mod,Exc,Handler),prolog) -->
 	[catch(Mod:G, Exc, Handler)].
 beautify_hidden_goal('$catch'(G,Exc,Handler),prolog) -->
 	[catch(G, Exc, Handler)].
-beautify_hidden_goal('$execute_command'(Query,V,P,Option,Source),prolog) -->
-	[toplevel_query(Query, V, P, Option, Source)].
-beautify_hidden_goal('$process_directive'(Gs,_,Mod),prolog) -->
-	[(:- Mod:Gs)].
+beautify_hidden_goal('$execute_command'(Query,M,V,P,Option,Source),prolog) -->
+	[toplevel_query(M:Query, V, P, Option, Source)].
+beautify_hidden_goal('$process_directive'(Gs,_Mode,_VL),prolog) -->
+	[(:- Gs)].
 beautify_hidden_goal('$loop'(Stream,Option),prolog) -->
 	[execute_load_file(Stream, consult=Option)].
-beautify_hidden_goal('$load_files'(Files,Opts,?),prolog) -->
-	[load_files(Files,Opts)].
-beautify_hidden_goal('$load_files'(_,_,Name),prolog) -->
+beautify_hidden_goal('$load_files'(Files,M,Opts,?),prolog) -->
+	[load_files(M:Files,Opts)].
+beautify_hidden_goal('$load_files'(_,_,_,Name),prolog) -->
 	[Name].
 beautify_hidden_goal('$reconsult'(Files,Mod),prolog) -->
 	[reconsult(Mod:Files)].
-beautify_hidden_goal('$undefp'([M|G]),prolog) -->
+beautify_hidden_goal('$undefp'([Mod|G]),prolog) -->
 	['CallUndefined'(Mod:G)].
 beautify_hidden_goal('$undefp'(?),prolog) -->
 	['CallUndefined'(?:?)].
 beautify_hidden_goal(repeat,prolog) -->
 	[repeat].
 beautify_hidden_goal('$recorded_with_key'(A,B,C),prolog) -->
-	recorded(A,B,C).
+	[recorded(A,B,C)].
 beautify_hidden_goal('$findall_with_common_vars'(Templ,Gen,Answ),prolog) -->
 	[findall(Templ,Gen,Answ)].
 beautify_hidden_goal('$bagof'(Templ,Gen,Answ),prolog) -->
@@ -217,16 +256,13 @@ beautify_hidden_goal('$findall'(T,G,S,A),prolog) -->
 	[findall(T,G,S,A)].
 beautify_hidden_goal('$listing'(G,M,_Stream),prolog) -->
 	[listing(M:G)].
-beautify_hidden_goal('$call'(G,CP,?,M),prolog) -->
+beautify_hidden_goal('$call'(G,_CP,?,M),prolog) -->
 	[call(M:G)].
-beautify_hidden_goal('$call'(G,CP,G0,M),prolog) -->
+beautify_hidden_goal('$call'(_G,_CP,G0,M),prolog) -->
 	[call(M:G0)].
-beautify_hidden_goal('$current_predicate'(M,Na,Ar),prolog) -->
-	[current_predicate(M,Na/Ar)].
-beautify_hidden_goal('$current_predicate_for_atom'(Name,M,Ar),prolog) -->
-	{ functor(P, Name, Ar) },
-	[current_predicate(Name,M:P)].
+beautify_hidden_goal('$current_predicate'(Na,M,S,_),prolog) -->
+	[current_predicate(Na,M:S)].
 beautify_hidden_goal('$list_clauses'(Stream,M,Pred),prolog) -->
-	[listing(M:Pred)].
+	[listing(Stream,M:Pred)].
 
-
+%% @}

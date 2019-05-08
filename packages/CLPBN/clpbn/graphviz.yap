@@ -1,8 +1,9 @@
-:- module(clpbn_gviz, [clpbn2gviz/4]).
 
-clpbn2gviz(Stream, Name, Network, Output) :-
-	format(Stream, 'digraph ~w {
-	graph [ rankdir="LR" ];~n',[Name]),
+:- module(clpbn_gviz,
+		[clpbn2gviz/4]).
+
+clpbn2gviz(Stream, Name, Network, Node, Edge, Output) :-
+	format(Stream, 'digraph ~w { ~n	graph [ rankdir="LR" ];~n',[Name]),
 	output_vars(Stream, Network),
 	info_ouput(Stream, Output),
 	format(Stream, '}~n',[]).
@@ -48,7 +49,7 @@ output_parents1(Stream,[V|L]) :-
 	put_code(Stream, 0' ), %'
 	output_parents1(Stream,L).
 
-output_v(V,Stream) :- 
+output_v(V,Stream) :-
 	clpbn:get_atts(V,[key(Key)]),
 	output_key(Stream,Key).
 

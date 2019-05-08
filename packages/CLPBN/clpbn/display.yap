@@ -1,14 +1,19 @@
-:- module(clpbn_display, [
-	clpbn_bind_vals/3]).
+
+:- module(clpbn_display,
+		[clpbn_bind_vals/3]).
 
 :- use_module(library(lists),
-	      [
-	       member/2
-	      ]).
+		[member/2]).
 
-:- use_module(library(clpbn/dists), [get_dist_domain/2]).
+:- use_module(library(clpbn/dists),
+		[get_dist_domain/2]).
 
-:- use_module(library(clpbn), [use_parfactors/1]).
+:- use_module(library(clpbn),
+		[use_parfactors/1]).
+
+:- use_module(library(maplist)).
+
+:- use_module(library(atts)).
 
 :- attribute posterior/4.
 
@@ -21,14 +26,41 @@ attribute_goal(V, G) :-
 	get_atts(V, [posterior(Vs,Vals,Ps,AllDiffs)]),
 	massage_out(Vs, Vals, Ps, G, AllDiffs, V).
 
-massage_out([], Ev, _, V=Ev, _, V) :- !.
-massage_out(Vs, [D], [P], p(CEqs)=P, AllDiffs, _) :- !,
+massage_out([], _Ev, _, Out, _, _V) :- !,
+	out_query_evidence(Out).
+massage_out(Vs, [D], [P], O, AllDiffs, _) :- !,
 	gen_eqs(Vs,D,Eqs),
-	add_alldiffs(AllDiffs,Eqs,CEqs).
+	add_alldiffs(AllDiffs,Eqs,CEqs),
+	out_query_evidence(Out),
+	( Out = true -> O = (p(CEqs)=P) ; O = (p(CEqs)=P, Out) ).
 massage_out(Vs, [D|Ds], [P|Ps], (p(CEqs)=P,G) , AllDiffs, V) :-
 	gen_eqs(Vs,D,Eqs),
 	add_alldiffs(AllDiffs,Eqs,CEqs),
 	massage_out(Vs, Ds, Ps, G, AllDiffs, V).
+
+out_query_evidence(Out) :-
+	catch(b_getval(clpbn_query_variables, f(QVs,Evidence)), _, fail), !,
+	foldl( process_qv(Evidence), QVs, [], OL),
+	list_to_conj(OL, Out).
+out_query_evidence(true).
+
+process_qv(Evidence, V, L0, LF) :-
+	clpbn:get_atts(V,[key(K)]),
+	member(K=Ev, Evidence), !,
+	pfl:skolem(K,Dom),
+	foldl2( add_goal(V,Ev), Dom, 0, _, L0, LF ).
+process_qv(_Ev, _V, L, L).
+
+list_to_conj([], true).
+list_to_conj([O], O) :- !.
+list_to_conj([O|OL], (O,Out)) :-
+	list_to_conj(OL, Out).
+
+add_goal(V, Ev, DVal, Ev, I, L, [(p(V=DVal) = 1.0)|L]) :- !,
+	I is Ev+1.
+add_goal(V, _Ev, DVal, I0, I, L, [(p(V=DVal) = 0.0)|L]) :- !,
+	I is I0+1.
+
 
 gen_eqs([V], [D], (V=D)) :- !.
 gen_eqs([V], D, (V=D)) :- !.
@@ -46,7 +78,7 @@ clpbn_bind_vals([Vs|MoreVs],[Ps|MorePs],AllDiffs) :-
 
 clpbn_bind_vals2([],_,_) :- !.
 % simple case, we want a distribution on a single variable.
-clpbn_bind_vals2([V],Ps,AllDiffs) :- 
+clpbn_bind_vals2([V],Ps,AllDiffs) :-
 	use_parfactors(on), !,
 	clpbn:get_atts(V, [key(K)]),
 	pfl:skolem(K,Vals),

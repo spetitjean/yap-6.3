@@ -261,10 +261,9 @@
 :- style_check(all).
 :- yap_flag(unknown,error).
 
-
 % this is a test to determine whether YAP provides the needed trie library
 :- initialization(
-        (       predicate_property(trie_disable_hash, imported_from(tries)) ->
+        (       predicate_property(trie_disable_hash, imported_from(M)) ->
                 trie_disable_hash
         ;       print_message(warning,'The predicate tries:trie_disable_hash/0 does not exist. Please update trie library.')
         )
@@ -1565,7 +1564,7 @@ combine_ancestors(Ancestors, AddAncestors, AllAncestors):-
 my_trie_print(T):-
   trie_traverse(T, R),
   trie_get_entry(R, E),
-  writeln(E),
+  format('~w~n', [E]),
   fail.
 my_trie_print(_T).
 
@@ -1845,7 +1844,7 @@ ptree_decomposition(Trie, BDDFileName, VarFileName) :-
   tmpnam(TmpFile1),
   nb_setval(next_inter_step, 1),
   variables_in_dbtrie(Trie, T),
-  
+
   length(T, VarCnt),
   tell(VarFileName),
   bdd_vars_script(T),

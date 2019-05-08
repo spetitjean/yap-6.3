@@ -1,40 +1,45 @@
-#ifndef HORUS_PROBFORMULA_H
-#define HORUS_PROBFORMULA_H
+#ifndef YAP_PACKAGES_CLPBN_HORUS_PROBFORMULA_H_
+#define YAP_PACKAGES_CLPBN_HORUS_PROBFORMULA_H_
 
+#include <vector>
+#include <ostream>
 #include <limits>
 
 #include "ConstraintTree.h"
 #include "LiftedUtils.h"
 #include "Horus.h"
 
+
+namespace Horus {
+
 typedef unsigned long PrvGroup;
 
-class ProbFormula
-{
+class ProbFormula {
   public:
-    ProbFormula (Symbol f, const LogVars& lvs, unsigned range) 
+    ProbFormula (Symbol f, const LogVars& lvs, unsigned range)
         : functor_(f), logVars_(lvs), range_(range),
-          countedLogVar_(), group_(numeric_limits<PrvGroup>::max()) { }
+          countedLogVar_(), group_(std::numeric_limits<PrvGroup>::max()) { }
 
-    ProbFormula (Symbol f, unsigned r) 
-        : functor_(f), range_(r), group_(numeric_limits<PrvGroup>::max()) { }
+    ProbFormula (Symbol f, unsigned r)
+        : functor_(f), range_(r),
+          group_(std::numeric_limits<PrvGroup>::max()) { }
 
-    Symbol functor (void) const { return functor_; }
+    Symbol functor() const { return functor_; }
 
-    unsigned arity (void) const { return logVars_.size(); }
+    unsigned arity() const { return logVars_.size(); }
 
-    unsigned range (void) const { return range_; }
+    unsigned range() const { return range_; }
 
-    LogVars& logVars (void) { return logVars_; }
+    LogVars& logVars() { return logVars_; }
 
-    const LogVars& logVars (void) const { return logVars_; }
+    const LogVars& logVars() const { return logVars_; }
 
-    LogVarSet logVarSet (void) const { return LogVarSet (logVars_); }
-  
-    PrvGroup group (void) const { return group_; }
+    LogVarSet logVarSet() const { return LogVarSet (logVars_); }
+
+    PrvGroup group() const { return group_; }
 
     void setGroup (PrvGroup g) { group_ = g; }
-   
+
     bool sameSkeletonAs (const ProbFormula&) const;
 
     bool contains (LogVar) const;
@@ -43,25 +48,28 @@ class ProbFormula
 
     size_t indexOf (LogVar) const;
 
-    bool isAtom (void) const;
+    bool isAtom() const;
 
-    bool isCounting (void) const;
+    bool isCounting() const;
 
-    LogVar countedLogVar (void) const;
-    
+    LogVar countedLogVar() const;
+
     void setCountedLogVar (LogVar);
 
-    void clearCountedLogVar (void);
- 
+    void clearCountedLogVar();
+
     void rename (LogVar, LogVar);
-    
-    static PrvGroup getNewGroup (void);
 
-    friend std::ostream& operator<< (ostream &os, const ProbFormula& f);
+    static PrvGroup getNewGroup();
 
-    friend bool operator== (const ProbFormula& f1, const ProbFormula& f2);
+  private:
 
-  private: 
+    friend bool operator== (
+        const ProbFormula& f1, const ProbFormula& f2);
+
+    friend std::ostream& operator<< (
+        std::ostream&, const ProbFormula&);
+
     Symbol     functor_;
     LogVars    logVars_;
     unsigned   range_;
@@ -70,45 +78,50 @@ class ProbFormula
     static PrvGroup freeGroup_;
 };
 
-typedef vector<ProbFormula> ProbFormulas;
+typedef std::vector<ProbFormula> ProbFormulas;
 
 
-class ObservedFormula
+inline bool
+operator== (const ProbFormula& f1, const ProbFormula& f2)
 {
+  return f1.group_ == f2.group_ && f1.logVars_ == f2.logVars_;
+}
+
+
+
+class ObservedFormula {
   public:
-    ObservedFormula (Symbol f, unsigned a, unsigned ev) 
-        : functor_(f), arity_(a), evidence_(ev), constr_(a) { }
+    ObservedFormula (Symbol f, unsigned a, unsigned ev);
 
-    ObservedFormula (Symbol f, unsigned ev, const Tuple& tuple) 
-        : functor_(f), arity_(tuple.size()), evidence_(ev), constr_(arity_)
-    {
-      constr_.addTuple (tuple);
-    }
+    ObservedFormula (Symbol f, unsigned ev, const Tuple& tuple);
 
-    Symbol functor (void) const { return functor_; }
+    Symbol functor() const { return functor_; }
 
-    unsigned arity (void) const { return arity_; }
+    unsigned arity() const { return arity_; }
 
-    unsigned evidence (void) const  { return evidence_; }
+    unsigned evidence() const  { return evidence_; }
 
     void setEvidence (unsigned ev) { evidence_ = ev; }
 
-    ConstraintTree& constr (void) { return constr_; }
+    ConstraintTree& constr() { return constr_; }
 
-    bool isAtom (void) const { return arity_ == 0; }
+    bool isAtom() const { return arity_ == 0; }
 
     void addTuple (const Tuple& tuple) { constr_.addTuple (tuple); }
 
-    friend ostream& operator<< (ostream &os, const ObservedFormula& of);
-
   private:
+    friend std::ostream& operator<< (
+        std::ostream&, const ObservedFormula&);
+
     Symbol          functor_;
     unsigned        arity_;
     unsigned        evidence_;
     ConstraintTree  constr_;
 };
 
-typedef vector<ObservedFormula> ObservedFormulas;
+typedef std::vector<ObservedFormula> ObservedFormulas;
 
-#endif // HORUS_PROBFORMULA_H
+}  // namespace Horus
+
+#endif  // YAP_PACKAGES_CLPBN_HORUS_PROBFORMULA_H_
 

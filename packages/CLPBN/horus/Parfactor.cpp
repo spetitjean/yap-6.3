@@ -1,3 +1,7 @@
+#include <cassert>
+
+#include <iostream>
+#include <sstream>
 
 #include "Parfactor.h"
 #include "Histogram.h"
@@ -6,9 +10,11 @@
 #include "Horus.h"
 
 
+namespace Horus {
+
 Parfactor::Parfactor (
     const ProbFormulas& formulas,
-    const Params& params, 
+    const Params& params,
     const Tuples& tuples,
     unsigned distId)
 {
@@ -26,7 +32,24 @@ Parfactor::Parfactor (
       }
     }
   }
+  LogVar newLv = logVars.size();
   constr_ = new ConstraintTree (logVars, tuples);
+  // Change formulas like f(X,X), X in {(p1),(p2),...}
+  // to be like f(X,Y), (X,Y) in {(p1,p1),(p2,p2),...}.
+  // This will simplify shattering on the constraint tree.
+  for (size_t i = 0; i < args_.size(); i++) {
+    LogVarSet lvSet;
+    LogVars& lvs = args_[i].logVars();
+    for (size_t j = 0; j < lvs.size(); j++) {
+      if (lvSet.contains (lvs[j]) == false) {
+        lvSet |= lvs[j];
+      } else {
+        constr_->cloneLogVar (lvs[j], newLv);
+        lvs[j] = newLv;
+        ++ newLv;
+      }
+    }
+  }
   assert (params_.size() == Util::sizeExpected (ranges_));
 }
 
@@ -68,7 +91,7 @@ Parfactor::Parfactor (const Parfactor& g)
 
 
 
-Parfactor::~Parfactor (void)
+Parfactor::~Parfactor()
 {
   delete constr_;
 }
@@ -76,7 +99,7 @@ Parfactor::~Parfactor (void)
 
 
 LogVarSet
-Parfactor::countedLogVars (void) const
+Parfactor::countedLogVars() const
 {
   LogVarSet set;
   for (size_t i = 0; i < args_.size(); i++) {
@@ -90,7 +113,7 @@ Parfactor::countedLogVars (void) const
 
 
 LogVarSet
-Parfactor::uncountedLogVars (void) const
+Parfactor::uncountedLogVars() const
 {
   return constr_->logVarSet() - countedLogVars();
 }
@@ -98,7 +121,7 @@ Parfactor::uncountedLogVars (void) const
 
 
 LogVarSet
-Parfactor::elimLogVars (void) const
+Parfactor::elimLogVars() const
 {
   LogVarSet requiredToElim = constr_->logVarSet();
   requiredToElim -= constr_->singletons();
@@ -133,7 +156,7 @@ Parfactor::sumOutIndex (size_t fIdx)
     unsigned N = constr_->getConditionalCount (
         args_[fIdx].countedLogVar());
     unsigned R = args_[fIdx].range();
-    vector<double> numAssigns = HistogramSet::getNumAssigns (N, R);
+    std::vector<double> numAssigns = HistogramSet::getNumAssigns (N, R);
     Indexer indexer (ranges_, fIdx);
     while (indexer.valid()) {
       if (Globals::logDomain) {
@@ -155,7 +178,7 @@ Parfactor::sumOutIndex (size_t fIdx)
   }
   constr_->remove (excl);
 
-  TFactor<ProbFormula>::sumOutIndex (fIdx);
+  GenericFactor<ProbFormula>::sumOutIndex (fIdx);
   LogAware::pow (params_, exp);
 }
 
@@ -165,7 +188,7 @@ void
 Parfactor::multiply (Parfactor& g)
 {
   alignAndExponentiate (this, &g);
-  TFactor<ProbFormula>::multiply (g);
+  GenericFactor<ProbFormula>::multiply (g);
   constr_->join (g.constr(), true);
   simplifyGrounds();
   assert (constr_->isCartesianProduct (countedLogVars()));
@@ -204,14 +227,14 @@ Parfactor::countConvert (LogVar X)
   assert (constr_->isCountNormalized (X));
   assert (constr_->getConditionalCount (X) > 1);
   assert (canCountConvert (X));
- 
+
   unsigned N = constr_->getConditionalCount (X);
   unsigned R = ranges_[fIdx];
   unsigned H = HistogramSet::nrHistograms (N, R);
-  vector<Histogram> histograms = HistogramSet::getHistograms (N, R);
+  std::vector<Histogram> histograms = HistogramSet::getHistograms (N, R);
 
   Indexer indexer (ranges_);
-  vector<Params> sumout (params_.size() / R);
+  std::vector<Params> sumout (params_.size() / R);
   unsigned count = 0;
   while (indexer.valid()) {
     sumout[count].reserve (R);
@@ -263,11 +286,11 @@ Parfactor::expand (LogVar X, LogVar X_new1, LogVar X_new2)
   unsigned H1 = HistogramSet::nrHistograms (N1, R);
   unsigned H2 = HistogramSet::nrHistograms (N2, R);
 
-  vector<Histogram> histograms  = HistogramSet::getHistograms (N,  R);
-  vector<Histogram> histograms1 = HistogramSet::getHistograms (N1, R);
-  vector<Histogram> histograms2 = HistogramSet::getHistograms (N2, R);
+  std::vector<Histogram> histograms  = HistogramSet::getHistograms (N,  R);
+  std::vector<Histogram> histograms1 = HistogramSet::getHistograms (N1, R);
+  std::vector<Histogram> histograms2 = HistogramSet::getHistograms (N2, R);
 
-  vector<unsigned> sumIndexes;
+  std::vector<unsigned> sumIndexes;
   sumIndexes.reserve (H1 * H2);
   for (unsigned i = 0; i < H1; i++) {
     for (unsigned j = 0; j < H2; j++) {
@@ -303,23 +326,23 @@ Parfactor::fullExpand (LogVar X)
 
   unsigned N = constr_->getConditionalCount (X);
   unsigned R = args_[fIdx].range();
-  vector<Histogram> originHists = HistogramSet::getHistograms (N, R);
-  vector<Histogram> expandHists = HistogramSet::getHistograms (1, R);
+  std::vector<Histogram> originHists = HistogramSet::getHistograms (N, R);
+  std::vector<Histogram> expandHists = HistogramSet::getHistograms (1, R);
   assert (ranges_[fIdx] == originHists.size());
-  vector<unsigned> sumIndexes;
+  std::vector<unsigned> sumIndexes;
   sumIndexes.reserve (N * R);
 
   Ranges expandRanges (N, R);
   Indexer indexer (expandRanges);
   while (indexer.valid()) {
-    vector<unsigned> hist (R, 0);
+    std::vector<unsigned> hist (R, 0);
     for (unsigned n = 0; n < N; n++) {
       hist += expandHists[indexer[n]];
     }
     sumIndexes.push_back (HistogramSet::findIndex (hist, originHists));
     ++ indexer;
   }
-  
+
   expandPotential (fIdx, std::pow (R, N), sumIndexes);
 
   ProbFormula f = args_[fIdx];
@@ -343,7 +366,7 @@ Parfactor::reorderAccordingGrounds (const Grounds& grounds)
   ProbFormulas newFormulas;
   for (size_t i = 0; i < grounds.size(); i++) {
     for (size_t j = 0; j < args_.size(); j++) {
-      if (grounds[i].functor() == args_[j].functor() && 
+      if (grounds[i].functor() == args_[j].functor() &&
           grounds[i].arity()   == args_[j].arity()) {
         constr_->moveToTop (args_[j].logVars());
         if (constr_->containsTuple (grounds[i].args())) {
@@ -368,14 +391,14 @@ Parfactor::absorveEvidence (const ProbFormula& formula, unsigned evidence)
   assert (args_[fIdx].isCounting() == false);
   assert (constr_->isCountNormalized (excl));
   LogAware::pow (params_, constr_->getConditionalCount (excl));
-  TFactor<ProbFormula>::absorveEvidence (formula, evidence);
+  GenericFactor<ProbFormula>::absorveEvidence (formula, evidence);
   constr_->remove (excl);
 }
 
 
 
 void
-Parfactor::setNewGroups (void)
+Parfactor::setNewGroups()
 {
   for (size_t i = 0; i < args_.size(); i++) {
     args_[i].setGroup (ProbFormula::getNewGroup());
@@ -407,7 +430,7 @@ Parfactor::indexOfGround (const Ground& ground) const
 {
   size_t idx = args_.size();
   for (size_t i = 0; i < args_.size(); i++) {
-    if (args_[i].functor() == ground.functor() && 
+    if (args_[i].functor() == ground.functor() &&
         args_[i].arity()   == ground.arity()) {
       constr_->moveToTop (args_[i].logVars());
       if (constr_->containsTuple (ground.args())) {
@@ -426,7 +449,7 @@ Parfactor::findGroup (const Ground& ground) const
 {
   size_t idx = indexOfGround (ground);
   return idx == args_.size()
-         ? numeric_limits<PrvGroup>::max()
+         ? std::numeric_limits<PrvGroup>::max()
          : args_[idx].group();
 }
 
@@ -435,7 +458,7 @@ Parfactor::findGroup (const Ground& ground) const
 bool
 Parfactor::containsGround (const Ground& ground) const
 {
-  return findGroup (ground) != numeric_limits<PrvGroup>::max();
+  return findGroup (ground) != std::numeric_limits<PrvGroup>::max();
 }
 
 
@@ -478,7 +501,7 @@ Parfactor::containsGroup (PrvGroup group) const
 
 
 bool
-Parfactor::containsGroups (vector<PrvGroup> groups) const
+Parfactor::containsGroups (std::vector<PrvGroup> groups) const
 {
   for (size_t i = 0; i < groups.size(); i++) {
     if (containsGroup (groups[i]) == false) {
@@ -549,10 +572,10 @@ Parfactor::nrFormulasWithGroup (PrvGroup group) const
 
 
 
-vector<PrvGroup>
-Parfactor::getAllGroups (void) const
+std::vector<PrvGroup>
+Parfactor::getAllGroups() const
 {
-  vector<PrvGroup> groups (args_.size());
+  std::vector<PrvGroup> groups (args_.size());
   for (size_t i = 0; i < args_.size(); i++) {
     groups[i] = args_[i].group();
   }
@@ -561,10 +584,10 @@ Parfactor::getAllGroups (void) const
 
 
 
-string
-Parfactor::getLabel (void) const
+std::string
+Parfactor::getLabel() const
 {
-  stringstream ss;
+  std::stringstream ss;
   ss << "phi(" ;
   for (size_t i = 0; i < args_.size(); i++) {
     if (i != 0) ss << "," ;
@@ -582,6 +605,8 @@ Parfactor::getLabel (void) const
 void
 Parfactor::print (bool printParams) const
 {
+  using std::cout;
+  using std::endl;
   cout << "Formulas:  " ;
   for (size_t i = 0; i < args_.size(); i++) {
     if (i != 0) cout << ", " ;
@@ -589,9 +614,10 @@ Parfactor::print (bool printParams) const
   }
   cout << endl;
   if (args_[0].group() != Util::maxUnsigned()) {
-    vector<string> groups;
+    std::vector<std::string> groups;
     for (size_t i = 0; i < args_.size(); i++) {
-      groups.push_back (string ("g") + Util::toString (args_[i].group()));
+      groups.push_back (std::string ("g")
+          + Util::toString (args_[i].group()));
     }
     cout << "Groups:    " << groups  << endl;
   }
@@ -617,12 +643,12 @@ Parfactor::print (bool printParams) const
 
 
 void
-Parfactor::printParameters (void) const
+Parfactor::printParameters() const
 {
-  vector<string> jointStrings;
+  std::vector<std::string> jointStrings;
   Indexer indexer (ranges_);
   while (indexer.valid()) {
-    stringstream ss;
+    std::stringstream ss;
     for (size_t i = 0; i < args_.size(); i++) {
       if (i != 0) ss << ", " ;
       if (args_[i].isCounting()) {
@@ -643,22 +669,22 @@ Parfactor::printParameters (void) const
     ++ indexer;
   }
   for (size_t i = 0; i < params_.size(); i++) {
-    cout << "f(" << jointStrings[i] << ")" ;
-    cout << " = " << params_[i] << endl;
+    std::cout << "f(" << jointStrings[i] << ")" ;
+    std::cout << " = " << params_[i] << std::endl;
   }
 }
 
 
 
 void
-Parfactor::printProjections (void) const
+Parfactor::printProjections() const
 {
   ConstraintTree copy (*constr_);
 
   LogVarSet Xs = copy.logVarSet();
   for (size_t i = 0; i < Xs.size(); i++) {
-    cout << "-> projection of " << Xs[i] << ": " ;
-    cout << copy.tupleSet ({Xs[i]}) << endl;
+    std::cout << "-> projection of " << Xs[i] << ": " ;
+    std::cout << copy.tupleSet ({Xs[i]}) << std::endl;
   }
 }
 
@@ -668,13 +694,13 @@ void
 Parfactor::expandPotential (
     size_t fIdx,
     unsigned newRange,
-    const vector<unsigned>& sumIndexes)
+    const std::vector<unsigned>& sumIndexes)
 {
   ullong newSize = (params_.size() / ranges_[fIdx]) * newRange;
   if (newSize > params_.max_size()) {
-    cerr << "error: an overflow occurred when performing expansion" ;
-    cerr << endl;
-    abort();
+    std::cerr << "Error: an overflow occurred when performing expansion." ;
+    std::cerr << std::endl;
+    exit (EXIT_FAILURE);
   }
 
   Params backup = params_;
@@ -682,7 +708,7 @@ Parfactor::expandPotential (
   params_.reserve (newSize);
 
   size_t prod = 1;
-  vector<size_t> offsets (ranges_.size());
+  std::vector<size_t> offsets (ranges_.size());
   for (size_t i = ranges_.size(); i-- > 0; ) {
     offsets[i] = prod;
     prod *= ranges_[i];
@@ -690,7 +716,7 @@ Parfactor::expandPotential (
 
   size_t index = 0;
   ranges_[fIdx] = newRange;
-  vector<unsigned> indices (ranges_.size(), 0);
+  std::vector<unsigned> indices (ranges_.size(), 0);
   for (size_t k = 0; k < newSize; k++) {
     assert (index < backup.size());
     params_.push_back (backup[index]);
@@ -743,7 +769,7 @@ Parfactor::simplifyCountingFormulas (size_t fIdx)
 
 
 void
-Parfactor::simplifyGrounds (void)
+Parfactor::simplifyGrounds()
 {
   if (args_.size() == 1) {
     return;
@@ -789,7 +815,7 @@ Parfactor::simplifyParfactor (size_t fIdx1, size_t fIdx2)
   while (indexer.valid()) {
     if (indexer[fIdx1] == indexer[fIdx2]) {
       params_.push_back (backup[indexer]);
-    }     
+    }
     ++ indexer;
   }
   for (size_t i = 0; i < args_[fIdx2].logVars().size(); i++) {
@@ -812,7 +838,7 @@ Parfactor::getAlignLogVars (Parfactor* g1, Parfactor* g2)
   TinySet<size_t> matchedI;
   TinySet<size_t> matchedJ;
   ProbFormulas& formulas1 = g1->arguments();
-  ProbFormulas& formulas2 = g2->arguments(); 
+  ProbFormulas& formulas2 = g2->arguments();
   for (size_t i = 0; i < formulas1.size(); i++) {
     for (size_t j = 0; j < formulas2.size(); j++) {
       if (formulas1[i].group() == formulas2[j].group() &&
@@ -856,16 +882,16 @@ Parfactor::alignLogicalVars (Parfactor* g1, Parfactor* g2)
   std::pair<LogVars, LogVars> res = getAlignLogVars (g1, g2);
   const LogVars& alignLvs1 = res.first;
   const LogVars& alignLvs2 = res.second;
-  // cout << "ALIGNING :::::::::::::::::" << endl;
+  // std::cout << "ALIGNING :::::::::::::::::" << std::endl;
   // g1->print();
   // cout << "AND" << endl;
   // g2->print();
-  // cout << "-> align lvs1 = " << alignLvs1 << endl;
-  // cout << "-> align lvs2 = " << alignLvs2 << endl;
+  // std::cout << "-> align lvs1 = " << alignLvs1 << std::endl;
+  // std::cout << "-> align lvs2 = " << alignLvs2 << std::endl;
   LogVar freeLogVar (0);
   Substitution theta1, theta2;
   for (size_t i = 0; i < alignLvs1.size(); i++) {
-    bool b1 = theta1.containsReplacementFor (alignLvs1[i]); 
+    bool b1 = theta1.containsReplacementFor (alignLvs1[i]);
     bool b2 = theta2.containsReplacementFor (alignLvs2[i]);
     if (b1 == false && b2 == false) {
       theta1.add (alignLvs1[i], freeLogVar);
@@ -894,11 +920,11 @@ Parfactor::alignLogicalVars (Parfactor* g1, Parfactor* g2)
   }
 
   // handle this type of situation:
-  // g1 = p(X), q(X) ;  X    in {(p1),(p2)} 
+  // g1 = p(X), q(X) ;  X    in {(p1),(p2)}
   // g2 = p(X), q(Y) ; (X,Y) in {(p1,p2),(p2,p1)}
   LogVars discardedLvs1 = theta1.getDiscardedLogVars();
   for (size_t i = 0; i < discardedLvs1.size(); i++) {
-    if (g1->constr()->isSingleton (discardedLvs1[i]) && 
+    if (g1->constr()->isSingleton (discardedLvs1[i]) &&
         g1->nrFormulas (discardedLvs1[i]) == 1) {
       g1->constr()->remove (discardedLvs1[i]);
     } else {
@@ -917,9 +943,11 @@ Parfactor::alignLogicalVars (Parfactor* g1, Parfactor* g2)
     }
   }
 
-  // cout << "theta1: " << theta1 << endl;
-  // cout << "theta2: " << theta2 << endl;
+  // std::cout << "theta1: " << theta1 << std::endl;
+  // std::cout << "theta2: " << theta2 << std::endl;
   g1->applySubstitution (theta1);
   g2->applySubstitution (theta2);
 }
+
+}  // namespace Horus
 

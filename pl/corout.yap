@@ -16,6 +16,14 @@
 *************************************************************************/
 
 
+/**
+ * @file   corout.yap
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>
+ * @date   Mon Nov 16 22:47:27 2015
+ * *
+ */
+
+
 :- module('$coroutining',[
 			  op(1150, fx, block)
 				%dif/2,
@@ -25,12 +33,43 @@
 				%frozen/2
 			 ]).
 
+:- use_system_module( '$_boot', ['$$compile'/4]).
 
+
+:- use_system_module( attributes, [get_module_atts/2,
+        put_module_atts/2]).
+
+
+/**
+ *  @ingroup AttributedVariables_Builtins
+ *  @{
+ *
+ *
+ */
+
+
+/** @pred attr_unify_hook(+ _AttValue_,+ _VarValue_)
+
+
+
+Hook that must be defined in the module an attributed variable refers
+to. Is is called <em>after</em> the attributed variable has been
+unified with a non-var term, possibly another attributed variable.
+ _AttValue_ is the attribute that was associated to the variable
+in this module and  _VarValue_ is the new value of the variable.
+Normally this predicate fails to veto binding the variable to
+ _VarValue_, forcing backtracking to undo the binding.  If
+ _VarValue_ is another attributed variable the hook often combines
+the two attribute and associates the combined attribute with
+ _VarValue_ using put_attr/3.
+
+
+*/
 attr_unify_hook(DelayList, _) :-
 	wake_delays(DelayList).
-	
+
 wake_delays([]).
-wake_delays(Delay.List) :-
+wake_delays([Delay|List]) :-
 	wake_delay(Delay),
 	wake_delays(List).
 
@@ -42,19 +81,20 @@ wake_delay(redo_dif(Done, X, Y)) :-
 wake_delay(redo_freeze(Done, V, Goal)) :-
 	redo_freeze(Done, V, Goal).
 wake_delay(redo_eq(Done, X, Y, Goal)) :-
-	redo_eq(Done, X, Y, Goal, G).
+	redo_eq(Done, X, Y, Goal, _G).
 wake_delay(redo_ground(Done, X, Goal)) :-
 	redo_ground(Done, X, Goal).
+
 
 attribute_goals(Var) -->
 	{ get_attr(Var, '$coroutining', Delays) },
 	attgoal_for_delays(Delays, Var).
-	
-attgoal_for_delays([], V) --> [].
+
+attgoal_for_delays([], _V) --> [].
 attgoal_for_delays([G|AllAtts], V) -->
 	attgoal_for_delay(G, V),
 	attgoal_for_delays(AllAtts, V).
-	
+
 attgoal_for_delay(redo_dif(Done, X, Y), V) -->
 	{ var(Done), first_att(dif(X,Y), V) }, !,
 	[prolog:dif(X,Y)].
@@ -65,18 +105,26 @@ attgoal_for_delay(redo_freeze(Done, V, Goal), V) -->
 attgoal_for_delay(redo_eq(Done, X, Y, Goal), V) -->
 	{ var(Done), first_att(Goal, V) }, !,
 	[ prolog:when(X=Y,Goal) ].
-attgoal_for_delay(redo_ground(Done, X, Goal), V) -->
+attgoal_for_delay(redo_ground(Done, X, Goal), _V) -->
 	{ var(Done) },  !,
 	[ prolog:when(ground(X),Goal) ].
-attgoal_for_delay(_, V) --> [].
+attgoal_for_delay(_, _V) --> [].
 
 remove_when_declarations(when(Cond,Goal,_), when(Cond,NoWGoal)) :- !,
 	remove_when_declarations(Goal, NoWGoal).
 remove_when_declarations(Goal, Goal).
 
-				%
+
+%
 % operators defined in this module:
 %
+/**
+  @pred freeze(? _X_,: _G_)
+
+Delay execution of goal  _G_ until the variable  _X_ is bound.
+
+
+*/
 prolog:freeze(V, G) :-
 	var(V), !,
 	freeze_goal(V,G).
@@ -129,9 +177,18 @@ freeze_goal(V,G) :-
 % several times. dif calls a special version of freeze that checks
 % whether that is in fact the case.
 %
+/** @pred dif( _X_, _Y_)
+
+
+Succeed if the two arguments do not unify. A call to dif/2 will
+suspend if unification may still succeed or fail, and will fail if they
+always unify.
+
+
+*/
 prolog:dif(X, Y) :-
 	'$can_unify'(X, Y, LVars), !,
-	LVars = [_|_], 
+	LVars = [_|_],
 	dif_suspend_on_lvars(LVars, redo_dif(_Done, X, Y)).
 prolog:dif(_, _).
 
@@ -157,30 +214,27 @@ redo_dif(Done, X, Y) :-
 	dif_suspend_on_lvars(LVars, redo_dif(Done, X, Y)).
 redo_dif('$done', _, _).
 
+redo_freeze(Done, V, G0) :-
 % If you called nonvar as condition for when, then you may find yourself
 % here.
 %
 % someone else (that is Cond had ;) did the work, do nothing
 %
-redo_freeze(Done, _, _) :- nonvar(Done), !.
+	(nonvar(Done) -> true ;
 %
 % We still have some more conditions: continue the analysis.
 %
-redo_freeze(Done, _, when(C, G, Done)) :- !,
-	when(C, G, Done).
-	
+	 G0 = when(C, G, Done) -> when(C, G, Done) ;
 %
 % check if the variable was really bound
 %
-redo_freeze(Done, V, G) :- var(V), !,
-	internal_freeze(V, redo_freeze(Done,V,G)).
+	var(V) -> internal_freeze(V, redo_freeze(Done,V,G0)) ;
 %
 % I can't believe it: we're done and can actually execute our
 % goal. Notice we have to say we are done, otherwise someone else in
 % the disjunction might decide to wake up the goal themselves.
 %
-redo_freeze('$done', _, G) :-
-	'$execute'(G).
+	Done = '$done', '$execute'(G0) ).
 
 %
 % eq is a combination of dif and freeze
@@ -209,6 +263,28 @@ redo_ground('$done', _, Goal) :-
 %
 % support for when/2 built-in
 %
+/** @pred when(+ _C_,: _G_)
+
+
+Delay execution of goal  _G_ until the conditions  _C_ are
+satisfied. The conditions are of the following form:
+
++ _C1_, _C2_
+Delay until both conditions  _C1_ and  _C2_ are satisfied.
++ _C1_; _C2_
+Delay until either condition  _C1_ or condition  _C2_ is satisfied.
++ ?=( _V1_, _C2_)
+Delay until terms  _V1_ and  _V1_ have been unified.
++ nonvar( _V_)
+Delay until variable  _V_ is bound.
++ ground( _V_)
+Delay until variable  _V_ is ground.
+
+
+Note that when/2 will fail if the conditions fail.
+
+
+*/
 prolog:when(Conds,Goal) :-
 	'$current_module'(Mod),
 	prepare_goal_for_when(Goal, Mod, ModG),
@@ -248,7 +324,7 @@ generate_code_for_when(Conds, G,
 prepare_goal_for_when(G, Mod, Mod:call(G)) :- var(G), !.
 prepare_goal_for_when(M:G, _,  M:G) :- !.
 prepare_goal_for_when(G, Mod, Mod:G).
-	
+
 
 %
 % now for the important bit
@@ -260,7 +336,7 @@ prepare_goal_for_when(G, Mod, Mod:G).
 % when/5 and when_suspend succeds when there is need to suspend a goal
 %
 %
-when(V, G, Done, LG0, LGF) :- var(V), !,
+when(V, G, _Done, LG, LG) :- var(V), !,
 	'$do_error'(instantiation_error,when(V,G)).
 when(nonvar(V), G, Done, LG0, LGF) :-
 	when_suspend(nonvar(V), G, Done, LG0, LGF).
@@ -316,7 +392,7 @@ try_freeze(V, G, Done, LG0, LGF) :-
 	var(V),
 	LGF = ['$coroutining':internal_freeze(V, redo_freeze(Done, V, G))|LG0].
 
-try_eq(X, Y, G, Done, LG0, LGF) :- 
+try_eq(X, Y, G, Done, LG0, LGF) :-
 	'$can_unify'(X, Y, LVars), LVars = [_|_],
 	LGF = ['$coroutining':dif_suspend_on_lvars(LVars, redo_eq(Done, X, Y, G))|LG0].
 
@@ -368,7 +444,7 @@ generate_blocking_code(Conds, G, Code) :-
 	functor(G, Na, Ar),
 	'$current_module'(M),
 	abolish(M:Na, Ar),
-	generate_blocking_code((Conds,OldConds), G, Code).	
+	generate_blocking_code((Conds,OldConds), G, Code).
 generate_blocking_code(Conds, G, (G :- (If, !, when(When, G)))) :-
 	extract_head_for_block(Conds, G),
 	recorda('$blocking_code','$code'(G,Conds),_),
@@ -394,7 +470,7 @@ extract_head_for_block(C, G) :-
 %
 % We generate code as follows:
 %
-% block a(-,-,?) 
+% block a(-,-,?)
 %
 % (var(A1), var(A2) -> true ; fail), !, when((nonvar(A1);nonvar(A2)),G).
 %
@@ -404,10 +480,10 @@ extract_head_for_block(C, G) :-
 %                   when(((nonvar(A1);nonvar(A2)),(nonvar(A2);nonvar(A3))),G).
 
 generate_body_for_block((C1, C2), G, (Code1 -> true ; Code2), (WhenConds,OtherWhenConds)) :- !,
-	generate_for_cond_in_block(C1, G, Code1, WhenConds),
-	generate_body_for_block(C2, G, Code2, OtherWhenConds).
+       generate_for_cond_in_block(C1, G, Code1, WhenConds),
+       generate_body_for_block(C2, G, Code2, OtherWhenConds).
 generate_body_for_block(C, G, (Code -> true ; fail), WhenConds) :-
-	generate_for_cond_in_block(C, G, Code, WhenConds).
+       generate_for_cond_in_block(C, G, Code, WhenConds).
 
 generate_for_cond_in_block(C, G, Code, Whens) :-
 	C =.. [_|Args],
@@ -442,10 +518,34 @@ prolog:'$wait'(Na/Ar) :-
 	'$$compile'((S :- var(A), !, freeze(A, S)), (S :- var(A), !, freeze(A, S)), 5, M), fail.
 prolog:'$wait'(_).
 
-frozen(V, G) :- nonvar(V), !,
-	'$do_error'(uninstantiation_error(V),frozen(V,G)).
-frozen(V, LG) :-
-	'$attributes':get_conj_from_attvars([V], LG).
+/** @pred frozen( _X_, _G_)
+
+
+Unify  _G_ with a conjunction of goals suspended on variable  _X_,
+or `true` if no goal has suspended.
+
+
+*/
+prolog:frozen(V, LG) :-
+    var(V), !,
+    '$attributes':attvars_residuals([V], Gs, []),
+    simplify_frozen( Gs, SGs ),
+    list_to_conj( SGs, LG ).
+prolog:frozen(V, G) :-
+    '$do_error'(uninstantiation_error(V),frozen(V,G)).
+
+simplify_frozen( [prolog:freeze(_, G)|Gs], [G|NGs] ) :-
+    simplify_frozen( Gs,NGs ).
+simplify_frozen( [prolog:when(_, G)|Gs], [G|NGs] ) :-
+    simplify_frozen( Gs,NGs ).
+simplify_frozen( [prolog:dif(_, _)|Gs], NGs ) :-
+    simplify_frozen( Gs,NGs ).
+simplify_frozen( [], [] ).
+
+list_to_conj([], true).
+list_to_conj([El], El).
+list_to_conj([E,E1|Els], (E,C) ) :-
+    list_to_conj([E1|Els], C).
 
 %internal_freeze(V,G) :-
 %	attributes:get_att(V, 0, Gs), write(G+Gs),nl,fail.
@@ -458,7 +558,7 @@ update_att(V, G) :-
 	attributes:put_module_atts(V, '$coroutining'(_,[G|Gs])).
 update_att(V, G) :-
 	attributes:put_module_atts(V, '$coroutining'(_,[G])).
-	  
+
 
 not_vmember(_, []).
 not_vmember(V, [V1|DonesSoFar]) :-
@@ -469,7 +569,10 @@ first_att(T, V) :-
 	term_variables(T, Vs),
 	check_first_attvar(Vs, V).
 
-check_first_attvar(V.Vs, V0) :- attvar(V), !, V == V0.
-check_first_attvar(_.Vs, V0) :-
+check_first_attvar([V|_Vs], V0) :- attvar(V), !, V == V0.
+check_first_attvar([_|Vs], V0) :-
 	check_first_attvar(Vs, V0).
 
+/**
+  @}
+*/

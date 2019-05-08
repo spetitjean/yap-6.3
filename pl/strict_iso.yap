@@ -1,3 +1,19 @@
+/**
+  * @file   strict_iso.yap
+  * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+  * @date   Thu Oct 19 12:15:33 2017
+  * 
+  * @brief  StrictISO Mode
+  *
+  * @addtogroup YAPCompilerSettings
+  * 
+  * 
+*/
+:- system_module( '$_strict_iso', [], ['$check_iso_strict_clause'/1,
+        '$iso_check_goal'/2]).
+
+:- use_system_module( '$_errors', ['$do_error'/2]).
+
 '$iso_check_goal'(V,G) :-
 	var(V), !,
 	'$do_error'(instantiation_error,call(G)).
@@ -17,14 +33,14 @@
 	'$iso_check_a_goal'(G2,(G1->G2),G0).
 '$iso_check_goal'(!,_) :- !.
 '$iso_check_goal'((G1|G2),G0) :-
-	'$access_yap_flags'(9,1), !,
+	current_prolog_flag(language, iso), !, 
 	'$do_error'(domain_error(builtin_procedure,(G1|G2)), call(G0)).
 '$iso_check_goal'((G1|G2),G0) :- !,
 	'$iso_check_a_goal'(G1,(G1|G2),G0),
 	'$iso_check_a_goal'(G2,(G1|G2),G0).
 '$iso_check_goal'(G,G0) :- 
-	'$access_yap_flags'(9,1),
-	'$system_predicate'(G,0),
+	current_prolog_flag(language, iso),
+	'$system_predicate'(G,prolog),
 	(
             '$iso_builtin'(G)
 	->
@@ -53,12 +69,12 @@
         '$iso_check_a_goal'(G2,E,G0).
 '$iso_check_a_goal'(!,_,_) :- !.
 '$iso_check_a_goal'((_|_),E,G0) :-
-	'$access_yap_flags'(9,1), !,
+	current_prolog_flag(language, iso), !,
 	'$do_error'(domain_error(builtin_procedure,E), call(G0)).
 '$iso_check_a_goal'((_|_),_,_) :- !.
 '$iso_check_a_goal'(G,_,G0) :- 
-	'$access_yap_flags'(9,1),
-	'$system_predicate'(G,0),
+	current_prolog_flag(language, iso),
+	'$is+system_predicate'(G,prolog),
 	(
             '$iso_builtin'(G)
 	->
@@ -85,7 +101,7 @@
 	'$check_iso_strict_goal'(B).
 
 '$check_iso_strict_goal'(G) :-
-	'$system_predicate'(G,0), !,
+	'$is_system_predicate'(G,prolog), !,
 	'$check_iso_system_goal'(G).
 '$check_iso_strict_goal'(_).
 

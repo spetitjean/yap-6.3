@@ -3,27 +3,28 @@ typedef enum TokenKinds {
   Number_tok,
   Var_tok,
   String_tok,
-  WString_tok,
+  BQString_tok,
   Ponctuation_tok,
   Error_tok,
+  QuasiQuotes_tok,
   eot_tok
 } tkinds;
 
-typedef	 struct	TOKEN {
+typedef struct TOKEN {
   enum TokenKinds Tok;
   Term TokInfo;
-  int	TokPos;
+  intptr_t TokPos, TokLine;
   struct TOKEN *TokNext;
 } TokEntry;
 
-#define	Ord(X) ((enum TokenKinds) (X))
+#define Ord(X) ((enum TokenKinds)(X))
 
-#define	NextToken GNextToken( PASS_REGS1 )
+#define NextToken GNextToken(PASS_REGS1)
 
-typedef	struct VARSTRUCT {
+typedef struct VARSTRUCT {
   Term VarAdr;
   CELL hv;
+  UInt refs;
   struct VARSTRUCT *VarLeft, *VarRight;
-  char VarRep[1];
+  Atom VarRep;
 } VarEntry;
-

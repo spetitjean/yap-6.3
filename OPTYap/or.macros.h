@@ -11,6 +11,9 @@
 **                                                                     **
 ************************************************************************/
 
+#ifndef OR_MACROS_H
+#define OR_MACROS_H
+
 /* -------------------- **
 **      Prototypes      **
 ** -------------------- */
@@ -18,36 +21,36 @@
 /* get a def for NULL */
 #include <stdlib.h>
 
-STD_PROTO(static inline void PUT_IN_EXECUTING, (int));
-STD_PROTO(static inline void PUT_OUT_EXECUTING, (int));
-STD_PROTO(static inline void PUT_IN_FINISHED, (int));
+static inline void PUT_IN_ROOT_NODE(int);
+static inline void PUT_OUT_ROOT_NODE(int);
+static inline void PUT_IN_FINISHED(int);
 #ifdef TABLING_INNER_CUTS
-STD_PROTO(static inline void PUT_IN_PRUNING, (int));
-STD_PROTO(static inline void PUT_OUT_PRUNING, (int));
+static inline void PUT_IN_PRUNING(int);
+static inline void PUT_OUT_PRUNING(int);
 #endif /* TABLING_INNER_CUTS */
 
-STD_PROTO(static inline void PUT_IN_REQUESTABLE, (int));
-STD_PROTO(static inline void PUT_OUT_REQUESTABLE, (int));
-STD_PROTO(static inline void SCH_update_local_or_tops, (void));
-STD_PROTO(static inline void SCH_refuse_share_request_if_any, (void));
-STD_PROTO(static inline void SCH_set_load, (choiceptr));
-STD_PROTO(static inline void SCH_new_alternative, (yamop *,yamop *));
+static inline void PUT_IN_REQUESTABLE(int);
+static inline void PUT_OUT_REQUESTABLE(int);
+static inline void SCH_update_local_or_tops(void);
+static inline void SCH_refuse_share_request_if_any(void);
+static inline void SCH_set_load(choiceptr);
+static inline void SCH_new_alternative(yamop *,yamop *);
 
-STD_PROTO(static inline void CUT_send_prune_request, (int, choiceptr));
-STD_PROTO(static inline void CUT_reset_prune_request, (void));
+static inline void CUT_send_prune_request(int, choiceptr);
+static inline void CUT_reset_prune_request(void);
 
-STD_PROTO(static inline int CUT_last_worker_left_pending_prune, (or_fr_ptr));
-STD_PROTO(static inline or_fr_ptr CUT_leftmost_or_frame, (void));
+static inline int CUT_last_worker_left_pending_prune(or_fr_ptr);
+static inline or_fr_ptr CUT_leftmost_or_frame(void);
 #ifdef TABLING_INNER_CUTS
-STD_PROTO(static inline or_fr_ptr CUT_leftmost_until, (or_fr_ptr, int));
+static inline or_fr_ptr CUT_leftmost_until(or_fr_ptr, int);
 #endif /* TABLING_INNER_CUTS */
 
-STD_PROTO(static inline void CUT_store_answer, (or_fr_ptr, qg_ans_fr_ptr));
-STD_PROTO(static inline void CUT_store_answers, (or_fr_ptr, qg_sol_fr_ptr));
-STD_PROTO(static inline void CUT_join_answers_in_an_unique_frame, (qg_sol_fr_ptr));
-STD_PROTO(static inline void CUT_free_solution_frame, (qg_sol_fr_ptr));
-STD_PROTO(static inline void CUT_free_solution_frames, (qg_sol_fr_ptr));
-STD_PROTO(static inline qg_sol_fr_ptr CUT_prune_solution_frames, (qg_sol_fr_ptr, int));
+static inline void CUT_store_answer(or_fr_ptr, qg_ans_fr_ptr);
+static inline void CUT_store_answers(or_fr_ptr, qg_sol_fr_ptr);
+static inline void CUT_join_answers_in_an_unique_frame(qg_sol_fr_ptr);
+static inline void CUT_free_solution_frame(qg_sol_fr_ptr);
+static inline void CUT_free_solution_frames(qg_sol_fr_ptr);
+static inline qg_sol_fr_ptr CUT_prune_solution_frames(qg_sol_fr_ptr, int);
 
 
 
@@ -77,16 +80,16 @@ STD_PROTO(static inline qg_sol_fr_ptr CUT_prune_solution_frames, (qg_sol_fr_ptr,
 #define YAMOP_LTT_BITS    OOOOPPS!!! Unknown Integer Sizeof
 #endif /* SIZEOF_INT */
 
-#define YAMOP_OR_ARG(INST)         ((INST)->u.Otapl.or_arg)
-#define YAMOP_LTT(INST)            (((INST)->u.Otapl.or_arg) & YAMOP_LTT_BITS)
-#define YAMOP_SEQ(INST)            (((INST)->u.Otapl.or_arg) & YAMOP_SEQ_FLAG)
-#define YAMOP_CUT(INST)            (((INST)->u.Otapl.or_arg) & YAMOP_CUT_FLAG)
-#define YAMOP_FLAGS(INST)          (((INST)->u.Otapl.or_arg) & YAMOP_FLAGS_BITS)
+#define YAMOP_OR_ARG(INST)         ((INST)->y_u.Otapl.or_arg)
+#define YAMOP_LTT(INST)            (((INST)->y_u.Otapl.or_arg) & YAMOP_LTT_BITS)
+#define YAMOP_SEQ(INST)            (((INST)->y_u.Otapl.or_arg) & YAMOP_SEQ_FLAG)
+#define YAMOP_CUT(INST)            (((INST)->y_u.Otapl.or_arg) & YAMOP_CUT_FLAG)
+#define YAMOP_FLAGS(INST)          (((INST)->y_u.Otapl.or_arg) & YAMOP_FLAGS_BITS)
 
-#define INIT_YAMOP_LTT(INST, LTT)  ((INST)->u.Otapl.or_arg = LTT+1)
-#define PUT_YAMOP_LTT(INST, LTT)   (INST)->u.Otapl.or_arg = YAMOP_FLAGS(INST) | (LTT+1)
-#define PUT_YAMOP_SEQ(INST)        (INST)->u.Otapl.or_arg |= YAMOP_SEQ_FLAG
-#define PUT_YAMOP_CUT(INST)        (INST)->u.Otapl.or_arg |= YAMOP_CUT_FLAG
+#define INIT_YAMOP_LTT(INST, LTT)  ((INST)->y_u.Otapl.or_arg = LTT+1)
+#define PUT_YAMOP_LTT(INST, LTT)   (INST)->y_u.Otapl.or_arg = YAMOP_FLAGS(INST) | (LTT+1)
+#define PUT_YAMOP_SEQ(INST)        (INST)->y_u.Otapl.or_arg |= YAMOP_SEQ_FLAG
+#define PUT_YAMOP_CUT(INST)        (INST)->y_u.Otapl.or_arg |= YAMOP_CUT_FLAG
 
 #define BRANCH(WORKER, DEPTH)      GLOBAL_branch(WORKER, DEPTH)
 #define BRANCH_LTT(WORKER, DEPTH)  (BRANCH(WORKER, DEPTH) & YAMOP_LTT_BITS)
@@ -158,7 +161,7 @@ STD_PROTO(static inline qg_sol_fr_ptr CUT_prune_solution_frames, (qg_sol_fr_ptr,
         SCH_check_share_request()
 
 #define SCH_last_alternative(curpc, CP_PTR)    \
-        H = HBREG = PROTECT_FROZEN_H(CP_PTR);  \
+        HR = HBREG = PROTECT_FROZEN_H(CP_PTR); \
         CPREG = CP_PTR->cp_cp;		       \
         ENV = CP_PTR->cp_env;                  \
         SCH_new_alternative(curpc, NULL)
@@ -213,24 +216,22 @@ STD_PROTO(static inline qg_sol_fr_ptr CUT_prune_solution_frames, (qg_sol_fr_ptr,
 /* ---------------------- **
 **      Engine Stuff      **
 ** ---------------------- */
-
-static inline 
-void PUT_IN_EXECUTING(int w) {
-  LOCK(GLOBAL_locks_bm_executing_workers);
-  BITMAP_insert(GLOBAL_bm_executing_workers, w);
-  UNLOCK(GLOBAL_locks_bm_executing_workers);
+static inline
+void PUT_IN_ROOT_NODE(int worker_num) {
+  LOCK(GLOBAL_locks_bm_root_cp_workers);
+  BITMAP_insert(GLOBAL_bm_root_cp_workers, worker_num);
+  UNLOCK(GLOBAL_locks_bm_root_cp_workers);
   return;
 }
 
 
-static inline 
-void PUT_OUT_EXECUTING(int w) {
-  LOCK(GLOBAL_locks_bm_executing_workers);
-  BITMAP_delete(GLOBAL_bm_executing_workers, w);
-  UNLOCK(GLOBAL_locks_bm_executing_workers);
+static inline
+void PUT_OUT_ROOT_NODE(int worker_num) {
+  LOCK(GLOBAL_locks_bm_root_cp_workers);
+  BITMAP_delete(GLOBAL_bm_root_cp_workers, worker_num);
+  UNLOCK(GLOBAL_locks_bm_root_cp_workers);
   return;
 }
-
 
 static inline 
 void PUT_IN_FINISHED(int w) {
@@ -607,3 +608,5 @@ qg_sol_fr_ptr CUT_prune_solution_frames(qg_sol_fr_ptr solutions, int ltt) {
   }
   return solutions;
 }
+
+#endif

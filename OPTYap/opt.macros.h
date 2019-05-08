@@ -15,7 +15,7 @@
 **                          Memory management                          **
 ************************************************************************/
 
-extern int Yap_page_size;
+extern size_t Yap_page_size;
 
 #ifdef USE_PAGES_MALLOC
 #include <sys/shm.h>
@@ -26,17 +26,17 @@ extern int Yap_page_size;
 /* #define SHMMAX  0x800000 - 8 Mbytes: shmget limit for Solaris (?) */
 
 #if SIZEOF_INT_P == 4
-#define ALIGN	                   3
+#define OPTYAP_ALIGN	                   3
 #define ALIGNMASK                  0xfffffffc
 #elif SIZEOF_INT_P == 8
-#define ALIGN	                   7
+#define OPTYAP_ALIGN	                   7
 #define ALIGNMASK                  0xfffffff8
 #else
 #define ALIGN	                   OOOOPPS!!! Unknown Pointer Sizeof
 #define ALIGNMASK                  OOOOPPS!!! Unknown Pointer Sizeof
 #endif /* SIZEOF_INT_P */
 
-#define ADJUST_SIZE(SIZE)          ((SIZE + ALIGN) & ALIGNMASK)
+#define ADJUST_SIZE(SIZE)          ((SIZE + OPTYAP_ALIGN) & ALIGNMASK)
 #define ADJUST_SIZE_TO_PAGE(SIZE)  ((SIZE) - (SIZE) % Yap_page_size + Yap_page_size)
 #define PAGE_HEADER(STR)           (pg_hd_ptr)((unsigned long int)STR - (unsigned long int)STR % Yap_page_size)
 #define STRUCT_NEXT(STR)           ((STR)->next)
@@ -56,7 +56,7 @@ extern int Yap_page_size;
 *******************************************************************************************/
 #define ALLOC_BLOCK(STR, SIZE, STR_TYPE)                                                   \
         if ((STR = (STR_TYPE *) malloc(SIZE)) == NULL)                                     \
-          Yap_Error(FATAL_ERROR, TermNil, "ALLOC_BLOCK: malloc error")
+          Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "ALLOC_BLOCK: malloc error")
 #define FREE_BLOCK(STR)                                                                    \
         free(STR)
 #else
@@ -70,7 +70,7 @@ extern int Yap_page_size;
           else if ((block_ptr = (char *) malloc(SIZE + sizeof(CELL))) != NULL)             \
             *block_ptr = 'm';                                                              \
           else                                                                             \
-            Yap_Error(FATAL_ERROR, TermNil, "ALLOC_BLOCK: malloc error");                  \
+            Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "ALLOC_BLOCK: malloc error");                  \
           block_ptr += sizeof(CELL);                                                       \
           STR = (STR_TYPE *) block_ptr;                                                    \
         }
@@ -244,11 +244,11 @@ extern int Yap_page_size;
           int shmid;	                                                                   \
           void *mem_block;                                                                 \
           if ((shmid = shmget(IPC_PRIVATE, SHMMAX, SHM_R|SHM_W)) == -1)                    \
-            Yap_Error(FATAL_ERROR, TermNil, "shmget error (ALLOC_PAGE)");                  \
+            Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "shmget error (ALLOC_PAGE)");                  \
           if ((mem_block = shmat(shmid, NULL, 0)) == (void *) -1)                          \
-            Yap_Error(FATAL_ERROR, TermNil, "shmat error (ALLOC_PAGE)");                   \
+            Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "shmat error (ALLOC_PAGE)");                   \
           if (shmctl(shmid, IPC_RMID, 0) != 0)                                             \
-            Yap_Error(FATAL_ERROR, TermNil, "shmctl error (ALLOC_PAGE)");                  \
+            Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "shmctl error (ALLOC_PAGE)");                  \
           PgEnt_first(GLOBAL_pages_alloc) = (pg_hd_ptr)(mem_block + Yap_page_size);        \
           PgEnt_last(GLOBAL_pages_alloc) = (pg_hd_ptr)(mem_block + SHMMAX);                \
           UPDATE_STATS(PgEnt_pages_in_use(GLOBAL_pages_alloc), SHMMAX / Yap_page_size);    \
@@ -265,9 +265,9 @@ extern int Yap_page_size;
             else                                                                           \
               sg_fr = GLOBAL_first_sg_fr;                                                  \
             if (sg_fr == NULL)                                                             \
-              Yap_Error(FATAL_ERROR, TermNil, "no space left (RECOVER_SPACE)");            \
+              Yap_Error(SYSTEM_ERROR_FATAL, TermNil, "no space left (RECOVER_SPACE)");            \
               /* see function 'InteractSIGINT' in file 'sysbits.c' */                      \
-              /*   Yap_Error(PURE_ABORT, TermNil, "");             */                      \
+              /*   Yap_Error(PURE_ABORT_EVENT, TermNil, "");             */                      \
               /*   restore_absmi_regs(&Yap_standard_regs);         */                      \
               /*   siglongjmp (LOCAL_RestartEnv, 1);               */                      \
             if (SgFr_first_answer(sg_fr) &&                                                \
@@ -417,7 +417,7 @@ extern int Yap_page_size;
         }
 #endif /***********************************************************************************/
 
-#ifdef THREADS
+#if defined(THREADS) && defined(TABLING)
 #define ALLOC_STRUCT(STR, STR_TYPE, _PG_ENT)                          \
         GET_FREE_STRUCT(STR, STR_TYPE, LOCAL##_PG_ENT, GLOBAL##_PG_ENT)
 #define FREE_STRUCT(STR, STR_TYPE, _PG_ENT)                           \
@@ -513,15 +513,15 @@ extern int Yap_page_size;
 **                            Debug macros                             **
 ************************************************************************/
 
-#define INFORMATION_MESSAGE(MESSAGE,ARGS...)                            \
-        Sfprintf(Serror, "[ " MESSAGE " ]\n", ##ARGS)
+#define INFORMATION_MESSAGE(MESSAGE, ...)		\
+  fprintf( stderr, "[ " MESSAGE " ]\n", __VA_ARGS__)
 
 #ifdef YAPOR
 #define ERROR_MESSAGE(MESSAGE)                                          \
-        Yap_Error(INTERNAL_ERROR, TermNil, "W%d - " MESSAGE, worker_id)
+        Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, "W%d - " MESSAGE, worker_id)
 #else
 #define ERROR_MESSAGE(MESSAGE)                                          \
-        Yap_Error(INTERNAL_ERROR, TermNil, MESSAGE)
+        Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, MESSAGE)
 #endif /* YAPOR */
 
 #ifdef DEBUG_TABLING
@@ -551,6 +551,6 @@ extern int Yap_page_size;
 #define INFO_THREADS_MAIN_THREAD(MESSAGE, ARGS...)                      \
         Sfprintf(Serror, "[ " MESSAGE " ]\n", ##ARGS)
 #else
-#define INFO_THREADS(MESG, ARGS...)
-#define INFO_THREADS_MAIN_THREAD(MESSAGE, ARGS...)
+#define INFO_THREADS(MESG, ...)
+#define INFO_THREADS_MAIN_THREAD(MESSAGE, ...)
 #endif /* OUTPUT_THREADS_TABLING */

@@ -62,9 +62,21 @@ mydlerror(void)
  *   YAP_FindExecutable(argv[0]) should be called on yap initialization to
  *   locate the executable of Yap
 */
-void
-Yap_FindExecutable(char *name)
+char *
+Yap_FindExecutable(void)
 {
+  char path[1024];
+  uint32_t size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) == 0) {
+    char *rc = malloc(size+1);
+    strncpy(rc, path, size);
+    return rc;
+  } else {
+    char *rc = malloc(size+1);
+    if (_NSGetExecutablePath(rc, &size) == 0)
+      return "yap";
+    return rc;
+  }
 }
 
 
@@ -81,7 +93,8 @@ mydlopen(char *path)
       /* NSLinkModule will cause the run to abort on any link error's */
       /* not very friendly but the error recovery functionality is limited */
         handle = NSLinkModule(ofile, path, TRUE);
-    } return handle;
+    }
+    return handle;
 }
 
 static void *
@@ -145,7 +158,8 @@ LoadForeign(StringList ofiles, StringList libs,
     void *handle;
 
     /* mydlopen wants to follow the LD_CONFIG_PATH */
-    if (!Yap_TrueFileName(AtomName(ofiles->name), LOCAL_FileNameBuf, TRUE)) {
+    iconst char *file = AtomName(ofiles->name);
+    if (!Yap_findFile(file, NULL, NULL, LOCAL_FileNameBuf, true, YAP_OBJ, true, true) ) {
       strcpy(LOCAL_ErrorSay, "%% Trying to open unexisting file in LoadForeign");
       return LOAD_FAILLED;
     }

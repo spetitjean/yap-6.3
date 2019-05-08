@@ -2,11 +2,54 @@
 % SWI emulation.
 % written in an on-demand basis.
 
+%%
+%% @file dialect/swi.yap
+%%
+%% @defgroup SWI Compatibility with SWI-Prolog and Other Prolog systems
+%% @{
+%% @ingroup YAPProgramming
+
+/**
+
+@defgroup System SWI Dialect Support
+@ingroup SWI
+
+@{
+
+This library provides a number of SWI-Prolog builtins that are not by
+default in YAP. This support is loaded with the
+~~~~~
+expects_dialect(swi)
+~~~~~
+
+ command.
+
+*/
+
+/** @pred  time_file(+ _File_,- _Time_)
+
+
+Unify the last modification time of  _File_ with
+ _Time_.  _Time_ is a floating point number expressing the seconds
+elapsed since Jan 1, 1970.
+
+
+*/
+/** @pred concat_atom(+ _List_,- _Atom_)
+
+
+
+ _List_ is a list of atoms, integers or floating point numbers. Succeeds
+if  _Atom_ can be unified with the concatenated elements of  _List_. If
+ _List_ has exactly 2 elements it is equivalent to `atom_concat/3`,
+allowing for variables in the list.
+
+
+*/
 
 :- module(system, [concat_atom/2,
 		   concat_atom/3,
 		   read_clause/1,
-		   string/1,
 		   chdir/1,
 		   compile_aux_clauses/1,
 		   convert_time/2,
@@ -15,8 +58,6 @@
 		   '$set_predicate_attribute'/3,
 		   stamp_date_time/3,
 		   date_time_stamp/2,
-		   format_time/3,
-		   format_time/4,
 		   time_file/2,
 		   flag/3,
 		   require/1,
@@ -46,6 +87,8 @@
 			    selectchk/3,
 			    sublist/2,
 			    sumlist/2,
+			    nth1/4,
+			    nth0/4,
 			    nth1/3,
 			    nth0/3]).
 
@@ -79,9 +122,6 @@
 	       cyclic_term/1,
 	       variant/2]).
 
-:- use_module(library(error),[must_be/2]).
-
-
 :- source.
 
 :- style_check(all).
@@ -94,15 +134,28 @@
 
 :- set_prolog_flag(user_flags,silent).
 
+
 % Time is given as a float in SWI-Prolog.
 swi_get_time(FSecs) :- datime(Datime),  mktime(Datime, Secs), FSecs is Secs*1.0.
 
 goal_expansion(atom_concat(A,B),atomic_concat(A,B)).
+/** @pred  atom_concat(? _A1_,? _A2_,? _A12_) is iso
+
+The predicate holds when the third argument unifies with an atom, and
+the first and second unify with atoms such that their representations
+concatenated are the representation for  _A12_.
+
+If  _A1_ and  _A2_ are unbound, the built-in will find all the atoms
+that concatenated give  _A12_.
+
+
+*/
+
 goal_expansion(atom_concat(A,B,C),atomic_concat(A,B,C)).
 %goal_expansion(arg(A,_,_),_) :- nonvar(A), !, fail.
-goal_expansion(arg(A,B,C),genarg(A,B,C)).
+goal_expansion(arg(A,B,C),arg:genarg(A,B,C)).
 
-% make sure we also use 
+% make sure we also use
 :- user:library_directory(X),
 	atom(X),
 	atom_concat([X,'/dialect/swi'],SwiDir),
@@ -118,14 +171,29 @@ goal_expansion(arg(A,B,C),genarg(A,B,C)).
 :- dynamic
    user:file_search_path/2.
 
-user:file_search_path(swi, Home) :-
-        current_prolog_flag(home, Home).
-user:file_search_path(foreign, swi(ArchLib)) :-
-        current_prolog_flag(arch, Arch),
-        atom_concat('lib/', Arch, ArchLib).
-user:file_search_path(foreign, swi(lib)).
+/** @pred concat_atom(? _List_,+ _Separator_,? _Atom_)
 
 
+Creates an atom just like concat_atom/2, but inserts  _Separator_
+between each pair of atoms.  For example:
+
+~~~~~
+?- concat_atom([gnu, gnat], ', ', A).
+
+A = 'gnu, gnat'
+~~~~~
+
+(Unimplemented) This predicate can also be used to split atoms by
+instantiating  _Separator_ and  _Atom_:
+
+~~~~~
+?- concat_atom(L, -, 'gnu-gnat').
+
+L = [gnu, gnat]
+~~~~~
+
+
+*/
 concat_atom([A|List], Separator, New) :- var(List), !,
 	atom_codes(Separator,[C]),
 	atom_codes(New, NewChars),
@@ -152,11 +220,6 @@ concat_atom(List, New) :-
 	atomic_concat(List, New).
 
 
-read_clause(X,Y) :-
-	read_term(X,Y,[singetons(warning)]).
-
-string(_) :- fail.
-
 bindings_message(V) -->
        { cvt_bindings(V, Bindings) },
        prolog:message(query(_YesNo,Bindings)), !.
@@ -166,6 +229,10 @@ cvt_bindings([[Name|Value]|L],[AName=Value|Bindings]) :-
 	atom_codes(AName, Name),
 	cvt_bindings(L,Bindings).
 
+/** @pred chdir(+ _Dir_)
+
+Compatibility predicate.  New code should use working_directory/2.
+*/
 chdir(X) :- cd(X).
 
 %%	convert_time(+Stamp, -String)
@@ -203,8 +270,9 @@ convert_time(Stamp, Y, Mon, Day, Hour, Min, Sec, MilliSec) :-
 	Sec is integer(float_integer_part(FSec)),
 	MilliSec is integer(float_fractional_part(FSec)*1000).
 
+
 compile_aux_clauses([]).
-compile_aux_clauses([(:- G)|Cls]) :-
+compile_aux_clauses([(:- G)|Cls]) :- !,
 	prolog_load_context(module, M),
 	once(M:G),
 	compile_aux_clauses(Cls).
@@ -213,7 +281,6 @@ compile_aux_clauses([Cl|Cls]) :-
 	assert_static(M:Cl),
 	compile_aux_clauses(Cls).
 
-'$set_predicate_attribute'(_, _, _).
 
 flag(Key, Old, New) :-
 	recorded(Key, Old, R), !,
@@ -232,7 +299,7 @@ flag(Key, 0, New) :-
 	recorda(K, New, _).
 
 current_flag(Key) :-
-	swi:flag(Key).
+	flag(Key).
 
 require(F) :-
 	must_be(list, F),
@@ -241,7 +308,7 @@ require(F) :-
 	required_predicates(F, Mod).
 
 required_predicates([], _).
-required_predicates(F.Fs, M) :-
+required_predicates([F|Fs], M) :-
 	required_predicate(F, M),
 	required_predicates(Fs, M).
 
@@ -254,4 +321,8 @@ required_predicate(Na/Ar, M) :-
          autoloader:find_predicate(G, _)
 	).
 
+/**
+@}
 
+@}
+*/

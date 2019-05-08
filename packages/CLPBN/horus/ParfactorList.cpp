@@ -1,7 +1,13 @@
 #include <cassert>
 
+#include <queue>
+#include <iostream>
+#include <sstream>
+
 #include "ParfactorList.h"
 
+
+namespace Horus {
 
 ParfactorList::ParfactorList (const ParfactorList& pfList)
 {
@@ -10,7 +16,6 @@ ParfactorList::ParfactorList (const ParfactorList& pfList)
     addShattered (new Parfactor (**it));
     ++ it;
   }
-  
 }
 
 
@@ -22,7 +27,7 @@ ParfactorList::ParfactorList (const Parfactors& pfs)
 
 
 
-ParfactorList::~ParfactorList (void)
+ParfactorList::~ParfactorList()
 {
   ParfactorList::const_iterator it = pfList_.begin();
   while (it != pfList_.end()) {
@@ -63,27 +68,27 @@ ParfactorList::addShattered (Parfactor* pf)
 
 
 
-list<Parfactor*>::iterator
+std::list<Parfactor*>::iterator
 ParfactorList::insertShattered (
-    list<Parfactor*>::iterator it,
+    std::list<Parfactor*>::iterator it,
     Parfactor* pf)
 {
-  return pfList_.insert (it, pf);
   assert (isAllShattered());
+  return pfList_.insert (it, pf);
 }
 
 
 
-list<Parfactor*>::iterator
-ParfactorList::remove (list<Parfactor*>::iterator it) 
+std::list<Parfactor*>::iterator
+ParfactorList::remove (std::list<Parfactor*>::iterator it)
 {
   return pfList_.erase (it);
 }
 
 
 
-list<Parfactor*>::iterator
-ParfactorList::removeAndDelete (list<Parfactor*>::iterator it)
+std::list<Parfactor*>::iterator
+ParfactorList::removeAndDelete (std::list<Parfactor*>::iterator it)
 {
   delete *it;
   return pfList_.erase (it);
@@ -92,12 +97,12 @@ ParfactorList::removeAndDelete (list<Parfactor*>::iterator it)
 
 
 bool
-ParfactorList::isAllShattered (void) const
+ParfactorList::isAllShattered() const
 {
   if (pfList_.size() <= 1) {
     return true;
   }
-  vector<Parfactor*> pfs (pfList_.begin(), pfList_.end());
+  Parfactors pfs (pfList_.begin(), pfList_.end());
   for (size_t i = 0; i < pfs.size(); i++) {
     assert (isShattered (pfs[i]));
   }
@@ -113,15 +118,51 @@ ParfactorList::isAllShattered (void) const
 
 
 
+struct sortByParams {
+  bool operator() (const Parfactor* pf1, const Parfactor* pf2) const
+  {
+    if (pf1->params().size() < pf2->params().size()) {
+      return true;
+    } else if (pf1->params().size() == pf2->params().size() &&
+               pf1->params()        <  pf2->params()) {
+      return true;
+    }
+    return false;
+  }
+};
+
+
+
 void
-ParfactorList::print (void) const
+ParfactorList::print() const
 {
   Parfactors pfVec (pfList_.begin(), pfList_.end());
   std::sort (pfVec.begin(), pfVec.end(), sortByParams());
   for (size_t i = 0; i < pfVec.size(); i++) {
     pfVec[i]->print();
-    cout << endl;
+    std::cout << std::endl;
   }
+}
+
+
+
+ParfactorList&
+ParfactorList::operator= (const ParfactorList& pfList)
+{
+  if (this != &pfList) {
+    ParfactorList::const_iterator it0 = pfList_.begin();
+    while (it0 != pfList_.end()) {
+      delete *it0;
+      ++ it0;
+    }
+    pfList_.clear();
+    ParfactorList::const_iterator it = pfList.begin();
+    while (it != pfList.end()) {
+      addShattered (new Parfactor (**it));
+      ++ it;
+    }
+  }
+  return *this;
 }
 
 
@@ -141,8 +182,8 @@ ParfactorList::isShattered (const Parfactor* g) const
             formulas[i], *(g->constr()),
             formulas[j], *(g->constr())) == false) {
           g->print();
-          cout << "-> not identical on positions " ;
-          cout << i << " and " << j << endl;
+          std::cout << "-> not identical on positions " ;
+          std::cout << i << " and " << j << std::endl;
           return false;
         }
       } else {
@@ -150,8 +191,8 @@ ParfactorList::isShattered (const Parfactor* g) const
             formulas[i], *(g->constr()),
             formulas[j], *(g->constr())) == false) {
           g->print();
-          cout << "-> not disjoint on positions " ;
-          cout << i << " and " << j << endl;
+          std::cout << "-> not disjoint on positions " ;
+          std::cout << i << " and " << j << std::endl;
           return false;
         }
       }
@@ -178,9 +219,10 @@ ParfactorList::isShattered (
             fms1[i], *(g1->constr()),
             fms2[j], *(g2->constr())) == false) {
           g1->print();
-          cout << "^" << endl;
+          std::cout << "^" << std::endl;
           g2->print();
-          cout << "-> not identical on group " << fms1[i].group() << endl;
+          std::cout << "-> not identical on group " ;
+          std::cout << fms1[i].group() << std::endl;
           return false;
         }
       } else {
@@ -188,10 +230,10 @@ ParfactorList::isShattered (
             fms1[i], *(g1->constr()),
             fms2[j], *(g2->constr())) == false) {
           g1->print();
-          cout << "^" << endl;
+          std::cout << "^" << std::endl;
           g2->print();
-          cout << "-> not disjoint on groups " << fms1[i].group();
-          cout << " and " << fms2[j].group() << endl;
+          std::cout << "-> not disjoint on groups " << fms1[i].group();
+          std::cout << " and " << fms2[j].group() << std::endl;
           return false;
         }
       }
@@ -201,16 +243,16 @@ ParfactorList::isShattered (
 }
 
 
-	
+
 void
 ParfactorList::addToShatteredList (Parfactor* g)
 {
-  queue<Parfactor*> residuals;
+  std::queue<Parfactor*> residuals;
   residuals.push (g);
   while (residuals.empty() == false) {
     Parfactor* pf = residuals.front();
     bool pfSplitted = false;
-    list<Parfactor*>::iterator pfIter;
+    std::list<Parfactor*>::iterator pfIter;
     pfIter = pfList_.begin();
     while (pfIter != pfList_.end()) {
       std::pair<Parfactors, Parfactors> shattRes;
@@ -247,7 +289,7 @@ Parfactors
 ParfactorList::shatterAgainstMySelf (Parfactor* g)
 {
   Parfactors pfs;
-  queue<Parfactor*> residuals;
+  std::queue<Parfactor*> residuals;
   residuals.push (g);
   bool shattered = true;
   while (residuals.empty() == false) {
@@ -303,20 +345,23 @@ ParfactorList::shatterAgainstMySelf (
 {
   /*
   Util::printDashedLine();
-  cout << "-> SHATTERING" << endl;
+  std::cout << "-> SHATTERING" << std::endl;
   g->print();
-  cout << "-> ON: " << g->argument (fIdx1) << "|" ;
-  cout << g->constr()->tupleSet (g->argument (fIdx1).logVars()) << endl;
-  cout << "-> ON: " << g->argument (fIdx2) << "|" ;
-  cout << g->constr()->tupleSet (g->argument (fIdx2).logVars())	<< endl;
+  std::cout << "-> ON: " << g->argument (fIdx1) << "|" ;
+  std::cout << g->constr()->tupleSet (g->argument (fIdx1).logVars());
+  std::cout << std::endl;
+  std::cout << "-> ON: " << g->argument (fIdx2) << "|" ;
+  std::cout << g->constr()->tupleSet (g->argument (fIdx2).logVars())
+  std::cout << std::endl;
   Util::printDashedLine();
   */
   ProbFormula& f1 = g->argument (fIdx1);
   ProbFormula& f2 = g->argument (fIdx2);
   if (f1.isAtom()) {
-    cerr << "error: a ground occurs twice in a parfactor" << endl;
-    cerr << endl;
-    abort();
+    std::cerr << "Error: a ground occurs twice in the same parfactor." ;
+    std::cerr << std::endl;
+    std::cerr << std::endl;
+    exit (EXIT_FAILURE);
   }
   assert (g->constr()->empty() == false);
   ConstraintTree ctCopy (*g->constr());
@@ -392,13 +437,13 @@ ParfactorList::shatter (Parfactor* g1, Parfactor* g2)
 {
   ProbFormulas& formulas1 = g1->arguments();
   ProbFormulas& formulas2 = g2->arguments();
-  assert (g1 != 0 && g2 != 0 && g1 != g2);
+  assert (g1 && g2 && g1 != g2);
   for (size_t i = 0; i < formulas1.size(); i++) {
     for (size_t j = 0; j < formulas2.size(); j++) {
       if (formulas1[i].sameSkeletonAs (formulas2[j])) {
         std::pair<Parfactors, Parfactors> res;
         res = shatter (i, g1, j, g2);
-        if (res.first.empty()  == false || 
+        if (res.first.empty()  == false ||
             res.second.empty() == false) {
           return res;
         }
@@ -419,14 +464,14 @@ ParfactorList::shatter (
   ProbFormula& f2 = g2->argument (fIdx2);
   /*
   Util::printDashedLine();
-  cout << "-> SHATTERING" << endl;
+  std::cout << "-> SHATTERING" << std::endl;
   g1->print();
-  cout << "-> WITH" << endl;
+  std::cout << "-> WITH" << std::endl;
   g2->print();
-  cout << "-> ON: " << f1 << "|" ;
-  cout << g1->constr()->tupleSet (f1.logVars()) << endl;
-  cout << "-> ON: " << f2 << "|" ;
-  cout << g2->constr()->tupleSet (f2.logVars()) << endl;
+  std::cout << "-> ON: " << f1 << "|" ;
+  std::cout << g1->constr()->tupleSet (f1.logVars()) << std::endl;
+  std::cout << "-> ON: " << f2 << "|" ;
+  std::cout << g2->constr()->tupleSet (f2.logVars()) << std::endl;
   Util::printDashedLine();
   */
   if (f1.isAtom()) {
@@ -450,7 +495,7 @@ ParfactorList::shatter (
   ConstraintTree* exclCt1 = split1.second;
 
   if (commCt1->empty()) {
-    // disjoint 
+    // disjoint
     delete commCt1;
     delete exclCt1;
     return { };
@@ -461,15 +506,15 @@ ParfactorList::shatter (
   ConstraintTree* commCt2 = split2.first;
   ConstraintTree* exclCt2 = split2.second;
 
-  assert (commCt1->tupleSet (f1.logVars()) == 
+  assert (commCt1->tupleSet (f1.logVars()) ==
           commCt2->tupleSet (f2.logVars()));
 
-   // stringstream ss1; ss1 << "" << count << "_A.dot" ;
-   // stringstream ss2; ss2 << "" << count << "_B.dot" ;
-   // stringstream ss3; ss3 << "" << count << "_A_comm.dot" ;
-   // stringstream ss4; ss4 << "" << count << "_A_excl.dot" ;
-   // stringstream ss5; ss5 << "" << count << "_B_comm.dot" ;
-   // stringstream ss6; ss6 << "" << count << "_B_excl.dot" ;
+   // std::stringstream ss1; ss1 << "" << count << "_A.dot" ;
+   // std::stringstream ss2; ss2 << "" << count << "_B.dot" ;
+   // std::stringstream ss3; ss3 << "" << count << "_A_comm.dot" ;
+   // std::stringstream ss4; ss4 << "" << count << "_A_excl.dot" ;
+   // std::stringstream ss5; ss5 << "" << count << "_B_comm.dot" ;
+   // std::stringstream ss6; ss6 << "" << count << "_B_excl.dot" ;
    // g1->constr()->exportToGraphViz (ss1.str().c_str(), true);
    // g2->constr()->exportToGraphViz (ss2.str().c_str(), true);
    // commCt1->exportToGraphViz (ss3.str().c_str(), true);
@@ -529,11 +574,11 @@ ParfactorList::shatter (
       Parfactor* newPf = new Parfactor (g, cts[i]);
       if (cts[i]->nrLogVars() == g->constr()->nrLogVars() + 1) {
         newPf->expand (f.countedLogVar(), X_new1, X_new2);
-        assert (g->constr()->getConditionalCount (f.countedLogVar()) == 
+        assert (g->constr()->getConditionalCount (f.countedLogVar()) ==
             cts[i]->getConditionalCount (X_new1) +
             cts[i]->getConditionalCount (X_new2));
       } else {
-        assert (g->constr()->getConditionalCount (f.countedLogVar()) == 
+        assert (g->constr()->getConditionalCount (f.countedLogVar()) ==
             cts[i]->getConditionalCount (f.countedLogVar()));
       }
       newPf->setNewGroups();
@@ -615,4 +660,6 @@ ParfactorList::disjoint (
   TupleSet ts2 = ct2.tupleSet (f2.logVars());
   return (ts1 & ts2).empty();
 }
+
+}  // namespace Horus
 

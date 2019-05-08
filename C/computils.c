@@ -54,25 +54,24 @@ static char SccsId[] = "%W% %G%";
 
 /*
  * This file includes a set of utilities, useful to the several compilation
- * modules 
+ * modules
  */
 
 #include "Yap.h"
 #include "Yatom.h"
 #include "YapHeap.h"
-#include "compile.h"
+#define COMPILER_NAMES 1
+#include "YapCompile.h"
+#undef COMPILER_NAMES 
+#include "YapCompile.h"
 #include "yapio.h"
 #if HAVE_STRING_H
 #include <string.h>
 #endif
 
-#ifdef DEBUG
-STATIC_PROTO (void ShowOp, (char *, struct PSEUDO *));
-#endif /* DEBUG */
-
 /*
  * The compiler creates an instruction chain which will be assembled after
- * afterwards 
+ * afterwards
  */
 
 
@@ -81,7 +80,7 @@ typedef struct mem_blk {
   union {
     struct mem_blk *next;
     double fill;
-  } u;
+  } ublock;
   char contents[1];
 } MemBlk;
 
@@ -110,7 +109,7 @@ AllocCMem (UInt size, struct intermediates *cip)
       if (LOCAL_CMemFirstBlock) {
 	p = LOCAL_CMemFirstBlock;
 	blksz = LOCAL_CMemFirstBlockSz;
-	p->u.next = NULL;
+	p->ublock.next = NULL;
       } else {
 	if (blksz < FIRST_CMEM_BLK_SIZE)
 	  blksz = FIRST_CMEM_BLK_SIZE;
@@ -132,7 +131,7 @@ AllocCMem (UInt size, struct intermediates *cip)
 	siglongjmp(cip->CompilerBotch, OUT_OF_HEAP_BOTCH);
       }
     }
-    p->u.next = cip->blks;
+    p->ublock.next = cip->blks;
     cip->blks = p;
     cip->blk_cur = p->contents;
     cip->blk_top = (char *)p+blksz;
@@ -144,15 +143,15 @@ AllocCMem (UInt size, struct intermediates *cip)
   }
 #else
   char *p;
-  p = cip->freep;
-  cip->freep += size;
   if (ASP <= CellPtr (cip->freep) + 256) {
     CACHE_REGS
-    LOCAL_Error_Size = 256+((char *)cip->freep - (char *)H);
+    LOCAL_Error_Size = 256+((char *)cip->freep - (char *)HR);
     save_machine_regs();
     siglongjmp(cip->CompilerBotch, OUT_OF_STACK_BOTCH);
   }
-  return (p);
+  p = cip->freep;
+  cip->freep += size;
+  return p;
 #endif
 }
 
@@ -163,7 +162,7 @@ Yap_ReleaseCMem (struct intermediates *cip)
   CACHE_REGS
   struct mem_blk *p = cip->blks;
   while (p) {
-    struct mem_blk *nextp = p->u.next;
+    struct mem_blk *nextp = p->ublock.next;
     if (p != LOCAL_CMemFirstBlock)
       Yap_FreeCodeSpace((ADDR)p);
     p = nextp;
@@ -219,7 +218,7 @@ is_a_test(Term arg, Term mod)
 	  return TRUE;
 	}
 	return FALSE;
-      }      
+      }
       return pe->PredFlags & (TestPredFlag|BinaryPredFlag);
     }
   }
@@ -288,6 +287,72 @@ Yap_emit_4ops (compiler_vm_op o, CELL r1, CELL r2, CELL r3, CELL r4, struct inte
     }
 }
 
+void
+Yap_emit_5ops (compiler_vm_op o, CELL r1, CELL r2, CELL r3, CELL r4, CELL r5, struct intermediates *cip)
+{
+  PInstr *p;
+  p = (PInstr *) AllocCMem (sizeof (*p)+3*sizeof(CELL), cip);
+  p->op = o;
+  p->rnd1 = r1;
+  p->rnd2 = r2;
+  p->rnd3 = r3;
+  p->rnd4 = r4;
+  p->rnd5 = r5;
+  p->nextInst = NIL;
+  if (cip->cpc == NIL)
+    cip->cpc = cip->CodeStart = p;
+  else
+    {
+      cip->cpc->nextInst = p;
+      cip->cpc = p;
+    }
+}
+
+void
+Yap_emit_6ops (compiler_vm_op o, CELL r1, CELL r2, CELL r3, CELL r4, CELL r5, CELL r6, struct intermediates *cip)
+{
+  PInstr *p;
+  p = (PInstr *) AllocCMem (sizeof (*p)+4*sizeof(CELL), cip);
+  p->op = o;
+  p->rnd1 = r1;
+  p->rnd2 = r2;
+  p->rnd3 = r3;
+  p->rnd4 = r4;
+  p->rnd5 = r5;
+  p->rnd6 = r6;
+  p->nextInst = NIL;
+  if (cip->cpc == NIL)
+    cip->cpc = cip->CodeStart = p;
+  else
+    {
+      cip->cpc->nextInst = p;
+      cip->cpc = p;
+    }
+}
+
+void
+Yap_emit_7ops (compiler_vm_op o, CELL r1, CELL r2, CELL r3, CELL r4, CELL r5, CELL r6, CELL r7, struct intermediates *cip)
+{
+  PInstr *p;
+  p = (PInstr *) AllocCMem (sizeof (*p)+5*sizeof(CELL), cip);
+  p->op = o;
+  p->rnd1 = r1;
+  p->rnd2 = r2;
+  p->rnd3 = r3;
+  p->rnd4 = r4;
+  p->rnd5 = r5;
+  p->rnd6 = r6;
+  p->rnd7 = r7;
+  p->nextInst = NIL;
+  if (cip->cpc == NIL)
+    cip->cpc = cip->CodeStart = p;
+  else
+    {
+      cip->cpc->nextInst = p;
+      cip->cpc = p;
+    }
+}
+
 CELL *
 Yap_emit_extra_size (compiler_vm_op o, CELL r1, int size, struct intermediates *cip)
 {
@@ -330,6 +395,9 @@ bip_name(Int op, char *s)
     break;
   case _cut_by:
     strcpy(s,"cut_by");
+    break;
+  case _save_by:
+    strcpy(s,"save_by");
     break;
   case _db_ref:
     strcpy(s,"db_ref");
@@ -412,10 +480,47 @@ write_address(CELL address)
     sprintf(buf,"%p",(void *)address);
 #endif
     p[31] = '\0'; /* so that I don't have to worry */
-    Yap_DebugErrorPutc('0');
-    Yap_DebugErrorPutc('x');
+    //Yap_DebugErrorPutc('0');
+    //Yap_DebugErrorPutc('x');
     while (*p != '\0') {
       Yap_DebugErrorPutc(*p++);
+    }
+  }
+}
+
+static void
+write_special_label(special_label_op arg, special_label_id rn, UInt lab)
+{
+  switch (arg) {
+  case SPECIAL_LABEL_INIT:
+    Yap_DebugErrorPuts("init,");
+    switch (rn) {
+    case SPECIAL_LABEL_EXCEPTION:
+      Yap_DebugErrorPuts("exception,");
+      break;
+    case SPECIAL_LABEL_SUCCESS:
+       Yap_DebugErrorPuts("success,");
+      break;
+    case SPECIAL_LABEL_FAILURE:
+      Yap_DebugErrorPuts("fail,");
+      break;
+    }
+    write_address(lab);
+  case SPECIAL_LABEL_SET:
+    Yap_DebugErrorPuts("set,");
+    break;
+  case SPECIAL_LABEL_CLEAR:
+    Yap_DebugErrorPuts("clear,");
+    switch (rn) {
+    case SPECIAL_LABEL_EXCEPTION:
+      Yap_DebugErrorPuts("exception");
+      break;
+    case SPECIAL_LABEL_SUCCESS:
+       Yap_DebugErrorPuts("success");
+      break;
+    case SPECIAL_LABEL_FAILURE:
+      Yap_DebugErrorPuts("fail");
+      break;
     }
   }
 }
@@ -432,6 +537,8 @@ write_functor(Functor f)
       Yap_DebugPlWrite(MkAtomTerm(AtomLONGINT));
     } else if (f == FunctorDouble) {
       Yap_DebugPlWrite(MkAtomTerm(AtomDOUBLE));
+    } else if (f == FunctorString) {
+      Yap_DebugPlWrite(MkAtomTerm(AtomSTRING));
     }
   } else {
     Yap_DebugPlWrite(MkAtomTerm(NameOfFunctor (f)));
@@ -440,14 +547,37 @@ write_functor(Functor f)
   }
 }
 
-static void
-ShowOp (char *f, struct PSEUDO *cpc)
+
+static void send_pred(PredEntry *p)
 {
+  Functor f = p->FunctorOfPred;
+  UInt arity = p->ArityOfPE;
+             Term mod = TermProlog;
+
+            if (p->ModuleOfPred) mod = p->ModuleOfPred;
+             Yap_DebugPlWrite (mod);
+             Yap_DebugErrorPutc (':');
+             if (arity == 0)
+               Yap_DebugPlWrite (MkAtomTerm ((Atom)f));
+            else
+              Yap_DebugPlWrite (MkAtomTerm (NameOfFunctor (f)));
+             Yap_DebugErrorPutc ('/');
+            Yap_DebugPlWrite (MkIntTerm (arity));
+}
+
+
+static void
+ShowOp (compiler_vm_op ic, const char *f, struct PSEUDO *cpc)
+{
+  CACHE_REGS
   char ch;
   Int arg = cpc->rnd1;
   Int rn = cpc->rnd2;
   CELL *cptr = cpc->arnds;
 
+  if (ic != label_op && ic != label_ctl_op && ic != name_op) {
+    Yap_DebugErrorPutc ('\t');
+  }
   while ((ch = *f++) != 0)
     {
       if (ch == '%')
@@ -461,6 +591,19 @@ ShowOp (char *f, struct PSEUDO *cpc)
 		Yap_DebugPlWrite(MkIntTerm(arg));
 		break;
 #endif
+	  case '2':
+	    {
+	      Ventry *v = (Ventry *) cpc->rnd3;
+	      Yap_DebugErrorPutc (v->KindOfVE == PermVar ? 'Y' : 'X');
+	      Yap_DebugPlWrite (MkIntTerm ((v->NoOfVE) & MaskVarAdrs));
+	      Yap_DebugErrorPutc (',');
+	      Yap_DebugErrorPutc ('A');
+	      Yap_DebugPlWrite (MkIntegerTerm (cpc->rnd4));
+	      Yap_DebugErrorPutc (',');
+	      send_pred( RepPredProp((Prop)(cpc->rnd5)) );
+	    }
+	    break;
+
 	  case 'a':
 	  case 'n':
 	    Yap_DebugPlWrite ((Term) arg);
@@ -474,9 +617,12 @@ ShowOp (char *f, struct PSEUDO *cpc)
 		Yap_DebugPlWrite(MkIntegerTerm((Int)(*ptr++)));
 	      }
 	    }
-	    break;		
+	    break;
 	  case 'l':
 	    write_address (arg);
+	    break;
+	  case 'L':
+	    write_special_label (arg, rn, cpc->rnd3);
 	    break;
 	  case 'B':
 	    {
@@ -495,10 +641,12 @@ ShowOp (char *f, struct PSEUDO *cpc)
 	  case 'v':
 	    {
 	      Ventry *v = (Ventry *) arg;
-	      Yap_DebugErrorPutc (v->KindOfVE == PermVar ? 'Y' : 'X');
-	      Yap_DebugPlWrite (MkIntTerm ((v->NoOfVE) & MaskVarAdrs));
+          if (v) {
+            Yap_DebugErrorPutc (v->KindOfVE == PermVar ? 'Y' : 'X');
+            Yap_DebugPlWrite (MkIntTerm ((v->NoOfVE) & MaskVarAdrs));
+          }
 	    }
-	    break;	
+	    break;
 	  case 'N':
 	    {
 	      Ventry *v;
@@ -510,55 +658,26 @@ ShowOp (char *f, struct PSEUDO *cpc)
 	      Yap_DebugPlWrite (MkIntTerm ((v->NoOfVE) & MaskVarAdrs));
 	    }
 	    break;
-	  case 'm':
-	    Yap_DebugPlWrite (MkAtomTerm ((Atom) arg));
-	    Yap_DebugErrorPutc ('/');
-	    Yap_DebugPlWrite (MkIntTerm (rn));
-	    break;
+         case 'm':
+           Yap_DebugPlWrite (MkAtomTerm ((Atom) arg));
+           Yap_DebugErrorPutc ('/');
+           Yap_DebugPlWrite (MkIntTerm (rn));
+           break;
 	  case 'p':
-	    {
-	      PredEntry *p = RepPredProp ((Prop) arg);
-	      Functor f = p->FunctorOfPred;
-	      UInt arity = p->ArityOfPE;
-	      Term mod;
-
-	      if (p->ModuleOfPred)
-		mod = p->ModuleOfPred;
-	      else
-		mod = TermProlog;
-	      Yap_DebugPlWrite (mod);
-	      Yap_DebugErrorPutc (':');
-	      if (arity == 0)
-		Yap_DebugPlWrite (MkAtomTerm ((Atom)f));
-	      else
-		Yap_DebugPlWrite (MkAtomTerm (NameOfFunctor (f)));
-	      Yap_DebugErrorPutc ('/');
-	      Yap_DebugPlWrite (MkIntTerm (arity));
-	    }
-	    break;
-	  case 'P':
-	    {
-	      PredEntry *p = RepPredProp((Prop) rn);
-	      Functor f = p->FunctorOfPred;
-	      UInt arity = p->ArityOfPE;
-	      Term mod = TermProlog;
-
-	      if (p->ModuleOfPred) mod = p->ModuleOfPred;
-	      Yap_DebugPlWrite (mod);
-	      Yap_DebugErrorPutc (':');
-	      if (arity == 0)
-		Yap_DebugPlWrite (MkAtomTerm ((Atom)f));
-	      else
-		Yap_DebugPlWrite (MkAtomTerm (NameOfFunctor (f)));
-	      Yap_DebugErrorPutc ('/');
-	      Yap_DebugPlWrite (MkIntTerm (arity));
-	    }
-	    break;
+	   send_pred( RepPredProp((Prop)(arg) ));
+           break;
+         case 'P':
+	   send_pred( RepPredProp((Prop)(rn) ));
+           break;
 	  case 'f':
 	    write_functor((Functor)arg);
 	    break;
 	  case 'r':
 	    Yap_DebugErrorPutc ('A');
+	    Yap_DebugPlWrite (MkIntTerm (rn));
+	    break;
+	  case 'S':
+	    Yap_DebugErrorPutc ('S');
 	    Yap_DebugPlWrite (MkIntTerm (rn));
 	    break;
 	  case 'h':
@@ -583,6 +702,8 @@ ShowOp (char *f, struct PSEUDO *cpc)
 		  Yap_DebugPlWrite(MkAtomTerm(AtomLONGINT));
 		} else if (fun == FunctorDouble) {
 		  Yap_DebugPlWrite(MkAtomTerm(AtomDOUBLE));
+		} else if (fun == FunctorString) {
+		  Yap_DebugPlWrite(MkAtomTerm(AtomSTRING));
 		}
 	      } else {
 		Yap_DebugPlWrite (MkAtomTerm(NameOfFunctor(fun)));
@@ -600,7 +721,7 @@ ShowOp (char *f, struct PSEUDO *cpc)
 	    Yap_DebugPlWrite (MkIntTerm (rn & 1));
 	    break;
 	  case 'w':
-	    Yap_DebugPlWrite (arg);
+	    Yap_DebugPlWrite (MkIntTerm(arg));
 	    break;
 	  case 'o':
 	    Yap_DebugPlWrite ((Term) * cptr++);
@@ -655,212 +776,23 @@ ShowOp (char *f, struct PSEUDO *cpc)
   Yap_DebugErrorPutc ('\n');
 }
 
-static char *opformat[] =
-{
-  "nop",
-  "get_var\t\t%v,%r",
-  "put_var\t\t%v,%r",
-  "get_val\t\t%v,%r",
-  "put_val\t\t%v,%r",
-  "get_atom\t%a,%r",
-  "put_atom\t%a,%r",
-  "get_num\t\t%n,%r",
-  "put_num\t\t%n,%r",
-  "get_float\t\t%w,%r",
-  "put_float\t\t%w,%r",
-  "get_dbterm\t%w,%r",
-  "put_dbterm\t%w,%r",
-  "get_longint\t\t%w,%r",
-  "put_longint\t\t%w,%r",
-  "get_bigint\t\t%l,%r",
-  "put_bigint\t\t%l,%r",
-  "get_list\t%r",
-  "put_list\t%r",
-  "get_struct\t%f,%r",
-  "put_struct\t%f,%r",
-  "put_unsafe\t%v,%r",
-  "unify_var\t%v",
-  "write_var\t%v",
-  "unify_val\t%v",
-  "write_val\t%v",
-  "unify_atom\t%a",
-  "write_atom\t%a",
-  "unify_num\t%n",
-  "write_num\t%n",
-  "unify_float\t%w",
-  "write_float\t%w",
-  "unify_dbterm\t%w",
-  "write_dbterm\t%w",
-  "unify_longint\t%w",
-  "write_longint\t%w",
-  "unify_bigint\t%l",
-  "write_bigint\t%l",
-  "unify_list",
-  "write_list",
-  "unify_struct\t%f",
-  "write_struct\t%f",
-  "write_unsafe\t%v",
-  "unify_local\t%v",
-  "write local\t%v",
-  "unify_last_list",
-  "write_last_list",
-  "unify_last_struct\t%f",
-  "write_last_struct\t%f",
-  "unify_last_var\t%v",
-  "unify_last_val\t%v",
-  "unify_last_local\t%v",
-  "unify_last_atom\t%a",
-  "unify_last_num\t%n",
-  "unify_last_float\t%w", 
-  "unify_last_dbterm\t%w",
-  "unify_last_longint\t%w",
-  "unify_last_bigint\t%l",
-  "ensure_space",
-  "native_code",
-  "function_to_var\t%v,%B",
-  "function_to_val\t%v,%B",
-  "function_to_0\t%B",
-  "align_float",
-  "fail",
-  "cut",
-  "cutexit",
-  "allocate",
-  "deallocate",
-  "try_me_else\t\t%l\t%x",
-  "jump\t\t%l",
-  "jump\t\t%l",
-  "proceed",
-  "call\t\t%p,%d,%z",
-  "execute\t\t%p",
-  "sys\t\t%p",
-  "%l:",
-  "name\t\t%m,%d",
-  "pop\t\t%l",
-  "retry_me_else\t\t%l\t%x",
-  "trust_me_else_fail\t%x",
-  "either_me\t\t%l,%d,%z",
-  "or_else\t\t%l,%z",
-  "or_last",
-  "push_or",
-  "pushpop_or",
-  "pop_or",
-  "save_by\t\t%v",
-  "commit_by\t\t%v",
-  "patch_by\t\t%v",
-  "try\t\t%g\t%x",
-  "retry\t\t%g\t%x",
-  "trust\t\t%g\t%x",
-  "try_in\t\t%g\t%x",
-  "jump_if_var\t\t%g",
-  "jump_if_nonvar\t\t%g",
-  "cache_arg\t%r",
-  "cache_sub_arg\t%d",
-  "user_index",
-  "switch_on_type\t%h\t%h\t%h\t%h",
-  "switch_on_constant\t%i\n%c",
-  "if_constant\t%i\n%c",
-  "switch_on_functor\t%i\n%e",
-  "if_functor\t%i\n%e",
-  "if_not_then\t%i\t%h\t%h\t%h",
-  "index_on_dbref",
-  "index_on_blob",
-  "index_on_long",
-  "check_var\t %r",
-  "save_pair\t%v",
-  "save_appl\t%v",
-  "pvar_bitmap\t%l,%b",
-  "pvar_live_regs\t%l,%b",
-  "fetch_reg1_reg2\t%N,%N",
-  "fetch_constant_reg\t%l,%N",
-  "fetch_reg_constant\t%l,%N",
-  "fetch_integer_reg\t%d,%N",
-  "fetch_reg_integer\t%d,%N",
-  "enter_profiling\t\t%g",
-  "retry_profiled\t\t%g",
-  "count_call_op\t\t%g",
-  "count_retry_op\t\t%g",
-  "restore_temps\t\t%l",
-  "restore_temps_and_skip\t\t%l",
-  "enter_lu",
-  "empty_call\t\t%l,%d",
-#ifdef YAPOR
-  "sync",
-#endif /* YAPOR */
-#ifdef TABLING
-  "table_new_answer",
-  "table_try_single\t%g\t%x",
-#endif /* TABLING */
-#ifdef TABLING_INNER_CUTS
-  "clause_with_cut",
-#endif /* TABLING_INNER_CUTS */
-#ifdef BEAM
-  "run_op %1,%4",
-  "body_op %1",
-  "endgoal_op",
-  "try_me_op %1,%4",
-  "retry_me_op %1,%4",
-  "trust_me_op %1,%4",
-  "only_1_clause_op %1,%4",
-  "create_first_box_op %1,%4",
-  "create_box_op %1,%4",
-  "create_last_box_op %1,%4",
-  "remove_box_op %1,%4",
-  "remove_last_box_op %1,%4",
-  "prepare_tries",
-  "std_base_op %1,%4",
-  "direct_safe_call",
-  "skip_while_var_op",
-  "wait_while_var_op",
-  "force_wait_op",
-  "write_op",
-  "is_op",
-  "equal_op",
-  "exit",
-#endif
-  "fetch_args_for_bccall\t%v",
-  "binary_cfunc\t\t%v,%P",
-  "blob\t%O",
-  "label_control\t"
-#ifdef SFUNC
-  ,
-  "get_s_f_op\t%f,%r",
-  "put_s_f_op\t%f,%r",
-  "unify_s_f_op\t%f",
-  "write_s_f_op\t%f",
-  "unify_s_var\t%v,%r",
-  "write_s_var\t%v,%r",
-  "unify_s_val\t%v,%r",
-  "write_s_val\t%v,%r",
-  "unify_s_a\t%a,%r",
-  "write_s_a\t%a,%r",
-  "get_s_end",
-  "put_s_end",
-  "unify_s_end",
-  "write_s_end"
-#endif
-};
-
-
 void
 Yap_ShowCode (struct intermediates *cint)
 {
   CACHE_REGS
-  CELL *oldH = H;
   struct PSEUDO *cpc;
 
   cpc = cint->CodeStart;
   /* MkIntTerm and friends may build terms in the global stack */
-  H = (CELL *)cint->freep;
+  HR = (CELL *)cint->freep;
   while (cpc) {
     compiler_vm_op ic = cpc->op;
     if (ic != nop_op) {
-      ShowOp (opformat[ic], cpc);
+      ShowOp (ic, opDesc[ic], cpc);
     }
     cpc = cpc->nextInst;
   }
   Yap_DebugErrorPutc ('\n');
-  H = oldH;
 }
 
 #endif /* DEBUG */
-

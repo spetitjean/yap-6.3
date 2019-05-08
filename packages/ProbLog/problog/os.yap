@@ -2,11 +2,11 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-%  $Date: 2011-11-28 14:41:26 +0100 (Mon, 28 Nov 2011) $
-%  $Revision: 6764 $
+				%  $Date: 2011-11-28 14:41:26 +0100 (Mon, 28 Nov 2011) $
+				%  $Revision: 6764 $
 %
 %  This file is part of ProbLog
-%  http://dtai.cs.kuleuven.be/problog
+				%  http://dtai.cs.kuleuven.be/problog
 %
 %  ProbLog was developed at Katholieke Universiteit Leuven
 %
@@ -35,7 +35,7 @@
 % license directly with the Copyright Holder of a given Package. If the
 % terms of this license do not permit the full use that you propose to
 % make of the Package, you should contact the Copyright Holder and seek
-% a different licensing arrangement.  Definitions
+				% a different licensing arrangement.  Definitions
 %
 % "Copyright Holder" means the individual(s) or organization(s) named in
 % the copyright notice for the entire Package.
@@ -219,8 +219,9 @@
 
 
 % load library modules
-:- use_module(library(system), [exec/3, file_exists/1,wait/2]).
+:- use_module(library(system), [exec/3, file_exists/1,wait/2,  md5/3]).
 :- use_module(library(lists), [memberchk/2]).
+:- yap_flag(arithmetic_exceptions, false).
 
 % load our own modules
 :- use_module(gflags, _, [flag_get/2]).
@@ -235,9 +236,32 @@
 %=
 %========================================================================
 
-set_problog_path(Path):-
+set_problog_path( _Path):-
 	retractall(problog_path(_)),
-	assertz(problog_path(Path)).
+	current_prolog_flag( executable, YAP ),
+	file_directory_name(YAP, P1),
+	current_prolog_flag( home, ROOT ),
+	atom_concat(ROOT, '/bin', P2),
+	getenv('PATH',Dirs),
+	path_grouping( PathSep ),
+	atomic_list_concat( LPaths, PathSep, Dirs),
+	set_problog_paths( [P1,P2| LPaths] ),
+	fail.
+
+
+set_problog_path(Path):-
+	path_separator( S ),
+	sub_atom(Path, _, 1, 0, S), !,
+        sub_atom(Path, _, _, 1, Path0),
+	asserta(problog_path(Path0)).
+set_problog_path(Path):-
+        asserta(problog_path(Path)).
+
+
+set_problog_paths( [Path|Paths] ) :-
+        assertz(problog_path(Path)),
+	set_problog_paths( Paths ).
+set_problog_paths( [] ).
 
 %========================================================================
 %=
@@ -251,7 +275,8 @@ convert_filename_to_working_path(File_Name, Path):-
 
 convert_filename_to_problog_path(File_Name, Path):-
 	problog_path(Dir),
-	concat_path_with_filename(Dir, File_Name, Path).
+	concat_path_with_filename(Dir, File_Name, Path),
+        catch(file_exists(Path), _, fail).
 
 
 %========================================================================
@@ -261,22 +286,8 @@ convert_filename_to_problog_path(File_Name, Path):-
 %========================================================================
 
 concat_path_with_filename(Path, File_Name, Result):-
-	nonvar(File_Name),
-	nonvar(Path),
-  
-				% make sure, that there is no path delimiter at the end
-	prolog_file_name(Path,Path_Absolute),
-
-	path_seperator(Path_Seperator),
-	atomic_concat([Path_Absolute, Path_Seperator, File_Name], Result).
-
-concat_path_with_filename2(Path, File_Name, Result):-
-	nonvar(File_Name),
-	nonvar(Path),
-	path_seperator(Path_Seperator),
-	(atomic_concat(Path_Absolute, Path_Seperator, Path) ; Path_Absolute = Path),
-	atomic_concat([Path_Absolute, Path_Seperator, File_Name], Result).
-
+	path_separator(Path_Seperator),
+	atomic_list_concat([Path, Path_Seperator, File_Name], Result).
 
 %========================================================================
 %= Calculate the MD5 checksum of +Filename by calling md5sum
@@ -285,96 +296,47 @@ concat_path_with_filename2(Path, File_Name, Result):-
 %========================================================================
 
 calc_md5(Filename,MD5):-
-	catch(calc_md5_intern(Filename,'md5sum',MD5),_,fail),
-	!.
-calc_md5(Filename,MD5):-
-	catch(calc_md5_intern(Filename,'md5 -r',MD5),_,fail),
-	% used in Mac OS
-	% the -r makes the output conform with md5sum
+	catch(calc_md5_intern(Filename,MD5),_,fail),
 	!.
 calc_md5(Filename,MD5):-
 	throw(md5error(calc_md5(Filename,MD5))).
 
-calc_md5_intern(Filename,Command,MD5) :-
+calc_md5_intern(Filename,MD5) :-
 	( file_exists(Filename) -> true ; throw(md5_file(Filename)) ),
+	file_to_codes(Filename, S, []),
+	md5( S, MD5, [] ),
+	format('~s => ~s~n', [S,MD5]).
 
-	atomic_concat([Command,' "',Filename,'"'],Call),
+file_to_codes( F, Codes, LF ) :-
+	open(F, read, S),
+	get_codes( S, Codes, LF),
+	close(S).
 
-	% execute the md5 command
-	exec(Call,[null,pipe(S),null],PID),
-	bb_put(calc_md5_temp,End-End),  % use difference list
-	bb_put(calc_md5_temp2,0),
-
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	(	% read 32 Bytes from stdout of process
-		repeat,
-		get_code(S,C),
-
-		(
-		 C== -1
-		->
-		 (
-		  close(S),
-		  wait(PID,_Status),
-		  throw(md5error('premature end of output stream, please check os.yap calc_md5/2'))
-		 );
-		 true
-		),
-
-		bb_get(calc_md5_temp,List-[C|NewEnd]),
-		bb_put(calc_md5_temp,List-NewEnd),
-		bb_get(calc_md5_temp2,OldLength),
-		NewLength is OldLength+1,
-		bb_put(calc_md5_temp2,NewLength),
-		NewLength=32
-	),
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+get_codes(S, [C|L], LF) :-
+	get_code(S, C),
+	C \= -1,
 	!,
-	
-	close(S),
-	wait(PID,_Status),
-	bb_delete(calc_md5_temp, FinalList-[]),
-	bb_delete(calc_md5_temp2,_),
-	atom_codes(MD5,FinalList).
-
+	get_codes(S, L, LF).
+get_codes(_, LF, LF).
 
 %========================================================================
 %=
 %=
 %=
-%========================================================================
-
-path_seperator('\\'):-
-   yap_flag(windows, true), !.
-path_seperator('/').
-
-
-%========================================================================
-%= 
-%= 
-%= 
-%========================================================================
-
-split_path_file(PathFile, Path, File):-
-	path_seperator(PathSeperator),
-	name(PathSeperator, [PathSeperatorName]),
-
-	atomic_concat(Path, File, PathFile),
-	name(File, FileName),
-	\+ memberchk(PathSeperatorName, FileName),
-	!.
-
-%========================================================================
-%= 
-%= 
-%= 
 %========================================================================
 
 
 check_existance(FileName):-
 	convert_filename_to_problog_path(FileName, Path),
-	catch(file_exists(Path), _, fail).
+	catch(file_exists(Path), _, fail), !.
 check_existance(FileName):-
 	problog_path(PD),
 	write(user_error, 'WARNING: Can not find file: '), write(user_error, FileName),
 	write(user_error, ', please place file in problog path: '), write(user_error, PD), nl(user_error).
+
+path_grouping(PathSep) :-
+	( current_prolog_flag( windows, true ) -> PathSep = ';' ; PathSep = ':' ).
+
+path_separator('\\') :-
+        current_prolog_flag( windows, true ).
+path_separator('/').

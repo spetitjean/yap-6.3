@@ -66,10 +66,10 @@ typedef	struct FREEB {
 
 #if SIZEOF_INT_P==4
 #define YAP_ALIGN		3
-#define YAP_ALIGNMASK		0xfffffffc
+#define YAP_ALIGNMASK		((CELL)(-4))
 #else
 #define YAP_ALIGN		7
-#define YAP_ALIGNMASK		0xfffffff8L
+#define YAP_ALIGNMASK		((CELL)(-8))
 #endif	/* ALIGN_LONGS */
 
 #define AdjustSize(X)	((X+YAP_ALIGN) & YAP_ALIGNMASK)
@@ -94,20 +94,21 @@ typedef	struct FREEB {
 #define BlockTrailer(b)		((YAP_SEG_SIZE *)b)[((BlockHeader *) b)->b_size]
 
 /* Operating system and architecture dependent page size */
-extern int Yap_page_size;
+extern size_t Yap_page_size;
 
-void   STD_PROTO(Yap_InitHeap, (void *));
-UInt   STD_PROTO(Yap_ExtendWorkSpaceThroughHole, (UInt));
-void   STD_PROTO(Yap_AllocHole, (UInt, UInt));
-
-#if USE_MMAP && ! defined(__CYGWIN__)
+extern void   Yap_InitHeap(void *);
+extern UInt   Yap_ExtendWorkSpaceThroughHole(UInt);
+extern void   Yap_AllocHole(UInt, UInt);
+extern size_t Yap_HeapUsed(void);
+;
+#if USE_SYSTEM_MMAP && ! defined(__CYGWIN__)
 
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#elif USE_SHM
+#elif USE_SYSTEM_SHM
 
-
+ 
 
 #elif USE_SBRK
 
@@ -120,10 +121,10 @@ void *sbrk(caddr_t);
 
 typedef unsigned size_t;
 
-MALLOC_T malloc(size_t);
-void free(MALLOC_T);
-MALLOC_T realloc(MALLOC_T,size_t);
-MALLOC_T calloc(size_t,size_t);
+extern MALLOC_T malloc(size_t);
+extern void free(MALLOC_T);
+extern MALLOC_T realloc(MALLOC_T,size_t);
+extern MALLOC_T calloc(size_t,size_t);
 
 #endif
 

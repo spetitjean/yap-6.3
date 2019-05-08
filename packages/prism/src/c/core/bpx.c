@@ -15,6 +15,8 @@
 /*--------------------------------------------------------------------*/
 /*                      Functions from B-Prolog                       */
 
+int bpx_mount_query_term(TERM t);
+
 /* cpred.c */
 int         bp_string_2_term(const char *, TERM, TERM);
 char*	    bp_term_2_string(TERM);
@@ -34,7 +36,7 @@ double      floatval(TERM);
 #ifdef __YAP_PROLOG__
 static inline
 #endif
-TERM        encodefloat1(double);
+TERM        encodefloat1(double USES_REGS);
 
 /* loader.c */
 SYM_REC_PTR insert(const char *, int, int);
@@ -44,9 +46,9 @@ NORET       quit(const char *);
 NORET       myquit(int, const char *);
 
 /* unify.c */
-int         unify(TERM, TERM);
-int         is_UNIFIABLE(TERM, TERM);
-int         is_IDENTICAL(TERM, TERM);
+int          unify(TERM, TERM);
+int          is_UNIFIABLE(TERM, TERM);
+int          is_IDENTICAL(TERM, TERM);
 
 /* prism.c */
 NORET       bp4p_quit(int);
@@ -272,7 +274,7 @@ TERM bpx_build_float(double x)
 {
   CACHE_REGS
     REQUIRE_HEAP(4);
-    return encodefloat1(x);
+    return encodefloat1(x PASS_REGS);
 }
 
 TERM bpx_build_atom(const char *name)

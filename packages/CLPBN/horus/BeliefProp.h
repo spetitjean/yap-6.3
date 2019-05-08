@@ -1,188 +1,164 @@
-#ifndef HORUS_BELIEFPROP_H
-#define HORUS_BELIEFPROP_H
+#ifndef YAP_PACKAGES_CLPBN_HORUS_BELIEFPROP_H_
+#define YAP_PACKAGES_CLPBN_HORUS_BELIEFPROP_H_
 
-#include <set>
 #include <vector>
-#include <sstream>
+#include <set>
+#include <string>
 
-#include "Solver.h"
-#include "Factor.h"
+#include "GroundSolver.h"
 #include "FactorGraph.h"
-#include "Util.h"
-
-using namespace std;
 
 
-class BpLink
-{
-  public:
-    BpLink (FacNode* fn, VarNode* vn)
-    { 
-      fac_ = fn;
-      var_ = vn;
-      v1_.resize (vn->range(), LogAware::log (1.0 / vn->range()));
-      v2_.resize (vn->range(), LogAware::log (1.0 / vn->range()));
-      currMsg_   = &v1_;
-      nextMsg_   = &v2_;
-      residual_  = 0.0;
-    }
+namespace Horus {
 
-    virtual ~BpLink (void) { };
-
-    FacNode* facNode (void) const { return fac_; }
-
-    VarNode* varNode (void) const { return var_; }
-
-    const Params& message (void) const { return *currMsg_; }
-
-    Params& nextMessage (void) { return *nextMsg_; }
-
-    double residual (void) const { return residual_; }
-
-    void clearResidual (void) { residual_ = 0.0; }
-
-    void updateResidual (void)
-    {
-      residual_ = LogAware::getMaxNorm (v1_,v2_);
-    }
-
-    virtual void updateMessage (void) 
-    {
-      swap (currMsg_, nextMsg_);
-    }
-
-    string toString (void) const
-    {
-      stringstream ss;
-      ss << fac_->getLabel();
-      ss << " -- " ;
-      ss << var_->label();
-      return ss.str();
-    }
- 
-  protected:
-    FacNode*  fac_;
-    VarNode*  var_;
-    Params    v1_;
-    Params    v2_;
-    Params*   currMsg_;
-    Params*   nextMsg_;
-    double    residual_;
-};
-
-typedef vector<BpLink*> BpLinks;
-
-
-class SPNodeInfo
-{
-  public:
-    void addBpLink (BpLink* link) { links_.push_back (link); }
-    const BpLinks& getLinks (void) { return links_; }
+class BeliefProp : public GroundSolver {
   private:
-    BpLinks links_;
-};
+    class SPNodeInfo;
 
-
-class BeliefProp : public Solver
-{
   public:
+    enum class MsgSchedule {
+      seqFixedSch,
+      seqRandomSch,
+      parallelSch,
+      maxResidualSch
+    };
+
     BeliefProp (const FactorGraph&);
 
-    virtual ~BeliefProp (void);
+    virtual ~BeliefProp();
 
     Params solveQuery (VarIds);
 
-    virtual void printSolverFlags (void) const;
+    virtual void printSolverFlags() const;
 
     virtual Params getPosterioriOf (VarId);
 
     virtual Params getJointDistributionOf (const VarIds&);
- 
+
+    Params getFactorJoint (FacNode* fn, const VarIds&);
+
+    static double accuracy() { return accuracy_; }
+
+    static void setAccuracy (double acc) { accuracy_ = acc; }
+
+    static unsigned maxIterations() { return maxIter_; }
+
+    static void setMaxIterations (unsigned mi) { maxIter_ = mi; }
+
+    static MsgSchedule msgSchedule() { return schedule_; }
+
+    static void setMsgSchedule (MsgSchedule sch) { schedule_ = sch; }
+
   protected:
-    void runSolver (void);
+    class BpLink {
+      public:
+        BpLink (FacNode* fn, VarNode* vn);
 
-    virtual void createLinks (void);
+        virtual ~BpLink() { };
 
-    virtual void maxResidualSchedule (void);
+        FacNode* facNode() const { return fac_; }
+
+        VarNode* varNode() const { return var_; }
+
+        const Params& message() const { return *currMsg_; }
+
+        Params& nextMessage() { return *nextMsg_; }
+
+        double residual() const { return residual_; }
+
+        void clearResidual();
+
+        void updateResidual();
+
+        virtual void updateMessage();
+
+        std::string toString() const;
+
+      protected:
+        FacNode*  fac_;
+        VarNode*  var_;
+        Params    v1_;
+        Params    v2_;
+        Params*   currMsg_;
+        Params*   nextMsg_;
+        double    residual_;
+
+      private:
+        DISALLOW_COPY_AND_ASSIGN (BpLink);
+    };
+
+    struct CmpResidual {
+      bool operator() (const BpLink* l1, const BpLink* l2) {
+        return l1->residual() > l2->residual();
+    }};
+
+    typedef std::vector<BeliefProp::BpLink*>                    BpLinks;
+    typedef std::multiset<BpLink*, CmpResidual>                 SortedOrder;
+    typedef std::unordered_map<BpLink*, SortedOrder::iterator>  BpLinkMap;
+
+    BpLinks& getLinks (const VarNode* var);
+
+    BpLinks& getLinks (const FacNode* fac);
+
+    void calculateAndUpdateMessage (BpLink* link, bool calcResidual = true);
+
+    void calculateMessage (BpLink* link, bool calcResidual = true);
+
+    void updateMessage (BpLink* link);
+
+    void runSolver();
+
+    virtual void createLinks();
+
+    virtual void maxResidualSchedule();
 
     virtual void calcFactorToVarMsg (BpLink*);
 
-    virtual Params getVarToFactorMsg (const BpLink*) const;
+    virtual Params getVarToFactorMsg (const BpLink*);
 
     virtual Params getJointByConditioning (const VarIds&) const;
 
-  public:
-    Params getFactorJoint (size_t fnIdx, const VarIds&);
+    BpLinks                   links_;
+    unsigned                  nIters_;
+    bool                      runned_;
+    SortedOrder               sortedOrder_;
+    BpLinkMap                 linkMap_;
 
-  protected:
-    SPNodeInfo* ninf (const VarNode* var) const
-    {
-      return varsI_[var->getIndex()];
-    }
-
-    SPNodeInfo* ninf (const FacNode* fac) const
-    {
-      return facsI_[fac->getIndex()];
-    }
-
-    void calculateAndUpdateMessage (BpLink* link, bool calcResidual = true)
-    {
-      if (Globals::verbosity > 2) {
-        cout << "calculating & updating " << link->toString() << endl;
-      }
-      calcFactorToVarMsg (link);
-      if (calcResidual) {
-        link->updateResidual();
-      }
-      link->updateMessage();
-    }
-
-    void calculateMessage (BpLink* link, bool calcResidual = true)
-    {
-      if (Globals::verbosity > 2) {
-        cout << "calculating " << link->toString() << endl;
-      }
-      calcFactorToVarMsg (link);
-      if (calcResidual) {
-        link->updateResidual();
-      }
-    }
-
-    void updateMessage (BpLink* link)
-    {
-      link->updateMessage();
-      if (Globals::verbosity > 2) {
-        cout << "updating " << link->toString() << endl;
-      }
-    }
-
-    struct CompareResidual
-    {
-      inline bool operator() (const BpLink* link1, const BpLink* link2)
-      {
-        return link1->residual() > link2->residual();
-      }
-    };
-
-    BpLinks              links_;
-    unsigned             nIters_;
-    vector<SPNodeInfo*>  varsI_;
-    vector<SPNodeInfo*>  facsI_;
-    bool                 runned_;
-
-    typedef multiset<BpLink*, CompareResidual> SortedOrder;
-    SortedOrder sortedOrder_;
-
-    typedef unordered_map<BpLink*, SortedOrder::iterator> BpLinkMap;
-    BpLinkMap linkMap_;
+    static double             accuracy_;
 
   private:
-    void initializeSolver (void);
+    void initializeSolver();
 
-    bool converged (void);
+    bool converged();
 
-    virtual void printLinkInformation (void) const;
+    virtual void printLinkInformation() const;
+
+    std::vector<BpLinks>      varsLinks_;
+    std::vector<BpLinks>      facsLinks_;
+
+    static unsigned           maxIter_;
+    static MsgSchedule        schedule_;
+
+    DISALLOW_COPY_AND_ASSIGN (BeliefProp);
 };
 
-#endif // HORUS_BELIEFPROP_H
+
+
+inline BeliefProp::BpLinks&
+BeliefProp::getLinks (const VarNode* var)
+{
+  return varsLinks_[var->getIndex()];
+}
+
+
+
+inline BeliefProp::BpLinks&
+BeliefProp::getLinks (const FacNode* fac)
+{
+  return facsLinks_[fac->getIndex()];
+}
+
+}  // namespace Horus
+
+#endif  // YAP_PACKAGES_CLPBN_HORUS_BELIEFPROP_H_
 

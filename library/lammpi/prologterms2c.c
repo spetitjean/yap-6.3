@@ -34,6 +34,8 @@ Comments: This file provides a set of functions to convert a prolog term to a C 
 #include <malloc.h>
 #endif
 
+#if HAVE_MPI_H
+
 #ifdef COMPRESS
 #include "minilzo.h"
 #endif
@@ -51,7 +53,7 @@ Comments: This file provides a set of functions to convert a prolog term to a C 
 
 #endif
 
-struct buffer_ds buffer; 
+struct buffer_ds buffers[1024]; 
 
 /*********************************************************************************************/
 // prototypes
@@ -96,16 +98,23 @@ expand_buffer(const size_t space ) {
 /*
  * Changes the size of the buffer to contain at least newsize bytes 
  */
-void
-change_buffer_size(const size_t newsize) {
-
-  if ( BUFFER_SIZE>=BLOCK_SIZE && BUFFER_SIZE>=newsize)
-    return;
-  if (BUFFER_PTR) {
-    free(BUFFER_PTR);
-  }
-  BUFFER_PTR = (char*)malloc(newsize);
-  if( BUFFER_PTR == NULL ) {
+void change_buffer_size(const size_t newsize) {
+  if ( BUFFER_PTR == NULL )
+    {
+      if ((BUFFER_PTR = malloc(  BLOCK_SIZE < newsize ? newsize : BLOCK_SIZE)) == NULL) {
+        YAP_Error(0,0,"Prolog2Term: Out of memory.\n");
+#ifdef MPI
+        MPI_Finalize();
+#endif
+        YAP_Exit( 1 );
+      }
+    }
+  else if ((BUFFER_SIZE>=BLOCK_SIZE &&
+       BUFFER_SIZE>=newsize) )
+    {
+      return;
+    }
+  else if ((BUFFER_PTR = realloc( BUFFER_PTR, newsize)) == NULL) {
     YAP_Error(0,0,"Prolog2Term: Out of memory.\n");
 #ifdef MPI
     MPI_Finalize();
@@ -140,7 +149,8 @@ p2c_putt(const YAP_Term t) {
 size_t 
 write_term_to_stream(const int fd,const YAP_Term term) {
 
-  RESET_BUFFER;
+  RESET_BUFFER();
+  printf("BUFFER_PTR=%p\n", BUFFER_PTR);
   p2c_putt(term);
   if (write(fd,(void*)BUFFER_PTR,BUFFER_LEN) < 0) {     // write term
     YAP_Error(0,0,"Prolog2Term: IO error in write.\n");
@@ -156,7 +166,7 @@ YAP_Term
 read_term_from_stream(const int fd) {
   size_t size; 
 
-  RESET_BUFFER;    
+  RESET_BUFFER();    
   if (!read(fd,(void*)&size,sizeof(size_t))) { // read the size of the term
     YAP_Error(0,0,"Prolog2Term: IO error in read.\n");
   }
@@ -181,7 +191,7 @@ read_term_from_stream(const int fd) {
 char* 
 term2string(char *const ptr, size_t *size, const YAP_Term t) {
   char *ret;
-  RESET_BUFFER;
+  RESET_BUFFER();
 
   do {
     if (*size == 0) {
@@ -211,3 +221,4 @@ string2term(char *const ptr,const size_t *size) {
   }
   return t;
 }                                                                                   
+#endif /* HAVE_MPI_H */

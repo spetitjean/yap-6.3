@@ -49,10 +49,11 @@ static YAP_Term trie_to_list_floats(TrNode node);
 /* -------------------------- */
 
 static TrEngine CURRENT_TRIE_ENGINE;
+
 static YAP_Int USAGE_ENTRIES, USAGE_NODES, USAGE_VIRTUAL_NODES;
 static YAP_Int CURRENT_AUXILIARY_TERM_STACK_SIZE, CURRENT_TRIE_MODE, CURRENT_LOAD_VERSION, CURRENT_DEPTH, CURRENT_INDEX;
 static YAP_Term *AUXILIARY_TERM_STACK;
-static YAP_Term *stack_args, *stack_args_base, *stack_vars, *stack_vars_base;
+YAP_Term *stack_args, *stack_args_base, *stack_vars, *stack_vars_base;
 static YAP_Functor FunctorComma;
 static void (*DATA_SAVE_FUNCTION)(TrNode, FILE *);
 static void (*DATA_LOAD_FUNCTION)(TrNode, YAP_Int, FILE *);
@@ -68,7 +69,7 @@ static YAP_Int TRIE_DISABLE_HASH_TABLE = 0;
 /*     Inline Procedures      */
 /* -------------------------- */
 
-static inline
+static
 TrNode trie_node_check_insert(TrNode parent, YAP_Term t) {
   TrNode child;
 
@@ -156,7 +157,7 @@ TrNode trie_node_check_insert(TrNode parent, YAP_Term t) {
 }
 
 
-static inline
+static
 TrNode trie_node_insert(TrNode parent, YAP_Term t, TrHash hash) {
   TrNode child;
 
@@ -180,7 +181,7 @@ TrNode trie_node_insert(TrNode parent, YAP_Term t, TrHash hash) {
 }
 
 
-static inline
+static
 TrNode trie_node_check(TrNode parent, YAP_Term t) {
   TrNode child;
 
@@ -203,7 +204,7 @@ TrNode trie_node_check(TrNode parent, YAP_Term t) {
 }
 
 
-static inline
+static
 YAP_Term trie_to_list_create_simple(const char *atom_name, TrNode node) {
   YAP_Functor f = YAP_MkFunctor(YAP_LookupAtom(atom_name), 1);
   YAP_Term child = trie_to_list(TrNode_child(node));  
@@ -212,7 +213,7 @@ YAP_Term trie_to_list_create_simple(const char *atom_name, TrNode node) {
 }
 
 
-static inline
+static
 YAP_Term trie_to_list_create_simple_end(const char *atom_name, TrNode node) {
   YAP_Atom atom = YAP_LookupAtom(atom_name);
   
@@ -226,7 +227,7 @@ YAP_Term trie_to_list_create_simple_end(const char *atom_name, TrNode node) {
 }
 
 
-static inline
+static
 YAP_Term trie_to_list_create_two(const char *atom_name, TrNode node, YAP_Term operand) {
   YAP_Atom atom = YAP_LookupAtom(atom_name);
   
@@ -247,7 +248,6 @@ YAP_Term trie_to_list_create_two(const char *atom_name, TrNode node, YAP_Term op
 /*            API             */     
 /* -------------------------- */
 
-inline
 TrEngine core_trie_init_module(void) {
   static int init_once = 1;
   TrEngine engine;
@@ -264,7 +264,7 @@ TrEngine core_trie_init_module(void) {
 }
 
 
-inline
+
 TrNode core_trie_open(TrEngine engine) {
   TrNode node;
 
@@ -278,7 +278,7 @@ TrNode core_trie_open(TrEngine engine) {
 }
 
 
-inline
+
 void core_trie_close(TrEngine engine, TrNode node, void (*destruct_function)(TrNode)) {
   CURRENT_TRIE_ENGINE = engine;
   DATA_DESTRUCT_FUNCTION = destruct_function;
@@ -295,7 +295,7 @@ void core_trie_close(TrEngine engine, TrNode node, void (*destruct_function)(TrN
 }
 
 
-inline
+
 void core_trie_close_all(TrEngine engine, void (*destruct_function)(TrNode)) {
   while (TrEngine_trie(engine))
     core_trie_close(engine, TrEngine_trie(engine), destruct_function);
@@ -303,20 +303,20 @@ void core_trie_close_all(TrEngine engine, void (*destruct_function)(TrNode)) {
 }
 
 
-inline
+
 void core_trie_set_mode(YAP_Int mode) {
   CURRENT_TRIE_MODE = mode;
   return;
 }
 
 
-inline
+
 YAP_Int core_trie_get_mode(void) {
   return CURRENT_TRIE_MODE;
 }
 
 
-inline
+
 TrNode core_trie_put_entry(TrEngine engine, TrNode node, YAP_Term entry, YAP_Int *depth) {
   CURRENT_TRIE_ENGINE = engine;
   CURRENT_DEPTH = 0;
@@ -338,7 +338,7 @@ TrNode core_trie_put_entry(TrEngine engine, TrNode node, YAP_Term entry, YAP_Int
 }
 
 
-inline
+
 TrNode core_trie_check_entry(TrNode node, YAP_Term entry) {
   if (!TrNode_child(node))
     return NULL;
@@ -354,7 +354,7 @@ TrNode core_trie_check_entry(TrNode node, YAP_Term entry) {
 }
 
 
-inline
+
 YAP_Term core_trie_get_entry(TrNode node) {
   CURRENT_INDEX = -1;
   stack_vars_base = stack_vars = AUXILIARY_TERM_STACK;
@@ -363,7 +363,7 @@ YAP_Term core_trie_get_entry(TrNode node) {
 }
 
 
-inline
+
 void core_trie_remove_entry(TrEngine engine, TrNode node, void (*destruct_function)(TrNode)) {
   CURRENT_TRIE_ENGINE = engine;
   DATA_DESTRUCT_FUNCTION = destruct_function;
@@ -375,7 +375,7 @@ void core_trie_remove_entry(TrEngine engine, TrNode node, void (*destruct_functi
 }
 
 
-inline
+
 void core_trie_remove_subtree(TrEngine engine, TrNode node, void (*destruct_function)(TrNode)) {
   TrNode parent;
 
@@ -388,7 +388,7 @@ void core_trie_remove_subtree(TrEngine engine, TrNode node, void (*destruct_func
 }
 
 
-inline
+
 void core_trie_add(TrNode node_dest, TrNode node_source, void (*add_function)(TrNode, TrNode)) {
   DATA_ADD_FUNCTION = add_function;
   if (TrNode_child(node_dest) && TrNode_child(node_source))
@@ -397,7 +397,7 @@ void core_trie_add(TrNode node_dest, TrNode node_source, void (*add_function)(Tr
 }
 
 
-inline
+
 void core_trie_join(TrEngine engine, TrNode node_dest, TrNode node_source, void (*add_function)(TrNode, TrNode), void (*copy_function)(TrNode, TrNode)) {
   CURRENT_TRIE_ENGINE = engine;
   DATA_ADD_FUNCTION = add_function;
@@ -411,7 +411,7 @@ void core_trie_join(TrEngine engine, TrNode node_dest, TrNode node_source, void 
 }
 
 
-inline
+
 void core_trie_intersect(TrEngine engine, TrNode node_dest, TrNode node_source, void (*add_function)(TrNode, TrNode), void (*destruct_function)(TrNode)) {
   CURRENT_TRIE_ENGINE = engine;
   DATA_ADD_FUNCTION = add_function;
@@ -428,7 +428,7 @@ void core_trie_intersect(TrEngine engine, TrNode node_dest, TrNode node_source, 
 }
 
 
-inline
+
 YAP_Int core_trie_count_join(TrNode node1, TrNode node2) {
   YAP_Int count = 0;
 
@@ -444,7 +444,7 @@ YAP_Int core_trie_count_join(TrNode node1, TrNode node2) {
 }
 
 
-inline
+
 YAP_Int core_trie_count_intersect(TrNode node1, TrNode node2) {
   YAP_Int count = 0;
 
@@ -455,7 +455,7 @@ YAP_Int core_trie_count_intersect(TrNode node1, TrNode node2) {
 }
 
 
-inline
+
 void core_trie_save(TrNode node, FILE *file, void (*save_function)(TrNode, FILE *)) {
   CURRENT_INDEX = -1;
   DATA_SAVE_FUNCTION = save_function;
@@ -469,7 +469,7 @@ void core_trie_save(TrNode node, FILE *file, void (*save_function)(TrNode, FILE 
 }
 
 
-inline
+
 TrNode core_trie_load(TrEngine engine, FILE *file, void (*load_function)(TrNode, YAP_Int, FILE *)) {
   TrNode node;
   char version[15];
@@ -519,11 +519,12 @@ TrNode core_trie_load(TrEngine engine, FILE *file, void (*load_function)(TrNode,
   DATA_LOAD_FUNCTION = load_function;
   node = core_trie_open(engine);
   traverse_and_load(node, file);
+  if (n) n = 0; // just added to remove the warning of not used!
   return node;
 }
 
 
-inline
+
 void core_trie_stats(TrEngine engine, YAP_Int *memory, YAP_Int *tries, YAP_Int *entries, YAP_Int *nodes) {
   *memory = TrEngine_memory(engine);
   *tries = TrEngine_tries(engine);
@@ -533,7 +534,7 @@ void core_trie_stats(TrEngine engine, YAP_Int *memory, YAP_Int *tries, YAP_Int *
 }
 
 
-inline
+
 void core_trie_max_stats(TrEngine engine, YAP_Int *memory, YAP_Int *tries, YAP_Int *entries, YAP_Int *nodes) {
   *memory = TrEngine_memory_max(engine);
   *tries = TrEngine_tries_max(engine);
@@ -543,7 +544,7 @@ void core_trie_max_stats(TrEngine engine, YAP_Int *memory, YAP_Int *tries, YAP_I
 }
 
 
-inline
+
 void core_trie_usage(TrNode node, YAP_Int *entries, YAP_Int *nodes, YAP_Int *virtual_nodes) {
   USAGE_ENTRIES = 0;
   USAGE_NODES = 0;
@@ -557,7 +558,7 @@ void core_trie_usage(TrNode node, YAP_Int *entries, YAP_Int *nodes, YAP_Int *vir
 }
 
 
-inline
+
 void core_trie_print(TrNode node, void (*print_function)(TrNode)) {
   DATA_PRINT_FUNCTION = print_function;
   if (TrNode_child(node)) {
@@ -572,19 +573,19 @@ void core_trie_print(TrNode node, void (*print_function)(TrNode)) {
 }
 
 
-inline
+
 void core_disable_hash_table(void) {
   TRIE_DISABLE_HASH_TABLE = 1;
 }
 
 
-inline
+
 void core_enable_hash_table(void) {
   TRIE_DISABLE_HASH_TABLE = 0;
 }
 
 
-inline
+
 YAP_Term core_trie_to_list(TrNode node) {
   TrNode root = TrNode_child(node);
   
@@ -806,7 +807,7 @@ YAP_Term get_entry(TrNode node, YAP_Term *stack_mark, TrNode *cur_node) {
           fprintf(stderr, "**************************************\n");
           fprintf(stderr, "  Tries core module: term stack full\n");
           fprintf(stderr, "**************************************\n");
-	  fflush(stderr);
+          fflush(stderr);
         }
         for (i = index; i > CURRENT_INDEX; i--)
           stack_vars_base[i] = 0;
@@ -874,10 +875,10 @@ YAP_Term get_entry(TrNode node, YAP_Term *stack_mark, TrNode *cur_node) {
         *cur_node = node;
         return t;
       } else if (t == FloatEndTag) {
-	volatile union {
-	  double f;
-	  YAP_Term p[SIZE_FLOAT_AS_TERM];
-	} tf;  /* to avoid gcc warning */
+        volatile union {
+          double f;
+          YAP_Term p[SIZE_FLOAT_AS_TERM];
+        } tf;  /* to avoid gcc warning */
 #ifdef TAG_LOW_BITS_32
         node = TrNode_parent(node);
         tf.p[1] = TrNode_entry(node);
@@ -914,29 +915,29 @@ void remove_entry(TrNode node) {
   while (parent) {
     if (TrNode_previous(node)) {
       if (IS_HASH_NODE(TrNode_child(parent))) {
-	TrHash hash = (TrHash) TrNode_child(parent);
-	TrHash_num_nodes(hash)--;
-	if (TrHash_num_nodes(hash)) {
-	  if (TrNode_next(node)) {
-	    TrNode_next(TrNode_previous(node)) = TrNode_next(node);
-	    TrNode_previous(TrNode_next(node)) = TrNode_previous(node);
-	  } else {
-	    TrNode_next(TrNode_previous(node)) = NULL;
-	  }
-	  free_trie_node(node);
-	  return;
-	}
-	free_hash_buckets(TrHash_buckets(hash), TrHash_num_buckets(hash));
-	free_trie_hash(hash);
+        TrHash hash = (TrHash) TrNode_child(parent);
+        TrHash_num_nodes(hash)--;
+        if (TrHash_num_nodes(hash)) {
+          if (TrNode_next(node)) {
+            TrNode_next(TrNode_previous(node)) = TrNode_next(node);
+            TrNode_previous(TrNode_next(node)) = TrNode_previous(node);
+          } else {
+            TrNode_next(TrNode_previous(node)) = NULL;
+          }
+          free_trie_node(node);
+          return;
+        }
+        free_hash_buckets(TrHash_buckets(hash), TrHash_num_buckets(hash));
+        free_trie_hash(hash);
       } else {
-	if (TrNode_next(node)) {
-	  TrNode_next(TrNode_previous(node)) = TrNode_next(node);
-	  TrNode_previous(TrNode_next(node)) = TrNode_previous(node);
-	} else {
-	  TrNode_next(TrNode_previous(node)) = NULL;
-	}
-	free_trie_node(node);
-	return;
+        if (TrNode_next(node)) {
+          TrNode_next(TrNode_previous(node)) = TrNode_next(node);
+          TrNode_previous(TrNode_next(node)) = TrNode_previous(node);
+        } else {
+          TrNode_next(TrNode_previous(node)) = NULL;
+        }
+        free_trie_node(node);
+        return;
       }
     } else if (TrNode_next(node)) {
       TrNode_child(parent) = TrNode_next(node);
@@ -962,7 +963,7 @@ void remove_child_nodes(TrNode node) {
     bucket = first_bucket + TrHash_num_buckets(hash);
     do {
       if (*--bucket)
-	remove_child_nodes(*bucket);
+        remove_child_nodes(*bucket);
     } while (bucket != first_bucket);
     free_hash_buckets(first_bucket, TrHash_num_buckets(hash));
     free_trie_hash(hash);
@@ -970,9 +971,9 @@ void remove_child_nodes(TrNode node) {
   }
   if (TrNode_next(node))
     remove_child_nodes(TrNode_next(node));
-  if (!IS_LEAF_TRIE_NODE(node))
+  if (!IS_LEAF_TRIE_NODE(node)) {
     remove_child_nodes(TrNode_child(node));
-  else {
+  } else {
     if (DATA_DESTRUCT_FUNCTION)
       (*DATA_DESTRUCT_FUNCTION)(node);
     DECREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
@@ -997,10 +998,10 @@ TrNode copy_child_nodes(TrNode parent_dest, TrNode child_source) {
     do {
       bucket_dest--;
       if (*--bucket_source) {
-	*bucket_dest = copy_child_nodes(parent_dest, *bucket_source);
-	TrNode_previous(*bucket_dest) = AS_TR_NODE_NEXT(bucket_dest);
+        *bucket_dest = copy_child_nodes(parent_dest, *bucket_source);
+        TrNode_previous(*bucket_dest) = AS_TR_NODE_NEXT(bucket_dest);
       } else
-	*bucket_dest = NULL;
+        *bucket_dest = NULL;
     } while (bucket_source != first_bucket_source);
     return (TrNode) hash_dest;
   }
@@ -1038,18 +1039,18 @@ void traverse_and_add(TrNode parent_dest, TrNode parent_source) {
     do {
       child_source = *--bucket_source;
       while (child_source) {
-	/* parent_dest is not a leaf node */
-	child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
-	if (child_dest) {
-	  if (IS_LEAF_TRIE_NODE(child_dest)) {
-	    /* child_source is a leaf node */
-	    if (DATA_ADD_FUNCTION)
-	      (*DATA_ADD_FUNCTION)(child_dest, child_source);
-	  } else
-	    /* child_dest and child_source are not leaf nodes */
-	    traverse_and_add(child_dest, child_source);
-	}
-	child_source = TrNode_next(child_source);
+        /* parent_dest is not a leaf node */
+        child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
+        if (child_dest) {
+          if (IS_LEAF_TRIE_NODE(child_dest)) {
+            /* child_source is a leaf node */
+            if (DATA_ADD_FUNCTION)
+              (*DATA_ADD_FUNCTION)(child_dest, child_source);
+          } else
+            /* child_dest and child_source are not leaf nodes */
+            traverse_and_add(child_dest, child_source);
+        }
+        child_source = TrNode_next(child_source);
       }
     } while (bucket_source != first_bucket_source);
     return;
@@ -1059,12 +1060,12 @@ void traverse_and_add(TrNode parent_dest, TrNode parent_source) {
     child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
     if (child_dest) {
       if (IS_LEAF_TRIE_NODE(child_dest)) {
-	/* child_source is a leaf node */
-	if (DATA_ADD_FUNCTION)
-	  (*DATA_ADD_FUNCTION)(child_dest, child_source);
+        /* child_source is a leaf node */
+        if (DATA_ADD_FUNCTION)
+          (*DATA_ADD_FUNCTION)(child_dest, child_source);
       } else
-	/* child_dest and child_source are not leaf nodes */
-	traverse_and_add(child_dest, child_source);
+        /* child_dest and child_source are not leaf nodes */
+        traverse_and_add(child_dest, child_source);
     }
     child_source = TrNode_next(child_source);
   }
@@ -1087,27 +1088,27 @@ void traverse_and_join(TrNode parent_dest, TrNode parent_source) {
     do {
       child_source = *--bucket_source;
       while (child_source) {
-	/* parent_dest is not a leaf node */
-	child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
-	if (child_dest) {
-	  if (IS_LEAF_TRIE_NODE(child_dest)) {
-	    /* child_source is a leaf node */
-	    if (DATA_ADD_FUNCTION)
-	      (*DATA_ADD_FUNCTION)(child_dest, child_source);
-	  } else
-	    /* child_dest and child_source are not leaf nodes */
-	    traverse_and_join(child_dest, child_source);
-	} else {
-	  child_dest = trie_node_check_insert(parent_dest, TrNode_entry(child_source));
-	  if (IS_LEAF_TRIE_NODE(child_source)) {
-	    MARK_AS_LEAF_TRIE_NODE(child_dest);
-	    INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
-	    if (DATA_COPY_FUNCTION)
-	      (*DATA_COPY_FUNCTION)(child_dest, child_source);
-	  } else
+        /* parent_dest is not a leaf node */
+        child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
+        if (child_dest) {
+          if (IS_LEAF_TRIE_NODE(child_dest)) {
+            /* child_source is a leaf node */
+            if (DATA_ADD_FUNCTION)
+              (*DATA_ADD_FUNCTION)(child_dest, child_source);
+          } else
+            /* child_dest and child_source are not leaf nodes */
+            traverse_and_join(child_dest, child_source);
+        } else {
+          child_dest = trie_node_check_insert(parent_dest, TrNode_entry(child_source));
+          if (IS_LEAF_TRIE_NODE(child_source)) {
+            MARK_AS_LEAF_TRIE_NODE(child_dest);
+            INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+            if (DATA_COPY_FUNCTION)
+              (*DATA_COPY_FUNCTION)(child_dest, child_source);
+          } else
             TrNode_child(child_dest) = copy_child_nodes(child_dest, TrNode_child(child_source));
-	}
-	child_source = TrNode_next(child_source);
+        }
+        child_source = TrNode_next(child_source);
       }
     } while (bucket_source != first_bucket_source);
     return;
@@ -1117,19 +1118,19 @@ void traverse_and_join(TrNode parent_dest, TrNode parent_source) {
     child_dest = trie_node_check(parent_dest, TrNode_entry(child_source));
     if (child_dest) {
       if (IS_LEAF_TRIE_NODE(child_dest)) {
-	/* child_source is a leaf node */
-	if (DATA_ADD_FUNCTION)
-	  (*DATA_ADD_FUNCTION)(child_dest, child_source);
+        /* child_source is a leaf node */
+        if (DATA_ADD_FUNCTION)
+          (*DATA_ADD_FUNCTION)(child_dest, child_source);
       } else
-	/* child_dest and child_source are not leaf nodes */
-	traverse_and_join(child_dest, child_source);
+        /* child_dest and child_source are not leaf nodes */
+        traverse_and_join(child_dest, child_source);
     } else {
       child_dest = trie_node_check_insert(parent_dest, TrNode_entry(child_source));
       if (IS_LEAF_TRIE_NODE(child_source)) {
-	MARK_AS_LEAF_TRIE_NODE(child_dest);
-	INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
-	if (DATA_COPY_FUNCTION)
-	  (*DATA_COPY_FUNCTION)(child_dest, child_source);
+        MARK_AS_LEAF_TRIE_NODE(child_dest);
+        INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+        if (DATA_COPY_FUNCTION)
+          (*DATA_COPY_FUNCTION)(child_dest, child_source);
       } else
         TrNode_child(child_dest) = copy_child_nodes(child_dest, TrNode_child(child_source));
     }
@@ -1154,27 +1155,27 @@ void traverse_and_intersect(TrNode parent_dest, TrNode parent_source) {
     do {
       child_dest = *--bucket_dest;
       while (child_dest) {
-	child_next = TrNode_next(child_dest);
-	/* parent_source is not a leaf node */
-	child_source = trie_node_check(parent_source, TrNode_entry(child_dest));
-	if (child_source) {
-	  if (IS_LEAF_TRIE_NODE(child_dest)) {
-	    /* child_source is a leaf node */
-	    if (DATA_ADD_FUNCTION)
-	      (*DATA_ADD_FUNCTION)(child_dest, child_source);
-	  } else
-	    /* child_dest and child_source are not leaf nodes */
-	    traverse_and_intersect(child_dest, child_source);
-	} else {
-	  if (IS_LEAF_TRIE_NODE(child_dest)) {
-	    if (DATA_DESTRUCT_FUNCTION)
-	      (*DATA_DESTRUCT_FUNCTION)(child_dest);
-	    DECREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
-	  } else
-	    remove_child_nodes(TrNode_child(child_dest));
-	  remove_entry(child_dest);
-	}
-	child_dest = child_next;
+        child_next = TrNode_next(child_dest);
+        /* parent_source is not a leaf node */
+        child_source = trie_node_check(parent_source, TrNode_entry(child_dest));
+        if (child_source) {
+          if (IS_LEAF_TRIE_NODE(child_dest)) {
+            /* child_source is a leaf node */
+            if (DATA_ADD_FUNCTION)
+              (*DATA_ADD_FUNCTION)(child_dest, child_source);
+          } else
+            /* child_dest and child_source are not leaf nodes */
+            traverse_and_intersect(child_dest, child_source);
+        } else {
+          if (IS_LEAF_TRIE_NODE(child_dest)) {
+            if (DATA_DESTRUCT_FUNCTION)
+              (*DATA_DESTRUCT_FUNCTION)(child_dest);
+            DECREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+          } else
+            remove_child_nodes(TrNode_child(child_dest));
+          remove_entry(child_dest);
+        }
+        child_dest = child_next;
       }
     } while (bucket_dest != first_bucket_dest);
     return;
@@ -1185,19 +1186,19 @@ void traverse_and_intersect(TrNode parent_dest, TrNode parent_source) {
     child_source = trie_node_check(parent_source, TrNode_entry(child_dest));
     if (child_source) {
       if (IS_LEAF_TRIE_NODE(child_dest)) {
-	/* child_source is a leaf node */
-	if (DATA_ADD_FUNCTION)
-	  (*DATA_ADD_FUNCTION)(child_dest, child_source);
+        /* child_source is a leaf node */
+        if (DATA_ADD_FUNCTION)
+          (*DATA_ADD_FUNCTION)(child_dest, child_source);
       } else
-	/* child_dest and child_source are not leaf nodes */
-	traverse_and_intersect(child_dest, child_source);
+        /* child_dest and child_source are not leaf nodes */
+        traverse_and_intersect(child_dest, child_source);
     } else {
       if (IS_LEAF_TRIE_NODE(child_dest)) {
-	if (DATA_DESTRUCT_FUNCTION)
-	  (*DATA_DESTRUCT_FUNCTION)(child_dest);
-	DECREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+        if (DATA_DESTRUCT_FUNCTION)
+          (*DATA_DESTRUCT_FUNCTION)(child_dest);
+        DECREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
       } else
-	remove_child_nodes(TrNode_child(child_dest));
+        remove_child_nodes(TrNode_child(child_dest));
       remove_entry(child_dest);
     }
     child_dest = child_next;
@@ -1222,17 +1223,17 @@ YAP_Int traverse_and_count_common_entries(TrNode parent1, TrNode parent2) {
     do {
       child1 = *--bucket;
       while (child1) {
-	/* parent2 is not a leaf node */
-	child2 = trie_node_check(parent2, TrNode_entry(child1));
-	if (child2) {
-	  if (IS_LEAF_TRIE_NODE(child1))
-	    /* child2 is a leaf node */
-	    count++;
-	  else
-	    /* child1 and child2 are not leaf nodes */
-	    count += traverse_and_count_common_entries(child1, child2);
-	}
-	child1 = TrNode_next(child1);
+        /* parent2 is not a leaf node */
+        child2 = trie_node_check(parent2, TrNode_entry(child1));
+        if (child2) {
+          if (IS_LEAF_TRIE_NODE(child1))
+            /* child2 is a leaf node */
+            count++;
+          else
+            /* child1 and child2 are not leaf nodes */
+            count += traverse_and_count_common_entries(child1, child2);
+        }
+        child1 = TrNode_next(child1);
       }
     } while (bucket != first_bucket);
     return count;
@@ -1242,11 +1243,11 @@ YAP_Int traverse_and_count_common_entries(TrNode parent1, TrNode parent2) {
     child2 = trie_node_check(parent2, TrNode_entry(child1));
     if (child2) {
       if (IS_LEAF_TRIE_NODE(child1))
-	/* child2 is a leaf node */
-	count++;
+        /* child2 is a leaf node */
+        count++;
       else
-	/* child1 and child2 are not leaf nodes */
-	count += traverse_and_count_common_entries(child1, child2);
+        /* child1 and child2 are not leaf nodes */
+        count += traverse_and_count_common_entries(child1, child2);
     }
     child1 = TrNode_next(child1);
   }
@@ -1322,13 +1323,13 @@ void traverse_and_save(TrNode node, FILE *file, int float_block) {
     TrNode *first_bucket, *bucket;
     TrHash hash;
     hash = (TrHash) node;
-    fprintf(file, "%lu %d ", HASH_SAVE_MARK, TrHash_num_buckets(hash));
+    fprintf(file, UInt_FORMAT " %d ", HASH_SAVE_MARK, TrHash_num_buckets(hash));
     first_bucket = TrHash_buckets(hash);
     bucket = first_bucket + TrHash_num_buckets(hash);
     do {
       if (*--bucket) {
         node = *bucket;
-	traverse_and_save(node, file, float_block);
+        traverse_and_save(node, file, float_block);
       }
     } while (bucket != first_bucket);
     return;
@@ -1340,7 +1341,7 @@ void traverse_and_save(TrNode node, FILE *file, int float_block) {
   t = TrNode_entry(node);
   if (float_block) {
     float_block--;
-    fprintf(file, "%lu %lu ", FLOAT_SAVE_MARK, t);
+    fprintf(file, UInt_FORMAT " " UInt_FORMAT "  ", FLOAT_SAVE_MARK, t);
   } else if (YAP_IsPairTerm(t)) {
     if (t == FloatInitTag) {
 #ifdef TAG_LOW_BITS_32
@@ -1348,30 +1349,30 @@ void traverse_and_save(TrNode node, FILE *file, int float_block) {
 #endif /* TAG_LOW_BITS_32 */
       float_block ++;
     }
-    fprintf(file, "%lu ", t);
+    fprintf(file, UInt_FORMAT " ", t);
   } else if (YAP_IsVarTerm(t) || YAP_IsIntTerm(t))
-    fprintf(file, "%lu ", t);
+    fprintf(file, UInt_FORMAT" ", t);
   else {
     int index;
     for (index = 0; index <= CURRENT_INDEX; index++)
       if (AUXILIARY_TERM_STACK[index] == t)
-	break;
+        break;
     if (index > CURRENT_INDEX) {
       CURRENT_INDEX = index;
       if (CURRENT_INDEX == CURRENT_AUXILIARY_TERM_STACK_SIZE)
-	expand_auxiliary_term_stack();
+        expand_auxiliary_term_stack();
       AUXILIARY_TERM_STACK[CURRENT_INDEX] = t;
       if (YAP_IsAtomTerm(t))
-	  fprintf(file, "%lu %d %s%c ", ATOM_SAVE_MARK, index, YAP_AtomName(YAP_AtomOfTerm(t)), '\0');
+          fprintf(file, UInt_FORMAT " %d %s%c ", ATOM_SAVE_MARK, index, YAP_AtomName(YAP_AtomOfTerm(t)), '\0');
       else  /* (ApplTag & t) */
-	fprintf(file, "%lu %d %s %d ", FUNCTOR_SAVE_MARK, index,
-		YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)(~ApplTag & t))),
-		YAP_ArityOfFunctor((YAP_Functor)(~ApplTag & t)));
+        fprintf(file, UInt_FORMAT " %d %s " UInt_FORMAT " ", FUNCTOR_SAVE_MARK, index,
+                YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)(~ApplTag & t))),
+                YAP_ArityOfFunctor((YAP_Functor)(~ApplTag & t)));
     } else
       if (YAP_IsAtomTerm(t))
-	fprintf(file, "%lu %d ", ATOM_SAVE_MARK, index);
+        fprintf(file, UInt_FORMAT " %d ", ATOM_SAVE_MARK, index);
       else
-	fprintf(file, "%lu %d ", FUNCTOR_SAVE_MARK, index);
+        fprintf(file, UInt_FORMAT " %d ", FUNCTOR_SAVE_MARK, index);
   }
   if (IS_LEAF_TRIE_NODE(node)) {
     fprintf(file, "- ");
@@ -1392,7 +1393,7 @@ void traverse_and_load(TrNode parent, FILE *file) {
   YAP_Term t;
   int n;
 
-  if (!fscanf(file, "%lu", &t)) {
+  if (!fscanf(file, UInt_FORMAT , &t)) {
     MARK_AS_LEAF_TRIE_NODE(parent);
     INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
     if (DATA_LOAD_FUNCTION)
@@ -1406,7 +1407,7 @@ void traverse_and_load(TrNode parent, FILE *file) {
     n = fscanf(file, "%d", &num_buckets);
     new_trie_hash(hash, 0, num_buckets);
     TrNode_child(parent) = (TrNode) hash;
-    n = fscanf(file, "%lu", &t);
+    n = fscanf(file, UInt_FORMAT , &t);
   }
   do {
     TrNode child;
@@ -1414,42 +1415,43 @@ void traverse_and_load(TrNode parent, FILE *file) {
       int index;
       n = fscanf(file, "%d", &index);
       if (index > CURRENT_INDEX) {
-	char atom[1000];
-	if (CURRENT_LOAD_VERSION == 2) {
-	  char *ptr, ch;
-	  ptr = atom;
-	  fgetc(file);  /* skip the first empty space */
-	  while ((ch = fgetc(file)))
-	    *ptr++ = ch;
-	  *ptr = '\0';
-	} else if (CURRENT_LOAD_VERSION == 1) {
-	  n = fscanf(file, "%s", atom);
-	}
-	CURRENT_INDEX = index;
-	if (CURRENT_INDEX == CURRENT_AUXILIARY_TERM_STACK_SIZE)
-	  expand_auxiliary_term_stack();
-	AUXILIARY_TERM_STACK[CURRENT_INDEX] = YAP_MkAtomTerm(YAP_LookupAtom(atom));
+        char atom[1000];
+        if (CURRENT_LOAD_VERSION == 2) {
+          char *ptr, ch;
+          ptr = atom;
+          fgetc(file);  /* skip the first empty space */
+          while ((ch = fgetc(file)))
+            *ptr++ = ch;
+          *ptr = '\0';
+        } else if (CURRENT_LOAD_VERSION == 1) {
+          n = fscanf(file, "%s", atom);
+        }
+        CURRENT_INDEX = index;
+        if (CURRENT_INDEX == CURRENT_AUXILIARY_TERM_STACK_SIZE)
+          expand_auxiliary_term_stack();
+        AUXILIARY_TERM_STACK[CURRENT_INDEX] = YAP_MkAtomTerm(YAP_LookupAtom(atom));
       }
       t = AUXILIARY_TERM_STACK[index];
     } else if (t == FUNCTOR_SAVE_MARK) {
       int index;
       n = fscanf(file, "%d", &index);
       if (index > CURRENT_INDEX) {
-	char atom[1000];
-	int arity;
-	n = fscanf(file, "%s %d", atom, &arity);
-	CURRENT_INDEX = index;
-	if (CURRENT_INDEX == CURRENT_AUXILIARY_TERM_STACK_SIZE)
-	  expand_auxiliary_term_stack();
-	AUXILIARY_TERM_STACK[CURRENT_INDEX] = ApplTag | ((YAP_Term) YAP_MkFunctor(YAP_LookupAtom(atom), arity));
+        char atom[1000];
+        int arity;
+        n = fscanf(file, "%s %d", atom, &arity);
+        CURRENT_INDEX = index;
+        if (CURRENT_INDEX == CURRENT_AUXILIARY_TERM_STACK_SIZE)
+          expand_auxiliary_term_stack();
+        AUXILIARY_TERM_STACK[CURRENT_INDEX] = ApplTag | ((YAP_Term) YAP_MkFunctor(YAP_LookupAtom(atom), arity));
       }
       t = AUXILIARY_TERM_STACK[index];
     } else if (t == FLOAT_SAVE_MARK)
-      n = fscanf(file, "%lu", &t);
+      n = fscanf(file, UInt_FORMAT , &t);
     child = trie_node_insert(parent, t, hash);
     traverse_and_load(child, file);
-  } while (fscanf(file, "%lu", &t));
+  } while (fscanf(file, UInt_FORMAT , &t));
   CURRENT_DEPTH--;
+  if (n) n = 0; // just added to remove the warning of not used!
   return;
 }
 
@@ -1466,20 +1468,20 @@ void traverse_and_print(TrNode node, int *arity, char *str, int str_index, int m
     hash = (TrHash) node;
     first_bucket = TrHash_buckets(hash);
     bucket = first_bucket + TrHash_num_buckets(hash);
-    memcpy(current_arity, arity, sizeof(int) * (arity[0] + 1));
+    memmove(current_arity, arity, sizeof(int) * (arity[0] + 1));
     do {
       if (*--bucket) {
         node = *bucket;
         traverse_and_print(node, arity, str, str_index, mode);
-	memcpy(arity, current_arity, sizeof(int) * (current_arity[0] + 1));
-	if (mode != TRIE_PRINT_FLOAT2 && arity[arity[0]] < 0) {
-	  /* restore possible PairEndEmptyTag/PairEndTermTag/CommaEndTag side-effect */
-	  if (str_index > 0 && str[str_index - 1] != '[')
-	    str[str_index - 1] = ',';
-	  /* restore possible PairEndTermTag side-effect */
-	  if (str[last_pair_mark] == '|')
-	    str[last_pair_mark] = ',';
-	}
+        memmove(arity, current_arity, sizeof(int) * (current_arity[0] + 1));
+        if (mode != TRIE_PRINT_FLOAT2 && arity[arity[0]] < 0) {
+          /* restore possible PairEndEmptyTag/PairEndTermTag/CommaEndTag side-effect */
+          if (str_index > 0 && str[str_index - 1] != '[')
+            str[str_index - 1] = ',';
+          /* restore possible PairEndTermTag side-effect */
+          if (str[last_pair_mark] == '|')
+            str[last_pair_mark] = ',';
+        }
       }
     } while (bucket != first_bucket);
     free(current_arity);
@@ -1488,16 +1490,16 @@ void traverse_and_print(TrNode node, int *arity, char *str, int str_index, int m
 
   if (TrNode_next(node)) {
     int *current_arity = (int *) malloc(sizeof(int) * (arity[0] + 1));
-    memcpy(current_arity, arity, sizeof(int) * (arity[0] + 1));
+    memmove(current_arity, arity, sizeof(int) * (arity[0] + 1));
     traverse_and_print(TrNode_next(node), arity, str, str_index, mode);
-    memcpy(arity, current_arity, sizeof(int) * (current_arity[0] + 1));
+    memmove(arity, current_arity, sizeof(int) * (current_arity[0] + 1));
     if (mode != TRIE_PRINT_FLOAT2 && arity[arity[0]] < 0) {
       /* restore possible PairEndEmptyTag/PairEndTermTag/CommaEndTag side-effect */
       if (str_index > 0 && str[str_index - 1] != '[')
-	str[str_index - 1] = ',';
+        str[str_index - 1] = ',';
       /* restore possible PairEndTermTag side-effect */
       if (str[last_pair_mark] == '|')
-	str[last_pair_mark] = ',';
+        str[last_pair_mark] = ',';
     }
     free(current_arity);
   }
@@ -1532,53 +1534,53 @@ void traverse_and_print(TrNode node, int *arity, char *str, int str_index, int m
     arity[0]--;
     while (arity[0]) {
       if (arity[arity[0]] == 1) {
-	str_index += sprintf(& str[str_index], ")");
-	arity[0]--;
+        str_index += sprintf(& str[str_index], ")");
+        arity[0]--;
       } else {
-	if (arity[arity[0]] > 1)
-	  arity[arity[0]]--;
-	str_index += sprintf(& str[str_index], ",");
-	break;
+        if (arity[arity[0]] > 1)
+          arity[arity[0]]--;
+        str_index += sprintf(& str[str_index], ",");
+        break;
       }
     }
     mode = TRIE_PRINT_NORMAL;
   } else if (YAP_IsVarTerm(t)) {
-    str_index += sprintf(& str[str_index], "VAR%ld", TrieVarIndex(t));
+    str_index += sprintf(& str[str_index], "VAR" UInt_FORMAT, TrieVarIndex(t));
     while (arity[0]) {
       if (arity[arity[0]] == 1) {
-	str_index += sprintf(& str[str_index], ")");
-	arity[0]--;
+        str_index += sprintf(& str[str_index], ")");
+        arity[0]--;
       } else {
-	if (arity[arity[0]] > 1)
-	  arity[arity[0]]--;
-	str_index += sprintf(& str[str_index], ",");
-	break;
+        if (arity[arity[0]] > 1)
+          arity[arity[0]]--;
+        str_index += sprintf(& str[str_index], ",");
+        break;
       }
     }
   } else if (YAP_IsAtomTerm(t)) {
     str_index += sprintf(& str[str_index], "%s", YAP_AtomName(YAP_AtomOfTerm(t)));
     while (arity[0]) {
       if (arity[arity[0]] == 1) {
-	str_index += sprintf(& str[str_index], ")");
-	arity[0]--;
+        str_index += sprintf(& str[str_index], ")");
+        arity[0]--;
       } else {
-	if (arity[arity[0]] > 1)
-	  arity[arity[0]]--;
-	str_index += sprintf(& str[str_index], ",");
-	break;
+        if (arity[arity[0]] > 1)
+          arity[arity[0]]--;
+        str_index += sprintf(& str[str_index], ",");
+        break;
       }
     }
   } else if (YAP_IsIntTerm(t)) {
-    str_index += sprintf(& str[str_index], "%ld", YAP_IntOfTerm(t));
+    str_index += sprintf(& str[str_index], UInt_FORMAT , YAP_IntOfTerm(t));
     while (arity[0]) {
       if (arity[arity[0]] == 1) {
-	str_index += sprintf(& str[str_index], ")");
-	arity[0]--;
+        str_index += sprintf(& str[str_index], ")");
+        arity[0]--;
       } else {
-	if (arity[arity[0]] > 1)
-	  arity[arity[0]]--;
-	str_index += sprintf(& str[str_index], ",");
-	break;
+        if (arity[arity[0]] > 1)
+          arity[arity[0]]--;
+        str_index += sprintf(& str[str_index], ",");
+        break;
       }
     }
   } else if (YAP_IsPairTerm(t)) {
@@ -1596,23 +1598,23 @@ void traverse_and_print(TrNode node, int *arity, char *str, int str_index, int m
       arity[arity[0]] = -1;
     } else {
       if (t == PairEndEmptyTag)
-	str[str_index - 1] = ']';
+        str[str_index - 1] = ']';
       else if (t == PairEndTermTag) {
-	str[last_pair_mark] = '|';
-	str[str_index - 1] = ']';
+        str[last_pair_mark] = '|';
+        str[str_index - 1] = ']';
       } else /*   (t == CommaEndTag)   */
-	str[str_index - 1] = ')';
+        str[str_index - 1] = ')';
       arity[0]--;
       while (arity[0]) {
-	if (arity[arity[0]] == 1) {
-	  str_index += sprintf(& str[str_index], ")");
-	  arity[0]--;
-	} else {
-	  if (arity[arity[0]] > 1)
-	    arity[arity[0]]--;
-	  str_index += sprintf(& str[str_index], ",");
-	  break;
-	}
+        if (arity[arity[0]] == 1) {
+          str_index += sprintf(& str[str_index], ")");
+          arity[0]--;
+        } else {
+          if (arity[arity[0]] > 1)
+            arity[arity[0]]--;
+          str_index += sprintf(& str[str_index], ",");
+          break;
+        }
       }
     }
   } else if (ApplTag & t) {
@@ -1724,7 +1726,7 @@ YAP_Term trie_to_list_node(TrNode node) {
 
 
 #ifdef TAG_LOW_BITS_32
-static inline
+
 YAP_Term trie_to_list_floats_tag_low_32(YAP_Term result, TrNode node, volatile YAP_Term *p, volatile double *f) {
   if(IS_HASH_NODE(node)) {
     TrNode *first_bucket, *bucket;

@@ -1,26 +1,171 @@
-#include <algorithm>
+#include <cassert>
+
+#include <vector>
 #include <set>
+#include <queue>
+#include <algorithm>
+#include <string>
+#include <iostream>
+#include <sstream>
 
 #include "LiftedVe.h"
+#include "LiftedOperations.h"
 #include "Histogram.h"
 #include "Util.h"
 
 
-vector<LiftedOperator*>
+namespace Horus {
+
+class LiftedOperator {
+  public:
+    virtual ~LiftedOperator() { }
+
+    virtual double getLogCost() = 0;
+
+    virtual void apply() = 0;
+
+    virtual std::string toString() = 0;
+
+    static std::vector<LiftedOperator*> getValidOps (
+        ParfactorList&, const Grounds&);
+
+    static void printValidOps (ParfactorList&, const Grounds&);
+
+    static std::vector<ParfactorList::iterator> getParfactorsWithGroup (
+        ParfactorList&, PrvGroup group);
+
+  private:
+    DISALLOW_ASSIGN (LiftedOperator);
+};
+
+
+
+class ProductOperator : public LiftedOperator {
+  public:
+    ProductOperator (
+        ParfactorList::iterator g1,
+        ParfactorList::iterator g2,
+        ParfactorList& pfList)
+        : g1_(g1), g2_(g2), pfList_(pfList) { }
+
+    double getLogCost();
+
+    void apply();
+
+    static std::vector<ProductOperator*> getValidOps (ParfactorList&);
+
+    std::string toString();
+
+  private:
+    static bool validOp (Parfactor*, Parfactor*);
+
+    ParfactorList::iterator  g1_;
+    ParfactorList::iterator  g2_;
+    ParfactorList&           pfList_;
+
+    DISALLOW_COPY_AND_ASSIGN (ProductOperator);
+};
+
+
+
+class SumOutOperator : public LiftedOperator {
+  public:
+    SumOutOperator (PrvGroup group, ParfactorList& pfList)
+        : group_(group), pfList_(pfList) { }
+
+    double getLogCost();
+
+    void apply();
+
+    static std::vector<SumOutOperator*> getValidOps (
+        ParfactorList&, const Grounds&);
+
+    std::string toString();
+
+  private:
+    static bool validOp (PrvGroup, ParfactorList&, const Grounds&);
+
+    static bool isToEliminate (Parfactor*, PrvGroup, const Grounds&);
+
+    PrvGroup        group_;
+    ParfactorList&  pfList_;
+
+    DISALLOW_COPY_AND_ASSIGN (SumOutOperator);
+};
+
+
+
+class CountingOperator : public LiftedOperator {
+  public:
+    CountingOperator (
+        ParfactorList::iterator pfIter,
+        LogVar X,
+        ParfactorList& pfList)
+        : pfIter_(pfIter), X_(X), pfList_(pfList) { }
+
+    double getLogCost();
+
+    void apply();
+
+    static std::vector<CountingOperator*> getValidOps (ParfactorList&);
+
+    std::string toString();
+
+  private:
+    static bool validOp (Parfactor*, LogVar);
+
+    ParfactorList::iterator  pfIter_;
+    LogVar                   X_;
+    ParfactorList&           pfList_;
+
+    DISALLOW_COPY_AND_ASSIGN (CountingOperator);
+};
+
+
+
+class GroundOperator : public LiftedOperator {
+  public:
+    GroundOperator (
+        PrvGroup group,
+        unsigned lvIndex,
+        ParfactorList& pfList)
+        : group_(group), lvIndex_(lvIndex), pfList_(pfList) { }
+
+    double getLogCost();
+
+    void apply();
+
+    static std::vector<GroundOperator*> getValidOps (ParfactorList&);
+
+    std::string toString();
+
+  private:
+    std::vector<std::pair<PrvGroup, unsigned>> getAffectedFormulas();
+
+    PrvGroup        group_;
+    unsigned        lvIndex_;
+    ParfactorList&  pfList_;
+
+    DISALLOW_COPY_AND_ASSIGN (GroundOperator);
+};
+
+
+
+std::vector<LiftedOperator*>
 LiftedOperator::getValidOps (
     ParfactorList& pfList,
     const Grounds& query)
 {
-  vector<LiftedOperator*>  validOps;
-  vector<ProductOperator*> multOps;
+  std::vector<LiftedOperator*>  validOps;
+  std::vector<ProductOperator*> multOps;
 
   multOps = ProductOperator::getValidOps (pfList);
   validOps.insert (validOps.end(), multOps.begin(), multOps.end());
 
   if (Globals::verbosity > 1 || multOps.empty()) {
-    vector<SumOutOperator*>   sumOutOps;
-    vector<CountingOperator*> countOps;
-    vector<GroundOperator*>   groundOps;
+    std::vector<SumOutOperator*>   sumOutOps;
+    std::vector<CountingOperator*> countOps;
+    std::vector<GroundOperator*>   groundOps;
     sumOutOps = SumOutOperator::getValidOps (pfList, query);
     countOps  = CountingOperator::getValidOps (pfList);
     groundOps = GroundOperator::getValidOps (pfList);
@@ -39,21 +184,21 @@ LiftedOperator::printValidOps (
     ParfactorList& pfList,
     const Grounds& query)
 {
-  vector<LiftedOperator*> validOps;
+  std::vector<LiftedOperator*> validOps;
   validOps = LiftedOperator::getValidOps (pfList, query);
   for (size_t i = 0; i < validOps.size(); i++) {
-    cout << "-> " << validOps[i]->toString();
+    std::cout << "-> " << validOps[i]->toString();
     delete validOps[i];
   }
 }
 
 
 
-vector<ParfactorList::iterator>
+std::vector<ParfactorList::iterator>
 LiftedOperator::getParfactorsWithGroup (
     ParfactorList& pfList, PrvGroup group)
 {
-  vector<ParfactorList::iterator> iters;
+  std::vector<ParfactorList::iterator> iters;
   ParfactorList::iterator pflIt = pfList.begin();
   while (pflIt != pfList.end()) {
     if ((*pflIt)->containsGroup (group)) {
@@ -67,7 +212,7 @@ LiftedOperator::getParfactorsWithGroup (
 
 
 double
-ProductOperator::getLogCost (void)
+ProductOperator::getLogCost()
 {
   return std::log (0.0);
 }
@@ -75,7 +220,7 @@ ProductOperator::getLogCost (void)
 
 
 void
-ProductOperator::apply (void)
+ProductOperator::apply()
 {
   Parfactor* g1 = *g1_;
   Parfactor* g2 = *g2_;
@@ -87,13 +232,13 @@ ProductOperator::apply (void)
 
 
 
-vector<ProductOperator*>
+std::vector<ProductOperator*>
 ProductOperator::getValidOps (ParfactorList& pfList)
 {
-  vector<ProductOperator*> validOps;
+  std::vector<ProductOperator*> validOps;
   ParfactorList::iterator it1 = pfList.begin();
   ParfactorList::iterator penultimate = -- pfList.end();
-  set<Parfactor*> pfs;
+  std::set<Parfactor*> pfs;
   while (it1 != penultimate) {
     if (Util::contains (pfs, *it1)) {
       ++ it1;
@@ -126,15 +271,15 @@ ProductOperator::getValidOps (ParfactorList& pfList)
 
 
 
-string
-ProductOperator::toString (void)
+std::string
+ProductOperator::toString()
 {
-  stringstream ss;
+  std::stringstream ss;
   ss << "just multiplicate " ;
   ss << (*g1_)->getAllGroups();
-  ss << " x " ; 
+  ss << " x " ;
   ss << (*g2_)->getAllGroups();
-  ss << " [cost=" << std::exp (getLogCost()) << "]" << endl;
+  ss << " [cost=" << std::exp (getLogCost()) << "]" << std::endl;
   return ss.str();
 }
 
@@ -154,7 +299,7 @@ ProductOperator::validOp (Parfactor* g1, Parfactor* g2)
       }
       size_t idx1 = g1->indexOfGroup (intersect[i]);
       size_t idx2 = g2->indexOfGroup (intersect[i]);
-      if (g1->range (idx1) != g2->range (idx2)) { 
+      if (g1->range (idx1) != g2->range (idx2)) {
         return false;
       }
     }
@@ -166,14 +311,14 @@ ProductOperator::validOp (Parfactor* g1, Parfactor* g2)
 
 
 double
-SumOutOperator::getLogCost (void)
+SumOutOperator::getLogCost()
 {
   TinySet<PrvGroup> groupSet;
   ParfactorList::const_iterator pfIter = pfList_.begin();
   unsigned nrProdFactors = 0;
   while (pfIter != pfList_.end()) {
     if ((*pfIter)->containsGroup (group_)) {
-      vector<PrvGroup> groups = (*pfIter)->getAllGroups();
+      std::vector<PrvGroup> groups = (*pfIter)->getAllGroups();
       groupSet |= TinySet<PrvGroup> (groups);
       ++ nrProdFactors;
     }
@@ -201,9 +346,9 @@ SumOutOperator::getLogCost (void)
 
 
 void
-SumOutOperator::apply (void)
+SumOutOperator::apply()
 {
-  vector<ParfactorList::iterator> iters;
+  std::vector<ParfactorList::iterator> iters;
   iters = getParfactorsWithGroup (pfList_, group_);
   Parfactor* product = *(iters[0]);
   pfList_.remove (iters[0]);
@@ -221,7 +366,7 @@ SumOutOperator::apply (void)
     product->sumOutIndex (fIdx);
     pfList_.addShattered (product);
   } else {
-    Parfactors pfs = LiftedVe::countNormalize (product, excl);
+    Parfactors pfs = LiftedOperations::countNormalize (product, excl);
     for (size_t i = 0; i < pfs.size(); i++) {
       pfs[i]->sumOutIndex (fIdx);
       pfList_.add (pfs[i]);
@@ -232,13 +377,13 @@ SumOutOperator::apply (void)
 
 
 
-vector<SumOutOperator*>
+std::vector<SumOutOperator*>
 SumOutOperator::getValidOps (
     ParfactorList& pfList,
     const Grounds& query)
 {
-  vector<SumOutOperator*> validOps;
-  set<PrvGroup> allGroups;
+  std::vector<SumOutOperator*> validOps;
+  std::set<PrvGroup> allGroups;
   ParfactorList::const_iterator it = pfList.begin();
   while (it != pfList.end()) {
     const ProbFormulas& formulas = (*it)->arguments();
@@ -247,7 +392,7 @@ SumOutOperator::getValidOps (
     }
     ++ it;
   }
-  set<PrvGroup>::const_iterator groupIt = allGroups.begin();
+  std::set<PrvGroup>::const_iterator groupIt = allGroups.begin();
   while (groupIt != allGroups.end()) {
     if (validOp (*groupIt, pfList, query)) {
       validOps.push_back (new SumOutOperator (*groupIt, pfList));
@@ -259,18 +404,18 @@ SumOutOperator::getValidOps (
 
 
 
-string
-SumOutOperator::toString (void)
+std::string
+SumOutOperator::toString()
 {
-  stringstream ss;
-  vector<ParfactorList::iterator> pfIters;
+  std::stringstream ss;
+  std::vector<ParfactorList::iterator> pfIters;
   pfIters = getParfactorsWithGroup (pfList_, group_);
   size_t idx = (*pfIters[0])->indexOfGroup (group_);
   ProbFormula f = (*pfIters[0])->argument (idx);
   TupleSet tupleSet = (*pfIters[0])->constr()->tupleSet (f.logVars());
   ss << "sum out " << f.functor() << "/" << f.arity();
   ss << "|" << tupleSet << " (group " << group_ << ")";
-  ss << " [cost=" << std::exp (getLogCost()) << "]" << endl;
+  ss << " [cost=" << std::exp (getLogCost()) << "]" << std::endl;
   return ss.str();
 }
 
@@ -282,7 +427,7 @@ SumOutOperator::validOp (
     ParfactorList& pfList,
     const Grounds& query)
 {
-  vector<ParfactorList::iterator> pfIters;
+  std::vector<ParfactorList::iterator> pfIters;
   pfIters = getParfactorsWithGroup (pfList, group);
   if (isToEliminate (*pfIters[0], group, query) == false) {
     return false;
@@ -333,7 +478,7 @@ SumOutOperator::isToEliminate (
 
 
 double
-CountingOperator::getLogCost (void)
+CountingOperator::getLogCost()
 {
   double cost = 0.0;
   size_t fIdx = (*pfIter_)->indexOfLogVar (X_);
@@ -368,14 +513,14 @@ CountingOperator::getLogCost (void)
 
 
 void
-CountingOperator::apply (void)
+CountingOperator::apply()
 {
   if ((*pfIter_)->constr()->isCountNormalized (X_)) {
     (*pfIter_)->countConvert (X_);
   } else {
     Parfactor* pf = *pfIter_;
     pfList_.remove (pfIter_);
-    Parfactors pfs = LiftedVe::countNormalize (pf, X_);
+    Parfactors pfs = LiftedOperations::countNormalize (pf, X_);
     for (size_t i = 0; i  < pfs.size(); i++) {
       unsigned condCount = pfs[i]->constr()->getConditionalCount (X_);
       bool cartProduct   = pfs[i]->constr()->isCartesianProduct (
@@ -391,10 +536,10 @@ CountingOperator::apply (void)
 
 
 
-vector<CountingOperator*>
+std::vector<CountingOperator*>
 CountingOperator::getValidOps (ParfactorList& pfList)
 {
-  vector<CountingOperator*> validOps;
+  std::vector<CountingOperator*> validOps;
   ParfactorList::iterator it = pfList.begin();
   while (it != pfList.end()) {
     LogVarSet candidates = (*it)->uncountedLogVars();
@@ -412,17 +557,17 @@ CountingOperator::getValidOps (ParfactorList& pfList)
 
 
 
-string
-CountingOperator::toString (void)
+std::string
+CountingOperator::toString()
 {
-  stringstream ss;
+  std::stringstream ss;
   ss << "count convert " << X_ << " in " ;
   ss << (*pfIter_)->getLabel();
-  ss << " [cost=" << std::exp (getLogCost()) << "]" << endl;
-  Parfactors pfs = LiftedVe::countNormalize (*pfIter_, X_);
+  ss << " [cost=" << std::exp (getLogCost()) << "]" << std::endl;
+  Parfactors pfs = LiftedOperations::countNormalize (*pfIter_, X_);
   if ((*pfIter_)->constr()->isCountNormalized (X_) == false) {
     for (size_t i = 0; i < pfs.size(); i++) {
-      ss << "   º " << pfs[i]->getLabel() << endl;
+      ss << "   º " << pfs[i]->getLabel() << std::endl;
     }
   }
   for (size_t i = 0; i < pfs.size(); i++) {
@@ -453,16 +598,16 @@ CountingOperator::validOp (Parfactor* g, LogVar X)
 
 
 double
-GroundOperator::getLogCost (void)
+GroundOperator::getLogCost()
 {
-  vector<pair<PrvGroup, unsigned>> affectedFormulas;
+  std::vector<std::pair<PrvGroup, unsigned>> affectedFormulas;
   affectedFormulas = getAffectedFormulas();
-  // cout << "affected formulas: " ;
+  // std::cout << "affected formulas: " ;
   // for (size_t i = 0; i < affectedFormulas.size(); i++) {
-  //  cout << affectedFormulas[i].first  << ":" ;
-  //  cout << affectedFormulas[i].second << " " ;
+  //  std::cout << affectedFormulas[i].first  << ":" ;
+  //  std::cout << affectedFormulas[i].second << " " ;
   // }
-  // cout << "cost =" ;
+  // std::cout << "cost =" ;
   double totalCost = std::log (0.0);
   ParfactorList::iterator pflIt = pfList_.begin();
   while (pflIt != pfList_.end()) {
@@ -493,23 +638,21 @@ GroundOperator::getLogCost (void)
       }
     }
     if (willBeAffected) {
-      // cout << " + " << std::exp (reps) << "x" << std::exp (pfSize);
+      // std::cout << " + " << std::exp (reps) << "x" << std::exp (pfSize);
       double pfCost = reps + pfSize;
       totalCost = Util::logSum (totalCost, pfCost);
     }
     ++ pflIt;
   }
-  // cout << endl;
+  // std::cout << std::endl;
   return totalCost + 3;
 }
 
 
 
 void
-GroundOperator::apply (void)
+GroundOperator::apply()
 {
-  // TODO if we update the correct groups  
-  // we can skip shattering
   ParfactorList::iterator pfIter;
   pfIter = getParfactorsWithGroup (pfList_, group_).front();
   Parfactor* pf = *pfIter;
@@ -537,11 +680,11 @@ GroundOperator::apply (void)
 
 
 
-vector<GroundOperator*>
+std::vector<GroundOperator*>
 GroundOperator::getValidOps (ParfactorList& pfList)
 {
-  vector<GroundOperator*> validOps;
-  set<PrvGroup> allGroups;
+  std::vector<GroundOperator*> validOps;
+  std::set<PrvGroup> allGroups;
   ParfactorList::const_iterator it = pfList.begin();
   while (it != pfList.end()) {
     const ProbFormulas& formulas = (*it)->arguments();
@@ -564,18 +707,18 @@ GroundOperator::getValidOps (ParfactorList& pfList)
 
 
 
-string
-GroundOperator::toString (void)
+std::string
+GroundOperator::toString()
 {
-  stringstream ss;
-  vector<ParfactorList::iterator> pfIters;
+  std::stringstream ss;
+  std::vector<ParfactorList::iterator> pfIters;
   pfIters = getParfactorsWithGroup (pfList_, group_);
   Parfactor* pf = *(getParfactorsWithGroup (pfList_, group_).front());
   size_t idx = pf->indexOfGroup (group_);
   ProbFormula f = pf->argument (idx);
   LogVar lv     = f.logVars()[lvIndex_];
   TupleSet tupleSet = pf->constr()->tupleSet ({lv});
-  string pos = "th";
+  std::string pos = "th";
   if (lvIndex_ == 0) {
     pos = "st" ;
   } else if (lvIndex_ == 1) {
@@ -586,21 +729,21 @@ GroundOperator::toString (void)
   ss << "grounding " << lvIndex_ + 1 << pos << " log var in " ;
   ss << f.functor() << "/" << f.arity();
   ss << "|" << tupleSet << " (group " << group_ << ")";
-  ss << " [cost=" << std::exp (getLogCost()) << "]" << endl;
+  ss << " [cost=" << std::exp (getLogCost()) << "]" << std::endl;
   return ss.str();
 }
 
 
 
-vector<pair<PrvGroup, unsigned>>
-GroundOperator::getAffectedFormulas (void)
+std::vector<std::pair<PrvGroup, unsigned>>
+GroundOperator::getAffectedFormulas()
 {
-  vector<pair<PrvGroup, unsigned>> affectedFormulas;
-  affectedFormulas.push_back (make_pair (group_, lvIndex_));
-  queue<pair<PrvGroup, unsigned>> q;
-  q.push (make_pair (group_, lvIndex_));
+  std::vector<std::pair<PrvGroup, unsigned>> affectedFormulas;
+  affectedFormulas.push_back (std::make_pair (group_, lvIndex_));
+  std::queue<std::pair<PrvGroup, unsigned>> q;
+  q.push (std::make_pair (group_, lvIndex_));
   while (q.empty() == false) {
-    pair<PrvGroup, unsigned> front = q.front();
+    std::pair<PrvGroup, unsigned> front = q.front();
     ParfactorList::iterator pflIt = pfList_.begin();
     while (pflIt != pfList_.end()) {
       size_t idx = (*pflIt)->indexOfGroup (front.first);
@@ -610,7 +753,7 @@ GroundOperator::getAffectedFormulas (void)
         const ProbFormulas& fs = (*pflIt)->arguments();
         for (size_t i = 0; i < fs.size(); i++) {
           if (i != idx && fs[i].contains (X)) {
-            pair<PrvGroup, unsigned> pair = make_pair (
+            std::pair<PrvGroup, unsigned> pair = std::make_pair (
                 fs[i].group(), fs[i].indexOf (X));
             if (Util::contains (affectedFormulas, pair) == false) {
               q.push (pair);
@@ -632,6 +775,7 @@ Params
 LiftedVe::solveQuery (const Grounds& query)
 {
   assert (query.empty() == false);
+  pfList_ = parfactorList;
   runSolver (query);
   (*pfList_.begin())->normalize();
   Params params = (*pfList_.begin())->params();
@@ -644,104 +788,13 @@ LiftedVe::solveQuery (const Grounds& query)
 
 
 void
-LiftedVe::printSolverFlags (void) const
+LiftedVe::printSolverFlags() const
 {
-  stringstream ss;
-  ss << "fove [" ;
+  std::stringstream ss;
+  ss << "lve [" ;
   ss << "log_domain=" << Util::toString (Globals::logDomain);
   ss << "]" ;
-  cout << ss.str() << endl;
-}
-
-
-
-void
-LiftedVe::absorveEvidence (
-    ParfactorList& pfList,
-    ObservedFormulas& obsFormulas)
-{
-  for (size_t i = 0; i < obsFormulas.size(); i++) {
-    Parfactors newPfs;
-    ParfactorList::iterator it  = pfList.begin();
-    while (it != pfList.end()) {
-      Parfactor* pf = *it;
-      it = pfList.remove (it);
-      Parfactors absorvedPfs = absorve (obsFormulas[i], pf);
-      if (absorvedPfs.empty() == false) {
-        if (absorvedPfs.size() == 1 && absorvedPfs[0] == 0) {
-          // just remove pf;
-        } else {
-          Util::addToVector (newPfs, absorvedPfs);
-        }
-        delete pf;
-      } else {
-        it = pfList.insertShattered (it, pf);
-        ++ it;
-      }
-    }
-    pfList.add (newPfs);
-  }
-  if (Globals::verbosity > 2 && obsFormulas.empty() == false) {
-    Util::printAsteriskLine();
-    cout << "AFTER EVIDENCE ABSORVED" << endl;
-    for (size_t i = 0; i < obsFormulas.size(); i++) {
-      cout << " -> " << obsFormulas[i] << endl;
-    }
-    Util::printAsteriskLine();
-    pfList.print();
-  }
-}
-
-
-
-Parfactors
-LiftedVe::countNormalize (
-    Parfactor* g,
-    const LogVarSet& set)
-{
-  Parfactors normPfs;
-  if (set.empty()) {
-    normPfs.push_back (new Parfactor (*g));
-  } else {
-    ConstraintTrees normCts = g->constr()->countNormalize (set);
-    for (size_t i = 0; i < normCts.size(); i++) {
-      normPfs.push_back (new Parfactor (g, normCts[i]));
-    }
-  }
-  return normPfs;
-}
-
-
-
-Parfactor
-LiftedVe::calcGroundMultiplication (Parfactor pf)
-{
-  LogVarSet lvs = pf.constr()->logVarSet();
-  lvs -= pf.constr()->singletons();
-  Parfactors newPfs = {new Parfactor (pf)};
-  for (size_t i = 0; i < lvs.size(); i++) {
-    Parfactors pfs = newPfs;
-    newPfs.clear();
-    for (size_t j = 0; j < pfs.size(); j++) {
-      bool countedLv = pfs[j]->countedLogVars().contains (lvs[i]);
-      if (countedLv) {
-        pfs[j]->fullExpand (lvs[i]);
-        newPfs.push_back (pfs[j]);
-      } else {
-        ConstraintTrees cts = pfs[j]->constr()->ground (lvs[i]);
-        for (size_t k = 0; k < cts.size(); k++) {
-          newPfs.push_back (new Parfactor (pfs[j], cts[k]));
-        }
-        delete pfs[j];
-      }
-    }
-  }
-  ParfactorList pfList (newPfs);
-  Parfactors groundShatteredPfs (pfList.begin(),pfList.end());
-  for (size_t i = 1; i < groundShatteredPfs.size(); i++) {
-     groundShatteredPfs[0]->multiply (*groundShatteredPfs[i]);
-  }
-  return Parfactor (*groundShatteredPfs[0]);
+  std::cout << ss.str() << std::endl;
 }
 
 
@@ -750,8 +803,8 @@ void
 LiftedVe::runSolver (const Grounds& query)
 {
   largestCost_ = std::log (0);
-  shatterAgainstQuery (query);
-  runWeakBayesBall (query);
+  LiftedOperations::shatterAgainstQuery (pfList_, query);
+  LiftedOperations::runWeakBayesBall (pfList_, query);
   while (true) {
     if (Globals::verbosity > 2) {
       Util::printDashedLine();
@@ -765,9 +818,9 @@ LiftedVe::runSolver (const Grounds& query)
       break;
     }
     if (Globals::verbosity > 1) {
-      cout << "best operation: " << op->toString();
+      std::cout << "best operation: " << op->toString();
       if (Globals::verbosity > 2) {
-        cout << endl;
+        std::cout << std::endl;
       }
     }
     op->apply();
@@ -783,8 +836,9 @@ LiftedVe::runSolver (const Grounds& query)
     }
   }
   if (Globals::verbosity > 0) {
-    cout << "largest cost = " << std::exp (largestCost_) << endl;
-    cout << endl;
+    std::cout << "largest cost = " << std::exp (largestCost_);
+    std::cout << std::endl;
+    std::cout << std::endl;
   }
   (*pfList_.begin())->simplifyGrounds();
   (*pfList_.begin())->reorderAccordingGrounds (query);
@@ -797,14 +851,14 @@ LiftedVe::getBestOperation (const Grounds& query)
 {
   double bestCost = 0.0;
   LiftedOperator* bestOp = 0;
-  vector<LiftedOperator*> validOps;
+  std::vector<LiftedOperator*> validOps;
   validOps = LiftedOperator::getValidOps (pfList_, query);
   for (size_t i = 0; i < validOps.size(); i++) {
     double cost = validOps[i]->getLogCost();
-    if ((bestOp == 0) || (cost < bestCost)) {
+    if (!bestOp || cost < bestCost) {
       bestOp   = validOps[i];
       bestCost = cost;
-    } 
+    }
   }
   if (bestCost > largestCost_) {
     largestCost_ = bestCost;
@@ -817,177 +871,5 @@ LiftedVe::getBestOperation (const Grounds& query)
   return bestOp;
 }
 
-
-
-void
-LiftedVe::runWeakBayesBall (const Grounds& query)
-{
-  queue<PrvGroup> todo; // groups to process
-  set<PrvGroup> done;   // processed or in queue 
-  for (size_t i = 0; i < query.size(); i++) {
-    ParfactorList::iterator it = pfList_.begin();
-    while (it != pfList_.end()) {
-      PrvGroup group = (*it)->findGroup (query[i]);
-      if (group != numeric_limits<PrvGroup>::max()) {
-        todo.push (group);
-        done.insert (group);
-        break;
-      }
-      ++ it;
-    }
-  }
-
-  set<Parfactor*> requiredPfs;
-  while (todo.empty() == false) {
-    PrvGroup group = todo.front();
-    ParfactorList::iterator it = pfList_.begin();
-    while (it != pfList_.end()) {
-      if (Util::contains (requiredPfs, *it) == false &&
-          (*it)->containsGroup (group)) {
-        vector<PrvGroup> groups = (*it)->getAllGroups();
-        for (size_t i = 0; i < groups.size(); i++) {
-          if (Util::contains (done, groups[i]) == false) {
-            todo.push (groups[i]);
-            done.insert (groups[i]);
-          }
-        }
-        requiredPfs.insert (*it);
-      }
-      ++ it;
-    }
-    todo.pop();
-  }
-
-  ParfactorList::iterator it = pfList_.begin();
-  bool foundNotRequired = false;
-  while (it != pfList_.end()) {
-    if (Util::contains (requiredPfs, *it) == false) {
-      if (Globals::verbosity > 2) {
-        if (foundNotRequired == false) {
-          Util::printHeader ("PARFACTORS TO DISCARD");
-          foundNotRequired = true;
-        }
-        (*it)->print();
-      }
-      it = pfList_.removeAndDelete (it);
-    } else {
-      ++ it;
-    }
-  }
-}
-
-
-
-void
-LiftedVe::shatterAgainstQuery (const Grounds& query)
-{
-  for (size_t i = 0; i < query.size(); i++) {
-    if (query[i].isAtom()) {
-      continue;
-    }
-    bool found = false;
-    Parfactors newPfs;
-    ParfactorList::iterator it = pfList_.begin();
-    while (it != pfList_.end()) {
-      if ((*it)->containsGround (query[i])) {
-        found = true;
-        std::pair<ConstraintTree*, ConstraintTree*> split;
-        LogVars queryLvs (
-            (*it)->constr()->logVars().begin(),
-            (*it)->constr()->logVars().begin() + query[i].arity());
-        split = (*it)->constr()->split (query[i].args());
-        ConstraintTree* commCt = split.first;
-        ConstraintTree* exclCt = split.second;
-        newPfs.push_back (new Parfactor (*it, commCt));
-        if (exclCt->empty() == false) {
-          newPfs.push_back (new Parfactor (*it, exclCt));
-        } else {
-          delete exclCt;
-        }
-        it = pfList_.removeAndDelete (it);
-      } else {
-        ++ it;
-      }
-    }
-    if (found == false) {
-      cerr << "error: could not find a parfactor with ground " ;
-      cerr << "`" << query[i] << "'" << endl;
-      exit (0);	
-    }
-    pfList_.add (newPfs);
-  }
-  if (Globals::verbosity > 2) {
-    Util::printAsteriskLine();
-    cout << "SHATTERED AGAINST THE QUERY" << endl;
-    for (size_t i = 0; i < query.size(); i++) {
-      cout << " -> " << query[i] << endl;
-    }
-    Util::printAsteriskLine();
-    pfList_.print();
-  }
-}
-
-
-
-Parfactors
-LiftedVe::absorve (
-    ObservedFormula& obsFormula,
-    Parfactor* g)
-{
-  Parfactors absorvedPfs;
-  const ProbFormulas& formulas = g->arguments();
-  for (size_t i = 0; i < formulas.size(); i++) {
-    if (obsFormula.functor() == formulas[i].functor() &&
-        obsFormula.arity()   == formulas[i].arity()) {
-
-      if (obsFormula.isAtom()) {
-        if (formulas.size() > 1) {
-          g->absorveEvidence (formulas[i], obsFormula.evidence());
-        } else {
-          // hack to erase parfactor g
-          absorvedPfs.push_back (0);
-        }
-        break;
-      } 
-
-      g->constr()->moveToTop (formulas[i].logVars());
-      std::pair<ConstraintTree*, ConstraintTree*> res;
-      res = g->constr()->split (
-          formulas[i].logVars(),
-          &(obsFormula.constr()),
-          obsFormula.constr().logVars());
-      ConstraintTree* commCt = res.first;
-      ConstraintTree* exclCt = res.second;
-
-      if (commCt->empty() == false) {
-        if (formulas.size() > 1) {
-          LogVarSet excl = g->exclusiveLogVars (i);
-          Parfactor tempPf (g, commCt);
-          Parfactors countNormPfs = countNormalize (&tempPf, excl);
-          for (size_t j = 0; j < countNormPfs.size(); j++) {
-            countNormPfs[j]->absorveEvidence (
-                formulas[i], obsFormula.evidence());
-            absorvedPfs.push_back (countNormPfs[j]);
-          }
-        } else {
-          delete commCt;
-        }
-        if (exclCt->empty() == false) {
-          absorvedPfs.push_back (new Parfactor (g, exclCt));
-        } else {
-          delete exclCt;
-        }
-        if (absorvedPfs.empty()) {
-          // hack to erase parfactor g
-          absorvedPfs.push_back (0);
-        }
-        break;
-      } else {
-        delete commCt;
-        delete exclCt;
-      }
-    }
-  }
-  return absorvedPfs;
-}
+}  // namespace Horus
 

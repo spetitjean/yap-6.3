@@ -18,41 +18,103 @@
 static char     SccsId[] = "%W% %G%";
 #endif
 
-/*
- * This file implements arithmetic operations 
+/**
+   @file arith0.c
+
+*/
+
+//! @{
+
+/**
+   @defgroup arithmetic_operators Arithmetic Functions
+   @ingroup arithmetic
+
+   YAP implements several arithmetic functions, they are defined as
+   fields in three enumerations, such that there is one enumeration
+   per each different arity:  
+
+    - #arith0_op defines constants and arity 0 arithmetic functions
+
+      @copydoc #arith0_op
+
+    - #arith1_op defines single argument arithmetic functions
+
+      @copydoc #arith1_op
+
+    - #arith2_op defines binary arithmetic functions
+
+      @copydoc #arith2_op
+
+  Arithmetic expressions
+  in YAP may use the following operators:
+
+   - <b>pi [ISO]</b><p> @anchor pi_0
+
+     An approximation to the value of <em>pi</em>, that is, the ratio of a circle's circumference to its diameter.
+
+   - <b>e</b><p>    @anchor e_0
+
+     Euler's number, the base of the natural logarithms.
+
+   - <b>epsilon</b><p>  @anchor epsilon_0
+
+     The difference between the float `1.0` and the next largest floating point number.
+
+   - <b>inf</b><p>  @anchor inf_0
+
+     Infinity according to the IEEE Floating-Point standard. Note that evaluating this term will generate a domain error in the `iso` language mode.
+
+     Note also that YAP supports `+inf` and  `-inf`
+
+   - <b>nan (not a number)</b><p>  @anchor nan_0
+
+     Not-a-number according to the IEEE Floating-Point standard. Note that evaluating this term will generate a domain error in the `iso` language mode.
+
+   - <b>random</b><p>  @anchor random_0
+
+     A "random" floating point number between 0 and 1.
+
+   - <b>cputime</b><p>  @anchor cputime_0
+
+     CPU time since YAP was invoked, in seconds.
+
+   - <b>heapused</b><p>  @anchor heapused_0
+
+     Heap (data-base) space used, in bytes.
+
+   - <b>local</b><p>  @anchor local_0
+
+     Local stack in use, in bytes
+
+   - <b>$b</b><p>  @anchor b_0
+
+     current choicepoint
+
+   - <b>$env</b><p>  @anchor env_0
+
+     Environment
+
+   - <b>$tr</b><p>  @anchor tr_0
+
+     Trail in use
+
+   - <b>$free_stack</b><p>  @anchor free_stack_0
+     
+     Amount of free stack space, that is, free space between global and local stacks.
+
+   - <b>global</b><p>  @anchor global_0
+
+     Global stack in use, in bytes.
  *
  */
 
 #include "Yap.h"
 #include "Yatom.h"
 #include "YapHeap.h"
-#include "eval.h"
+#include "YapEval.h"
+#include "alloc.h"
 
 
-#ifndef PI
-#ifdef M_PI
-#define PI M_PI
-#else
-#define PI 3.14159265358979323846
-#endif
-#endif
-
-#ifndef M_E
-#define M_E 2.7182818284590452354
-#endif
-
-#ifndef INFINITY
-#define INFINITY (1.0/0.0)
-#endif
-
-#ifndef NAN
-#define NAN      (0.0/0.0)
-#endif
-
-/* copied from SWI-Prolog */
-#ifndef DBL_EPSILON /* normal for IEEE 64-bit double */
-#define DBL_EPSILON 0.00000000000000022204
-#endif
 
 static Term
 eval0(Int fi) {
@@ -74,12 +136,12 @@ eval0(Int fi) {
   case op_inf:
     {
 #ifdef _MSC_VER /* Microsoft's Visual C++ Compiler */
-      Yap_Error(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
+      Yap_ArithError(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
       P = (yamop *)FAILCODE;
       RERROR();
 #else
-      if (yap_flags[LANGUAGE_MODE_FLAG] == 1) {/* iso */
-	Yap_Error(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
+      if (isoLanguageFlag()) {/* iso */
+	Yap_ArithError(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
 	P = (yamop *)FAILCODE;
 	RERROR();
       } else {
@@ -89,14 +151,12 @@ eval0(Int fi) {
     }
   case op_nan:
     {
-#ifdef _MSC_VER /* Microsoft's Visual C++ Compiler */
-      Yap_Error(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
-      P = (yamop *)FAILCODE;
+#ifdef _MSC_VER /* Microsoft's Visual C++ Compi<ler */
+      Yap_ArithError(TYPE_ERROR_EVALUABLE, TermNil, "evaluating infinity");
       RERROR();
 #else
-      if (yap_flags[LANGUAGE_MODE_FLAG] == 1) {/* iso */
-	Yap_Error(TYPE_ERROR_EVALUABLE, TermNil, "evaluating not-a-number");
-	P = (yamop *)FAILCODE;
+      if (isoLanguageFlag()) {/* iso */
+	Yap_ArithError(TYPE_ERROR_EVALUABLE, TermNil, "evaluating not-a-number");
 	RERROR();
       } else {
 	RFLOAT(NAN);
@@ -112,40 +172,65 @@ eval0(Int fi) {
       RFLOAT((Float)Yap_cputime()/1000.0);
     }
   case op_heapused:
-    RINT(HeapUsed);
+    /// - heapused
+    ///   Heap (data-base) space used, in bytes.
+    ///
+    RINT(Yap_HeapUsed());
   case op_localsp:
+    /// - local
+    ///   Local stack in use, in bytes
+    ///
 #if YAPOR_SBA
     RINT((Int)ASP);
 #else
     RINT(LCL0 - ASP);
 #endif
   case op_b:
+    /// - $b
+    ///   current choicepoint
+    ///
 #if YAPOR_SBA
     RINT((Int)B);
 #else
+      if (B)
     RINT(LCL0 - (CELL *)B);
+      else
+        RINT(0);
 #endif
   case op_env:
+    /// - $env
+    ///   Environment
+    ///
 #if YAPOR_SBA
     RINT((Int)YENV);
 #else
     RINT(LCL0 - YENV);
 #endif
   case op_tr:
+    /// - $tr
+    ///   Trail in use
+    ///
 #if YAPOR_SBA
     RINT(TR);
 #else
     RINT(((CELL *)TR)-LCL0);
 #endif
   case op_stackfree:
-    RINT(Unsigned(ASP) - Unsigned(H));
+    /// - $free_stack
+    ///   
+    /// Not-a-number according to the IEEE Floating-Point standard. Note that evaluating this term will generate a domain error in the `iso` language mode.
+    RINT(Unsigned(ASP) - Unsigned(HR));
   case op_globalsp:
+    /// - global
+    ///   Global stack in use, in bytes.
+    ///
 #if YAPOR_SBA
-    RINT((Int)H);
+    RINT((Int)HR);
 #else
-    RINT(H - H0);
+    RINT(HR - H0);
 #endif
   }
+  /// end of switch
   RERROR();
 }
 
@@ -185,7 +270,7 @@ Yap_InitConstExps(void)
   for (i = 0; i < sizeof(InitConstTab)/sizeof(InitConstEntry); ++i) {
     AtomEntry *ae = RepAtom(Yap_LookupAtom(InitConstTab[i].OpName));
     if (ae == NULL) {
-      Yap_Error(OUT_OF_HEAP_ERROR,TermNil,"at InitConstExps");
+      Yap_EvalError(RESOURCE_ERROR_HEAP,TermNil,"at InitConstExps");
       return;
     }
     WRITE_LOCK(ae->ARWLock);
@@ -203,6 +288,7 @@ Yap_InitConstExps(void)
   }
 }
 
+
 /* This routine is called from Restore to make sure we have the same arithmetic operators */
 int
 Yap_ReInitConstExps(void)
@@ -210,3 +296,4 @@ Yap_ReInitConstExps(void)
   return TRUE;
 }
 
+/// @}

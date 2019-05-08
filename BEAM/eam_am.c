@@ -140,7 +140,7 @@ int showTime(void);
 struct AND_BOX *choose_leftmost(void);
 extern Cell BEAM_is(void);
 extern void do_eam_indexing(struct Predicates *);
-extern void Yap_plwrite(Term, void *, int, int);
+extern void Yap_plwrite(Term, struct stream_desc *, int, int);
 
 #if Debug_Dump_State
    void dump_eam_state(void);
@@ -1428,6 +1428,7 @@ static void *OpAddress[]= {
         &&p_db_ref,
         &&p_primitive,
         &&p_cut_by,
+        &&p_save_by,
         &&p_succ,
         &&p_predc,
         &&p_plus,
@@ -2511,7 +2512,7 @@ break_debug(contador);
 #endif
 
 #ifdef DEBUG
-			 Yap_plwrite ((Term) beam_X[1], NULL, 0, 1200);
+			 Yap_plwrite ((Term) beam_X[1], NULL, 0, GLOBAL_MaxPriority);
 #else
 			 extern int beam_write (void);
 			 beam_write();
@@ -3536,6 +3537,7 @@ break_debug(contador);
         p_db_ref:
         p_primitive:
         p_cut_by:
+        p_save_by:
         p_succ:
         p_predc:
         p_plus:

@@ -1,40 +1,34 @@
-% learn distribution for school database.
+/* Learn distribution for a sprinkler database. */
 
 :- ['../sprinkler.pfl'].
 
 :- use_module(library(clpbn/learning/em)).
 
-%% data(t,t,t,t).
-data(t,f,_,t).
-%% data(_,t,_,t).
-%% data(t,t,f,f).
-%% data(t,t,f,t).
-%% data(t,_,_,t).
-%% data(t,f,t,t).
-%% data(t,t,f,t).
-%% data(t,_,f,f).
-%% data(t,t,f,f).
-%% data(f,f,t,t).
-%% data(t,t,_,f).
-%% data(t,f,f,t).
-%% data(t,f,t,t).
+%:- set_em_solver(ve).
+%:- set_em_solver(hve).
+%:- set_em_solver(bdd).
+%:- set_em_solver(bp).
+%:- set_em_solver(cbp).
 
-%:- clpbn:set_clpbn_flag(em_solver,gibbs).
-%:- clpbn:set_clpbn_flag(em_solver,jt).
-%:- clpbn:set_clpbn_flag(em_solver,ve).
-:- clpbn:set_clpbn_flag(em_solver,bp).
+data(t,t,t,t).
+data(_,t,_,t).
+data(t,t,f,f).
+data(t,t,f,t).
+data(t,_,_,t).
+data(t,f,t,t).
+data(t,t,f,t).
+data(t,_,f,f).
+data(t,t,f,f).
+data(f,f,t,t).
+data(t,t,_,f).
+data(t,f,f,t).
+data(t,f,t,t).
 
-timed_main :-
-	statistics(runtime, _),
-	main(Lik),
-	statistics(runtime, [T,_]),
-	format('Took ~d msec and Lik ~3f~n',[T,Lik]).
+main :-
+	findall(X, scan_data(X), L),
+	em(L, 0.01, 10, CPTs, Lik),
+	writeln(Lik:CPTs).
 
-main(Lik) :-
-	findall(X,scan_data(X),L),
-        em(L,0.01,10,_,Lik).
-
-scan_data(example([wet_grass(W),sprinkler(S),rain(R),cloudy(C)])) :-
-	data(W, S, R, C).
-
+scan_data([cloudy(C),sprinkler(S),rain(R),wet_grass(W)]) :-
+	data(C, S, R, W).
 

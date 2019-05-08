@@ -1,61 +1,69 @@
-#ifndef HORUS_WEIGHTEDBP_H
-#define HORUS_WEIGHTEDBP_H
+#ifndef YAP_PACKAGES_CLPBN_HORUS_WEIGHTEDBP_H_
+#define YAP_PACKAGES_CLPBN_HORUS_WEIGHTEDBP_H_
 
 #include "BeliefProp.h"
 
-class WeightedLink : public BpLink
-{
+
+namespace Horus {
+
+class WeightedBp : public BeliefProp {
   public:
-    WeightedLink (FacNode* fn, VarNode* vn, size_t idx, unsigned weight) 
-        : BpLink (fn, vn), index_(idx), weight_(weight),
-          pwdMsg_(vn->range(), LogAware::one()) { }
-
-    size_t index (void) const { return index_; }
-
-    unsigned weight (void) const { return weight_; }
-
-    const Params& powMessage (void) const { return pwdMsg_; }
-
-    void updateMessage (void) 
-    {
-      pwdMsg_ = *nextMsg_;
-      swap (currMsg_, nextMsg_);
-      LogAware::pow (pwdMsg_, weight_);
-    }
-  
-  private:
-    size_t    index_;
-    unsigned  weight_;
-    Params    pwdMsg_;
-};
-
-
-
-class WeightedBp : public BeliefProp
-{
-  public:   
     WeightedBp (const FactorGraph& fg,
-        const vector<vector<unsigned>>& weights)
-      : BeliefProp (fg), weights_(weights) { }
+        const std::vector<std::vector<unsigned>>& weights);
 
-   ~WeightedBp (void);
-  
+   ~WeightedBp();
+
     Params getPosterioriOf (VarId);
 
    private:
+     class WeightedLink : public BeliefProp::BpLink {
+       public:
+         WeightedLink (FacNode* fn, VarNode* vn, size_t idx,
+             unsigned weight);
 
-     void createLinks (void);
+         size_t index() const { return index_; }
 
-     void maxResidualSchedule (void);
+         unsigned weight() const { return weight_; }
+
+         const Params& powMessage() const { return pwdMsg_; }
+
+         void updateMessage();
+
+       private:
+         size_t    index_;
+         unsigned  weight_;
+         Params    pwdMsg_;
+
+         DISALLOW_COPY_AND_ASSIGN (WeightedLink);
+     };
+
+     void createLinks();
+
+     void maxResidualSchedule();
 
      void calcFactorToVarMsg (BpLink*);
 
-     Params getVarToFactorMsg (const BpLink*) const;
+     Params getVarToFactorMsg (const BpLink*);
 
-     void printLinkInformation (void) const;
-    
-     vector<vector<unsigned>> weights_;
+     void printLinkInformation() const;
+
+     std::vector<std::vector<unsigned>> weights_;
+
+     DISALLOW_COPY_AND_ASSIGN (WeightedBp);
 };
 
-#endif // HORUS_WEIGHTEDBP_H
+
+
+
+inline void
+WeightedBp::WeightedLink::updateMessage()
+{
+  pwdMsg_ = *nextMsg_;
+  swap (currMsg_, nextMsg_);
+  LogAware::pow (pwdMsg_, weight_);
+}
+
+}  // namespace Horus
+
+#endif  // YAP_PACKAGES_CLPBN_HORUS_WEIGHTEDBP_H_
 

@@ -1,5 +1,15 @@
 %%% -*- Mode: Prolog; -*-
 
+/**
+ * @file   library/flags.yap
+ * @author Theofrastos Mantadelis, Bernd Gutmann, Paulo Moura
+ * @date   Tue Nov 17 15:18:02 2015
+ * 
+ * @brief  Flag Manipulation in Prolog
+ * 
+ * 
+*/
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %  Flags was developed at Katholieke Universiteit Leuven
@@ -219,6 +229,16 @@
                   flags_print/0,
                   defined_flag/7]).
 
+/**
+* @defgroup flags Flag Manipulation in Prolog
+* @ingroup library
+*
+* Routines to manipulate flags: they allow defining, set,
+* resetting.
+* @{
+*/
+
+
 :- use_module(library(lists), [append/3, memberchk/2, member/2]).
 
 :- style_check(all).
@@ -264,7 +284,7 @@ flag_define(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, MH
     throw(error(permission_error(create, flag, FlagName), message('Re-defining a flag is not allowed.', flag_define(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, Module:Handler))))
   ; \+ memberchk(Access, [read_write, read_only, hidden, hidden_read_only]),
     throw(error(domain_error(access, Access), message('Wrong access attribute, available are: read_write, read_only, hidden, hidden_read_only.', flag_define(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, Module:Handler))))
-  ; \+ callable(Handler) ->
+  ; \+ callable(Handler) -> % the Handler comes from: strip_module(MHandler, Module, Handler)
     throw(error(type_error(callable, Handler), message('Flag handler needs to be callable.', flag_define(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, Module:Handler))))
   ;
     validate(FlagType, Module:Handler, DefaultValue, FlagName),
@@ -289,7 +309,7 @@ flag_group_chk(FlagGroup):-
 flag_type(Type):-
   flags_type_definition(Type, _, _).
 
-% flags_type_definition(TypeName, TypeHandler, TypeValidator).
+%% @pred flags_type_definition(TypeName, TypeHandler, TypeValidator).
 flags_type_definition(nonvar, nonvar, true).
 flags_type_definition(atom, atom, true).
 flags_type_definition(atomic, atomic, true).
@@ -566,4 +586,4 @@ defined_flag(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, H
   nonvar(FlagName), nonvar(FlagGroup),
   '$defined_flag$'(FlagName, FlagGroup, FlagType, DefaultValue, Description, Access, Handler).
 
-
+%% @}

@@ -58,7 +58,7 @@ static void share_private_nodes(int worker_q);
 #else
 #define COMPUTE_SEGMENTS_TO_COPY_TO(Q)                                   \
         REMOTE_start_global_copy(Q) = (CELL) (H0);                       \
-        REMOTE_end_global_copy(Q)   = (CELL) (H);                        \
+        REMOTE_end_global_copy(Q)   = (CELL) (HR);                       \
         REMOTE_start_local_copy(Q)  = (CELL) (B);                        \
         REMOTE_end_local_copy(Q)    = (CELL) (GLOBAL_root_cp);           \
         REMOTE_start_trail_copy(Q)  = (CELL) (GLOBAL_root_cp->cp_tr);    \
@@ -66,29 +66,29 @@ static void share_private_nodes(int worker_q);
 #endif
 
 #define P_COPY_GLOBAL_TO(Q)                                                         \
-        memcpy((void *) (worker_offset(Q) + REMOTE_start_global_copy(Q)),           \
+        memmove((void *) (worker_offset(Q) + REMOTE_start_global_copy(Q)),           \
                (void *) REMOTE_start_global_copy(Q),                                \
                (size_t) (REMOTE_end_global_copy(Q) - REMOTE_start_global_copy(Q)))
 #define Q_COPY_GLOBAL_FROM(P)                                                       \
-        memcpy((void *) LOCAL_start_global_copy,                                    \
+        memmove((void *) LOCAL_start_global_copy,                                    \
                (void *) (worker_offset(P) + LOCAL_start_global_copy),               \
                (size_t) (LOCAL_end_global_copy - LOCAL_start_global_copy))
 
 #define P_COPY_LOCAL_TO(Q)                                                          \
-        memcpy((void *) (worker_offset(Q) + REMOTE_start_local_copy(Q)),            \
+        memmove((void *) (worker_offset(Q) + REMOTE_start_local_copy(Q)),            \
                (void *) REMOTE_start_local_copy(Q),                                 \
                (size_t) (REMOTE_end_local_copy(Q) - REMOTE_start_local_copy(Q)))
 #define Q_COPY_LOCAL_FROM(P)                                                        \
-        memcpy((void *) LOCAL_start_local_copy,                                     \
+        memmove((void *) LOCAL_start_local_copy,                                     \
                (void *) (worker_offset(P) + LOCAL_start_local_copy),                \
                (size_t) (LOCAL_end_local_copy - LOCAL_start_local_copy))
 
 #define P_COPY_TRAIL_TO(Q)                                                          \
-        memcpy((void *) (worker_offset(Q) + REMOTE_start_trail_copy(Q)),            \
+        memmove((void *) (worker_offset(Q) + REMOTE_start_trail_copy(Q)),            \
                (void *) REMOTE_start_trail_copy(Q),                                 \
                (size_t) (REMOTE_end_trail_copy(Q) - REMOTE_start_trail_copy(Q)))
 #define Q_COPY_TRAIL_FROM(P)                                                        \
-        memcpy((void *) LOCAL_start_trail_copy,                                     \
+        memmove((void *) LOCAL_start_trail_copy,                                     \
                (void *) (worker_offset(P) + LOCAL_start_trail_copy),                \
                (size_t) (LOCAL_end_trail_copy - LOCAL_start_trail_copy))
 
@@ -311,7 +311,7 @@ sync_with_p:
   /* install fase --> TR and LOCAL_top_cp->cp_tr are equal */
   aux_tr = ((choiceptr) LOCAL_start_local_copy)->cp_tr;
   TR = ((choiceptr) LOCAL_end_local_copy)->cp_tr;
-  Yap_NEW_MAHASH((ma_h_inner_struct *)H);
+  Yap_NEW_MAHASH((ma_h_inner_struct *)HR);
   while (TR != aux_tr) {
     aux_cell = TrailTerm(--aux_tr);
     if (IsVarTerm(aux_cell)) {
@@ -353,12 +353,13 @@ sync_with_p:
 #endif /* incremental */
 
   /* update registers and return */
+  PUT_OUT_ROOT_NODE(worker_id);
 #ifndef TABLING
   REMOTE_reply_signal(worker_p) = worker_ready;
 #endif /* TABLING */
+  TR = (tr_fr_ptr) LOCAL_end_trail_copy;
   LOCAL_reply_signal = worker_ready;
   PUT_IN_REQUESTABLE(worker_id);
-  TR = (tr_fr_ptr) LOCAL_end_trail_copy;
 #ifdef TABLING
   adjust_freeze_registers();
 #endif /* TABLING */
@@ -567,7 +568,7 @@ void share_private_nodes(int worker_q) {
 
     /* update depth */
     if (depth >= MAX_BRANCH_DEPTH)
-      Yap_Error(INTERNAL_ERROR, TermNil, "maximum depth exceded (share_private_nodes)");
+      Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, "maximum depth exceded (share_private_nodes)");
     or_frame = B->cp_or_fr;
 #ifdef TABLING
     previous_or_frame = LOCAL_top_cp_on_stack->cp_or_fr;

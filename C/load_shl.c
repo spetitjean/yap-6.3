@@ -16,7 +16,7 @@
  *   locate the executable of Yap
 */
 
-void Yap_FindExecutable(char *name)
+char * Yap_FindExecutable(void)
 {
 }
 
@@ -51,7 +51,7 @@ LoadForeign( StringList ofiles, StringList libs,
 		 char *proc_name, YapInitProc *init_proc )
 {
 
-  /* *init_proc is initialised to NULL in load_foreign.c */
+  /* *init_proc is initialized to NULL in load_foreign.c */
   int init_missing = -1;
 
   int n, i;
@@ -61,7 +61,8 @@ LoadForeign( StringList ofiles, StringList libs,
     int valid_fname;
 
     /* shl_load wants to follow the LD_CONFIG_PATH */
-    valid_fname = Yap_TrueFileName( AtomName(ofiles->name), LOCAL_FileNameBuf, TRUE );
+    const char *file = AtomName(ofiles->name);
+    valid_fname = Yap_findFile(file, NULL, NULL, LOCAL_FileNameBuf, true, YAP_OBJ, true, true);
 
     if( !valid_fname ) {
       strcpy( LOCAL_ErrorSay, "%% Trying to open non-existing file in LoadForeign" );
@@ -167,7 +168,7 @@ Yap_ReLoadForeign(StringList ofiles, StringList libs,
 
 /*
 dunno what this one is supposed to do, no load_* defines it
-void	STD_PROTO(ReOpenLoadForeign,(void));
+void	 ReOpenLoadForeign(void);
 */
 
 #endif

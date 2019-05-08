@@ -1,40 +1,59 @@
 /*************************************************************************
-*									 *
-*	 YAP Prolog 							 *
-*									 *
-*	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
-*									 *
-* Copyright L.Damas, V.S.Costa and Universidade do Porto 1985-97	 *
-*									 *
-**************************************************************************
-*									 *
-* File:		Foreign.h						 *
-* comments:	header file for dynamic loading routines  	 	 *
-*************************************************************************/
+ *									 *
+ *	 YAP Prolog 							 *
+ *									 *
+ *	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
+ *									 *
+ * Copyright L.Damas, V.S.Costa and Universidade do Porto 1985-97	 *
+ *									 *
+ **************************************************************************
+ *									 *
+ * File:		Foreign.h *
+ * comments:	header file for dynamic loading routines  	 	 *
+ *************************************************************************/
 
 #define NO_DYN 1
 
-/* Currently load_foreign_files works for the following machines:
+#ifndef FOREIGN_H
+#define FOREIGN_H
 
-   AIX: should work for 3.2 and 4.1 at least, using ECOFF;
-   linux: should work both for a.out (untested by me) and ELF;
-   osf:  should work, but isn't working yet.
-   sunos4: should work, using A.OUT format;
-   svr4, eg solaris: should work, using ELF format;
+/**
 
-  YAP should be able to load on most BSD Unixes, but you will need to
+    @:
+    @file Foreign.h
+
+    load_foreign_files/3 has works for the following configurations:
+
+    - linux: should work both for a.out (untested by me) and ELF;
+
+    - WIN32: works (notice that symbols are not exported by default)
+
+    - OSX: works using Mach dynamic libs.
+
+    - osf:  should work, but isn't working yet.
+
+    - sunos4: should work, using A.OUT format;
+
+    - svr4, eg solaris: should work, using ELF format;
+
+    - AIX: should work for 3.2 and 4.1 at least, using ECOFF;
+
+    YAP should be able to load on most BSD Unixes, but you will need to
   say that here.
 
   YAP also supports COFF loading (pretty much the same technique as
-  used for A.OUT loading) but that is untested so far. 
+  used for A.OUT loading) but that is untested so far.
 
 */
+
+#include "Yap.h"
+#include "YapHeap.h"
 
 #ifdef _AIX
 #undef NO_DYN
 #endif /* __AIX */
 
-#if HAVE_DLOPEN
+#ifdef HAVE_DLOPEN
 #define LOAD_DL 1
 #ifdef NO_DYN
 #undef NO_DYN
@@ -80,8 +99,8 @@
 #endif
 #endif /* LOAD_DYLD */
 
-#define LOAD_SUCCEEDED   0
-#define LOAD_FAILLED    -1
+#define LOAD_SUCCEEDED 0
+#define LOAD_FAILLED -1
 
 typedef struct StringListItem {
   Atom name;
@@ -99,26 +118,21 @@ typedef struct ForeignLoadItem {
 
 typedef void (*YapInitProc)(void);
 
+void *Yap_LoadForeignFile(char *, int);
+int Yap_CallForeignFile(void *, char *);
+int Yap_CloseForeignFile(void *);
+Int Yap_LoadForeign(StringList, StringList, char *, YapInitProc *);
+Int Yap_ReLoadForeign(StringList, StringList, char *, YapInitProc *);
+void Yap_ReOpenLoadForeign(void);
+void Yap_ShutdownLoadForeign(void);
 
-
-#ifndef STD_PROTO
-#define STD_PROTO(F,A)  F A
-#endif
-
-void    STD_PROTO(Yap_FindExecutable,(char *));
-void   *STD_PROTO(Yap_LoadForeignFile,(char *, int));
-int     STD_PROTO(Yap_CallForeignFile,(void *, char *));
-int     STD_PROTO(Yap_CloseForeignFile,(void *));
-Int     STD_PROTO(Yap_LoadForeign,(StringList, StringList, char *, YapInitProc *));
-Int     STD_PROTO(Yap_ReLoadForeign,(StringList, StringList, char *, YapInitProc *));
-void	STD_PROTO(Yap_ReOpenLoadForeign,(void));
-void	STD_PROTO(Yap_ShutdownLoadForeign,(void));
-
-#define EAGER_LOADING  1
+#define EAGER_LOADING 1
 #define GLOBAL_LOADING 2
 
+/**
+ * stub can always be called at DLL loading.
+ *
+ */
+X_API bool load_none(void);
 
-
-
-
-
+#endif

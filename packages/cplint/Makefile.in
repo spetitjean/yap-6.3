@@ -6,6 +6,7 @@ prefix = @prefix@
 exec_prefix = ${prefix}
 ROOTDIR = $(prefix)
 EROOTDIR = ${prefix}
+abs_top_builddir = @abs_top_builddir@
 #
 # where the binary should be
 #
@@ -13,8 +14,8 @@ BINDIR = $(EROOTDIR)/bin
 #
 # where YAP should look for libraries
 #
-LIBDIR=${exec_prefix}/lib
-YAPLIBDIR=${exec_prefix}/lib/Yap
+LIBDIR=@libdir@
+YAPLIBDIR=$(LIBDIR)/Yap
 #
 # where YAP should look for architecture-independent Prolog libraries
 #
@@ -23,7 +24,7 @@ SHAREDIR=$(ROOTDIR)/share/Yap
 #
 DEFS=@DEFS@ -D_YAP_NOT_INSTALLED_=1
 CC=@CC@
-CFLAGS= @SHLIB_CFLAGS@ $(YAP_EXTRAS) $(DEFS) -I$(srcdir) -I$(srcdir)/../../include  @CPPFLAGS@
+CFLAGS= @SHLIB_CFLAGS@ $(YAP_EXTRAS) $(DEFS) -I$(srcdir) -I$(srcdir)/../../include -I../.. @CPPFLAGS@
 #
 #
 # You shouldn't need to change what follows.
@@ -34,15 +35,14 @@ INSTALL_PROGRAM=@INSTALL_PROGRAM@
 SHELL=/bin/sh
 RANLIB=@RANLIB@
 srcdir=@srcdir@
-SHLIB_SUFFIX=@SHLIB_SUFFIX@
-CPLINT_CFLAGS=@CPLINT_CFLAGS@
-CPLINT_LDFLAGS=@CPLINT_LDFLAGS@
+SO=@SO@
+CPLINT_CFLAGS=@CPLINT_CPPFLAGS@
 CPLINT_LIBS=@CPLINT_LIBS@
 #4.1VPATH=@srcdir@:@srcdir@/OPTYap
 CWD=$(PWD)
 #
-OBJS=cplint_yap.o cplint_Prob.o
-SOBJS=cplint.@SHLIB_SUFFIX@
+OBJS=cplint_yap.o cplint_Prob.o bddem.o
+SOBJS=cplint.@SO@ bddem.@SO@
 
 
 
@@ -69,7 +69,6 @@ CPLINT_PROGRAMS= \
 	$(CPLINT_SRCDIR)/approx/montecarlo.pl \
 	$(CPLINT_SRCDIR)/approx/params.pl \
 	$(CPLINT_SRCDIR)/approx/parsing.pl \
-	$(CPLINT_SRCDIR)/approx/tptreefile.pl \
 	$(CPLINT_SRCDIR)/approx/utility.pl \
 	$(CPLINT_SRCDIR)/approx/tptree_lpad.pl
 
@@ -77,7 +76,7 @@ CPLINT_SEMANTICS_PROGRAMS= \
 	$(CPLINT_SRCDIR)/semlpadsld.pl \
 	$(CPLINT_SRCDIR)/semlpad.pl \
 	$(CPLINT_SRCDIR)/semcpl.pl \
-	$(CPLINT_SRCDIR)/slg.pl 
+	$(CPLINT_SRCDIR)/slg.pl
 
 CPLINT_TEST_PROGRAMS= \
 	$(CPLINT_SRCDIR)/testlpadvel.pl \
@@ -87,7 +86,7 @@ CPLINT_TEST_PROGRAMS= \
 	$(CPLINT_SRCDIR)/testcpl.pl \
 	$(CPLINT_SRCDIR)/testsemlpadsld.pl \
 	$(CPLINT_SRCDIR)/testsemlpad.pl \
-	$(CPLINT_SRCDIR)/testsemcpl.pl 
+	$(CPLINT_SRCDIR)/testsemcpl.pl
 
 CPLINT_EXAMPLES= \
 	$(CPLINT_EXDIR)/dice.cpl \
@@ -147,26 +146,35 @@ CPLINT_DOCS=\
 CPLINT_LEARNING_PROGRAMS=\
 	$(CPLINT_SRCDIR)/em \
 	$(CPLINT_SRCDIR)/rib \
-	$(CPLINT_SRCDIR)/slipcase
-	
+	$(CPLINT_SRCDIR)/slipcase \
+	$(CPLINT_SRCDIR)/slipcover \
+	$(CPLINT_SRCDIR)/lemur
+
 
 all: $(SOBJS)
 
-cplint_yap.o: $(srcdir)/cplint_yap.c  $(srcdir)/cplint.h 
+cplint_yap.o: $(srcdir)/cplint_yap.c  $(srcdir)/cplint.h
 	$(CC) -c $(CFLAGS) $(CPLINT_CFLAGS) $(srcdir)/cplint_yap.c -o cplint_yap.o
 
-cplint_Prob.o: $(srcdir)/cplint_Prob.c  $(srcdir)/cplint.h 
+cplint_Prob.o: $(srcdir)/cplint_Prob.c  $(srcdir)/cplint.h
 	$(CC) -c $(CFLAGS) $(CPLINT_CFLAGS) $(srcdir)/cplint_Prob.c -o cplint_Prob.o
 
+bddem.o : $(srcdir)/slipcase/bddem.c
+	$(CC) -c $(CFLAGS) $(CPLINT_CFLAGS)  $(srcdir)/slipcase/bddem.c -o bddem.o
 
 
-@DO_SECOND_LD@cplint.@SHLIB_SUFFIX@: cplint_yap.o cplint_Prob.o
-@DO_SECOND_LD@	@CPLINT_SHLIB_LD@ -o cplint.@SHLIB_SUFFIX@ $(CPLINT_LDFLAGS) cplint_yap.o cplint_Prob.o $(CPLINT_LIBS) @EXTRA_LIBS_FOR_DLLS@
+@DO_SECOND_LD@cplint.@SO@: cplint_yap.o cplint_Prob.o
+@DO_SECOND_LD@	@SHLIB_LD@ -o cplint.@SO@ $(CPLINT_LDFLAGS) cplint_yap.o cplint_Prob.o \
+	$(CPLINT_LIBS) @EXTRA_LIBS_FOR_DLLS@ @CUDD_LIBS@
+
+@DO_SECOND_LD@bddem.@SO@: bddem.o
+@DO_SECOND_LD@	@SHLIB_LD@ -o bddem.@SO@ $(CPLINT_LDFLAGS) bddem.o \
+	 $(CPLINT_LIBS) @EXTRA_LIBS_FOR_DLLS@ @CUDD_LIBS@
 
 clean:
 	rm -f *.o *~ $(OBJS) $(SOBJS) *.BAK
 
-install: all 
+install: all
 	mkdir -p $(DESTDIR)$(SHAREDIR)/cplint
 	mkdir -p $(DESTDIR)$(SHAREDIR)/cplint/examples
 	mkdir -p $(DESTDIR)$(SHAREDIR)/cplint/doc
@@ -181,12 +189,16 @@ install: all
 	cp $(CPLINT_SRCDIR)/em/*.pl $(DESTDIR)$(SHAREDIR)/cplint/
 	cp $(CPLINT_SRCDIR)/rib/*.pl $(DESTDIR)$(SHAREDIR)/cplint/
 	cp $(CPLINT_SRCDIR)/slipcase/*.pl $(DESTDIR)$(SHAREDIR)/cplint/
-	$(INSTALL_PROGRAM) slipcase/bddem.so $(DESTDIR)$(YAPLIBDIR)
+	cp $(CPLINT_SRCDIR)/slipcover/*.pl $(DESTDIR)$(SHAREDIR)/cplint/
+	cp $(CPLINT_SRCDIR)/lemur/*.pl $(DESTDIR)$(SHAREDIR)/cplint/
 
-installcheck: 
+
+installcheck:
 	for h in ${CPLINT_TEST_PROGRAMS}; do echo "t. halt." | $(BINDIR)/yap -l $$h; done
 
 # use the following target to run individual tests, e.g. make testlpad
-test%:  	
+test%:
 	echo "t. halt." | yap -l $(CPLINT_SRCDIR)/$@.pl
 
+distclean: clean
+	rm -f Makefile

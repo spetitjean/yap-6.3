@@ -1,21 +1,14 @@
+/**
+ * @file   ordsets.yap
+ * @author : R.A.O'Keefe
+ * @date 22 May 1983
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>
+ * @date   1999
+ * @brief  
+ * 
+ * 
+*/
 % This file has been included as an YAP library by Vitor Santos Costa, 1999
-
-%   File   : ORDSET.PL
-%   Author : R.A.O'Keefe
-%   Updated: 22 May 1983
-%   Purpose: Ordered set manipulation utilities
-
-%   In this module, sets are represented by ordered lists with no
-%   duplicates.  Thus {c,r,a,f,t} would be [a,c,f,r,t].  The ordering
-%   is defined by the @< family of term comparison predicates, which
-%   is the ordering used by sort/2 and setof/3.
-
-%   The benefit of the ordered representation is that the elementary
-%   set operations can be done in time proportional to the Sum of the
-%   argument sizes rather than their Product.  Some of the unordered
-%   set routines, such as member/2, length/2, select/3 can be used
-%   unchanged.  The main difficulty with the ordered representation is
-%   remembering to use it!
 
 :- module(ordsets, [
 	list_to_ord_set/2,	%  List -> Set
@@ -41,6 +34,155 @@
 	ord_memberchk/2             % Element X Set
       ]).
 
+/** @defgroup ordsets Ordered Sets
+  * @ingroup library
+  * @{
+
+The following ordered set manipulation routines are available once
+included with the `use_module(library(ordsets))` command.  An
+ordered set is represented by a list having unique and ordered
+elements. Output arguments are guaranteed to be ordered sets, if the
+relevant inputs are. This is a slightly patched version of Richard
+O'Keefe's original library.
+
+In this module, sets are represented by ordered lists with no
+duplicates.  Thus {c,r,a,f,t} would be [a,c,f,r,t].  The ordering
+is defined by the @< family of term comparison predicates, which
+is the ordering used by sort/2 and setof/3.
+
+The benefit of the ordered representation is that the elementary
+set operations can be done in time proportional to the Sum of the
+argument sizes rather than their Product.  Some of the unordered
+set routines, such as member/2, length/2, select/3 can be used
+unchanged.  The main difficulty with the ordered representation is
+remembering to use it!
+
+
+*/
+
+
+/** @pred ord_add_element(+ _Set1_, + _Element_, ? _Set2_) 
+
+
+Inserting  _Element_ in  _Set1_ returns  _Set2_.  It should give
+exactly the same result as `merge(Set1, [Element], Set2)`, but a
+bit faster, and certainly more clearly. The same as ord_insert/3.
+
+ 
+*/
+/** @pred ord_del_element(+ _Set1_, + _Element_, ? _Set2_) 
+
+
+Removing  _Element_ from  _Set1_ returns  _Set2_.
+
+ 
+*/
+/** @pred ord_disjoint(+ _Set1_, + _Set2_) 
+
+
+Holds when the two ordered sets have no element in common.
+
+ 
+*/
+/** @pred ord_insert(+ _Set1_, + _Element_, ? _Set2_) 
+
+
+Inserting  _Element_ in  _Set1_ returns  _Set2_.  It should give
+exactly the same result as `merge(Set1, [Element], Set2)`, but a
+bit faster, and certainly more clearly. The same as ord_add_element/3.
+
+ 
+*/
+/** @pred ord_intersect(+ _Set1_, + _Set2_) 
+
+
+Holds when the two ordered sets have at least one element in common.
+
+ 
+*/
+/** @pred ord_intersection(+ _Set1_, + _Set2_, ? _Intersection_)
+
+Holds when Intersection is the ordered representation of  _Set1_
+and  _Set2_.
+
+ 
+*/
+/** @pred ord_intersection(+ _Set1_, + _Set2_, ? _Intersection_, ? _Diff_)
+
+Holds when Intersection is the ordered representation of  _Set1_
+and  _Set2_.  _Diff_ is the difference between  _Set2_ and  _Set1_.
+
+ 
+*/
+/** @pred ord_member(+ _Element_, + _Set_) 
+
+
+Holds when  _Element_ is a member of  _Set_.
+
+ 
+*/
+/** @pred ord_seteq(+ _Set1_, + _Set2_) 
+
+
+Holds when the two arguments represent the same set.
+
+ 
+*/
+/** @pred ord_setproduct(+ _Set1_, + _Set2_, - _Set_) 
+
+
+If Set1 and Set2 are ordered sets, Product will be an ordered
+set of x1-x2 pairs.
+
+ 
+*/
+/** @pred ord_subset(+ _Set1_, + _Set2_) 
+
+
+Holds when every element of the ordered set  _Set1_ appears in the
+ordered set  _Set2_.
+
+ 
+*/
+/** @pred ord_subtract(+ _Set1_, + _Set2_, ? _Difference_) 
+
+
+Holds when  _Difference_ contains all and only the elements of  _Set1_
+which are not also in  _Set2_.
+
+ 
+*/
+/** @pred ord_symdiff(+ _Set1_, + _Set2_, ? _Difference_) 
+
+
+Holds when  _Difference_ is the symmetric difference of  _Set1_
+and  _Set2_.
+
+ 
+*/
+/** @pred ord_union(+ _Set1_, + _Set2_, ? _Union_)
+
+Holds when  _Union_ is the union of  _Set1_ and  _Set2_.
+
+ 
+*/
+/** @pred ord_union(+ _Set1_, + _Set2_, ? _Union_, ? _Diff_)
+
+Holds when  _Union_ is the union of  _Set1_ and  _Set2_ and
+ _Diff_ is the difference.
+
+
+
+
+ */
+/** @pred ord_union(+ _Sets_, ? _Union_) 
+
+
+Holds when  _Union_ is the union of the lists  _Sets_.
+
+ 
+*/
+
 /*
 :- mode
 	list_to_ord_set(+, ?),
@@ -65,7 +207,7 @@
 */
 
 
-%   list_to_ord_set(+List, ?Set)
+%% @pred  list_to_ord_set(+List, ?Set)
 %   is true when Set is the ordered representation of the set represented
 %   by the unordered representation List.  The only reason for giving it
 %   a name at all is that you may not have realised that sort/2 could be
@@ -75,7 +217,7 @@ list_to_ord_set(List, Set) :-
 	sort(List, Set).
 
 
-%   merge(+List1, +List2, -Merged)
+%% @ored merge(+List1, +List2, -Merged)
 %   is true when Merged is the stable merge of the two given lists.
 %   If the two lists are not ordered, the merge doesn't mean a great
 %   deal.  Merging is perfectly well defined when the inputs contain
@@ -94,7 +236,7 @@ merge(List1, [], List1).
 
 
 
-%   ord_disjoint(+Set1, +Set2)
+%% @ored ord_disjoint(+Set1, +Set2)
 %   is true when the two ordered sets have no element in common.  If the
 %   arguments are not ordered, I have no idea what happens.
 
@@ -111,7 +253,7 @@ ord_disjoint(>, Head1, Tail1, _, Tail2) :-
 
 
 
-%   ord_insert(+Set1, +Element, ?Set2)
+%% @ored ord_insert(+Set1, +Element, ?Set2)
 %   ord_add_element(+Set1, +Element, ?Set2)
 %   is the equivalent of add_element for ordered sets.  It should give
 %   exactly the same result as merge(Set1, [Element], Set2), but a bit
@@ -136,7 +278,7 @@ ord_insert(>, Head, Tail, Element, [Element,Head|Tail]).
 
 
 
-%   ord_intersect(+Set1, +Set2)
+%% @pred   ord_intersect(+Set1, +Set2)
 %   is true when the two ordered sets have at least one element in common.
 %   Note that the test is == rather than = .
 
@@ -154,7 +296,7 @@ ord_intersect(L1, L2, L) :-
 	ord_intersection(L1, L2, L).
 
 
-%   ord_intersection(+Set1, +Set2, ?Intersection)
+%% @pred   ord_intersection(+Set1, +Set2, ?Intersection)
 %   is true when Intersection is the ordered representation of Set1
 %   and Set2, provided that Set1 and Set2 are ordered sets.
 
@@ -171,7 +313,7 @@ ord_intersection([Head1|Tail1], [Head2|Tail2], Intersection) :-
 	    ord_intersection([Head1|Tail1], Tail2, Intersection)
 	).
 
-%   ord_intersection(+Set1, +Set2, ?Intersection, ?Difference)
+%% @pred   ord_intersection(+Set1, +Set2, ?Intersection, ?Difference)
 %   is true when Intersection is the ordered representation of Set1
 %   and Set2, provided that Set1 and Set2 are ordered sets.
 
@@ -252,7 +394,7 @@ ord_del_element(>, Head1, Tail1, _, [Head1|Tail1]).
 
 
 
-%   ord_symdiff(+Set1, +Set2, ?Difference)
+%% @pred   ord_symdiff(+Set1, +Set2, ?Difference)
 %   is true when Difference is the symmetric difference of Set1 and Set2.
 
 ord_symdiff(Set1, [], Set1) :- !.
@@ -288,7 +430,7 @@ ord_union(>, Head1, Tail1, Head2, Tail2, [Head2|Union]) :-
 	ord_union([Head1|Tail1], Tail2, Union).
 
 
-%   ord_union(+Set1, +Set2, ?Union, ?Difference)
+%% @pred   ord_union(+Set1, +Set2, ?Union, ?Difference)
 %   is true when Union is the union of Set1 and Set2 and Difference is the
 %   difference between Set2 and Set1.
 
@@ -307,7 +449,7 @@ ord_union(>, Head1, Tail1, Head2, Tail2, [Head2|Union], [Head2|Diff]) :-
 
 
 
-%   ord_setproduct(+Set1, +Set2, ?Product)
+%% @pred   ord_setproduct(+Set1, +Set2, ?Product)
 %   is in fact identical to setproduct(Set1, Set2, Product).
 %   If Set1 and Set2 are ordered sets, Product will be an ordered
 %   set of x1-x2 pairs.  Note that we cannot solve for Set1 and
@@ -354,4 +496,6 @@ ord_empty([]).
 ord_memberchk(Element, [E|_]) :- E == Element, !.
 ord_memberchk(Element, [_|Set]) :-
 	ord_memberchk(Element, Set).
+
+/** @} */
 

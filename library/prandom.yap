@@ -15,13 +15,35 @@
 *									 *
 *************************************************************************/
 
+/**
+ * @file   prandom.yap
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>
+ * @date   Tue Nov 17 23:43:18 2015
+ * 
+ * @brief  Van Gelder Random Number Generator
+ * 
+ * 
+*/
 
+:- module(prandom, [
+	ranstart/0,
+	ranstart/1,
+	rannum/1,
+	ranunif/2]).
+
+
+%%
+% @groupdef prandom Van Gelder Random Number Generator
+% @ingroup builtins
+% @{
+%
+%
 % The following code produces the same random numbers as my previous 
 % ranpkg.pl, but is more accurately documented and slightly more 
 % efficient.  
- 
+% 
 % ranpkg.pl	random number package	Allen Van Gelder, Stanford
- 
+vvvvvv 
 % rannum produces a random non-negative integer whose low bits are not
 % all that random, so it should be scaled to a smaller range in general.
 % The integer is in the range 0 .. 2^(w-1) - 1,
@@ -43,12 +65,47 @@
 % Its drawback is the lack of randomness of low-order bits.
 
 
-:- module(prandom, [
-	ranstart/0,
-	ranstart/1,
-	rannum/1,
-	ranunif/2]).
+/** @pred rannum(- _I_) 
 
+
+Produces a random non-negative integer  _I_ whose low bits are not
+all that random, so it should be scaled to a smaller range in general.
+The integer  _I_ is in the range 0 .. 2^(w-1) - 1. You can use:
+
+~~~~~
+rannum(X) :- yap_flag(max_integer,MI), rannum(R), X is R/MI.
+~~~~~
+to obtain a floating point number uniformly distributed between 0 and 1.
+
+ 
+*/
+/** @pred ranstart 
+
+
+Initialize the random number generator using a built-in seed. The
+ranstart/0 built-in is always called by the system when loading
+the package.
+
+ 
+*/
+/** @pred ranstart(+ _Seed_)
+
+Initialize the random number generator with user-defined  _Seed_. The
+same  _Seed_ always produces the same sequence of numbers.
+
+ 
+*/
+/** @pred ranunif(+ _Range_,- _I_) 
+
+
+ranunif/2 produces a uniformly distributed non-negative random
+integer  _I_ over a caller-specified range  _R_.  If range is  _R_,
+the result is in 0 ..  _R_-1.
+
+
+
+
+ */
 :- initialization(ranstart).
 
 :- dynamic ranState/5.
@@ -61,7 +118,7 @@ wsize(32) :-
 	yap_flag(max_tagged_integer,I), I >> 32 =:= 0, !.
 wsize(64).
 
-ranstart :- ranstart(8'365).
+ranstart :- ranstart(8'365). %
  
 ranstart(N) :-
 	wsize(Wsize),				% bits available for int.
@@ -96,3 +153,4 @@ ranunif(Range, Unif) :-
 	Unif is (Raw * Range) >> (Wsize-1).
 
 
+/%%! @}

@@ -38,15 +38,26 @@ main :-
 	header_find_clause(F),
 	header_find_clause(H),
 	header_save_clause(S),
-	file('C/absmi.c', W, C, L, F, H, S),
+	file('C/absmi_insts.h', W, C, L, F, H, S),
 	start_ifdef("YAPOR", W, C, L, F, H, S),
-	file('OPTYap/or.insts.i',W, C, L, F, H, S),
+	file('OPTYap/or.insts.h',W, C, L, F, H, S),
 	end_ifdef(W, C, L, F, H, S),
 	start_ifdef("TABLING", W, C, L, F, H, S),
-	file('OPTYap/tab.insts.i',W,C,L, F, H, S),
+	file('OPTYap/tab.insts.h',W,C,L, F, H, S),
 	retractall(op(_,_)),
-	file('OPTYap/tab.tries.insts.i', W, C, L, F, H, S),
+	file('OPTYap/tab.tries.insts.h', W, C, L, F, H, S),
 	end_ifdef(W, C, L, F, H, S),
+	%start_ifdef("YAP_JIT", W, C, L, F, H, S), 
+        %file('C/traced_absmi_insts.h', W, C, L, F, H, S),
+        %start_ifdef("YAPOR", W, C, L, F, H, S), 
+	%file('OPTYap/traced_or.insts.h',W, C, L, F, H, S),
+        %end_ifdef(W, C, L, F, H, S),
+        %start_ifdef("TABLING", W, C, L, F, H, S),
+        %file('OPTYap/traced_tab.insts.h',W,C,L, F, H, S),
+        %retractall(op(_,_)),
+        %file('OPTYap/traced_tab.tries.insts.h', W, C, L, F, H, S),
+        %end_ifdef(W, C, L, F, H, S),
+        %end_ifdef(W, C, L, F, H, S),
 	footer(W),
 	footer_rclause(C),
 	footer_walk_clause(L),
@@ -140,12 +151,27 @@ file(I,W,C,L,F,H, S) :-
 
 grep_opcode(W, Line) :-
 	split(Line," 	,();",[OP,Name,Type]),
-	Name \= "or_last",
-	check_op(OP),
+	Name \= "or_last", Name \= "traced_or_last",
+	check_op(OP), !,
 	special(Name,W),
 	assert(op(Type,Name)),
 	format(W,'  OPCODE(~s~36+,~s),~n',[Name,Type]),
 	end_special(Name,W).
+grep_opcode(W, Line) :-
+	split(Line,"# 	\"<>",["include",File]),
+	atom_codes(AFile, File),
+        atomic_concat('C/',AFile,NFile),
+	(
+	    catch( open(NFile,read,R), _, fail )
+	    ->
+	 ( sub_atom( AFile, 0, _, _, traced ) -> format(W,'#if YAP_JIT~n',[]) ; true ),
+	 process(R,grep_opcode(W)),
+         ( sub_atom( AFile, 0, _, _, traced ) -> format(W,'#endif~n',[]) ;  true),
+	 close(R)
+	    ;
+	 true
+	).
+		    
 
 check_op("Op").
 check_op("BOp").
@@ -165,11 +191,12 @@ end_special(_, _).
 
 special_op("clause_with_cut","TABLING_INNER_CUTS").
 special_op("table_answer_resolution_completion","THREADS_CONSUMER_SHARING").
-special_op("cut_c","CUT_C").
-special_op("cut_userc","CUT_C").
+/*special_op("cut_c","CUT_C").*/
+/*special_op("cut_userc","CUT_C").*/
 special_op("run_eam","BEAM").
 special_op("retry_eam","BEAM").
 special_op("thread_local","THREADS").
+special_op("jit_handler","YAP_JIT").
 
 output_rclause(C) :-
 	setof(T,O^op(T,O),Types),
@@ -199,15 +226,15 @@ special_formats(C,"e") :- !,
 special_formats(C,"l") :- !,
 	format(C,'      if (op == _Ystop) return;~n',[]).
 special_formats(C,"sssl") :- !,
-	format(C,'      AdjustSwitchTable(op, pc->u.sssl.l, pc->u.sssl.s);~n',[]).
+	format(C,'      AdjustSwitchTable(op, pc->y_u.sssl.l, pc->y_u.sssl.s);~n',[]).
 special_formats(C,"Illss") :- !,
 	format(C,'      opc = NEXTOP(pc,Illss);
-      pc = pc->u.Illss.l1;
+      pc = pc->y_u.Illss.l1;
       break;~n',[]),
 	% don't go to NEXTOP
 	fail.
 special_formats(C,"OtaLl") :- !,
-	format(C,'      pc = pc->u.OtaLl.n;
+	format(C,'      pc = pc->y_u.OtaLl.n;
       break;~n',[]),
 	% don't go to NEXTOP
 	fail.
@@ -229,10 +256,10 @@ dump_fields(C,[_|Info],Ops,T) :-
 dump_field(C,I,O,T) :-
 	rewritable_field(O), !,
 	get_op(O,A),
-	format(C,'      ~sAdjust(pc->u.~s.~s);~n',[A,T,I]).
+	format(C,'      ~sAdjust(pc->y_u.~s.~s);~n',[A,T,I]).
 dump_field(C,I,O,T) :-
 	get_op(O,A),
-	format(C,'      pc->u.~s.~s = ~sAdjust(pc->u.~s.~s);~n',[T,I,A,T,I]).
+	format(C,'      pc->y_u.~s.~s = ~sAdjust(pc->y_u.~s.~s);~n',[T,I,A,T,I]).
 
 rewritable_field(0'd).
 rewritable_field(0'i).
@@ -241,6 +268,7 @@ rewritable_field(0't).
 
 
 get_op(0'a,"Arity").
+get_op(0'A,"Atom").
 get_op(0'b,"CellPtoHeap").
 get_op(0'c,"ConstantTerm").
 get_op(0'd,"DoubleInCode").
@@ -248,6 +276,7 @@ get_op(0'D,"DBGroundTerm").
 get_op(0'f,"Func").
 get_op(0'F,"ExternalFunction").
 get_op(0'i,"IntegerInCode").
+get_op(0'j,"JITCode").
 get_op(0'I,"PtoLUIndex").
 get_op(0'l,"PtoOp").
 get_op(0'L,"PtoLUClause").
@@ -259,6 +288,7 @@ get_op(0'O,"OrArg").
 get_op(0'p,"PtoPred").
 get_op(0's,"Constant").
 get_op(0't,"TabEntry").
+get_op(0'u,"BlobTermInCode").
 get_op(0'x,"X").
 get_op(0'y,"Y").
 % '
@@ -346,34 +376,29 @@ c_call_op("call_c_wfail").
 
 % I field gives direct access to LU index block and to all Pred information
 output_walk(C,"Illss",_) :- !,
-	format(C,'      return walk_got_lu_block(pc->u.Illss.I, startp, endp);~n',[]).
+	format(C,'      return walk_got_lu_block(pc->y_u.Illss.I, startp, endp);~n',[]).
 output_walk(C,"OtILl",_) :- !,
-	format(C,'      return walk_got_lu_block(pc->u.OtILl.block, startp, endp);~n',[]).
+	format(C,'      return walk_got_lu_block(pc->y_u.OtILl.block, startp, endp);~n',[]).
 % I field gives direct access to LU index clause and to all Pred information
 output_walk(C,"L",_) :- !,
-	format(C,'      return walk_got_lu_clause(pc->u.L.ClBase, startp, endp);~n',[]).
+	format(C,'      return walk_got_lu_clause(pc->y_u.L.ClBase, startp, endp);~n',[]).
  % we cannot jump to clause code.
 output_walk(C,"OtaLl",_) :- !,
-	format(C,'      pc = pc->u.OtaLl.n;~n      break;~n',[]).
+	format(C,'      pc = pc->y_u.OtaLl.n;~n      break;~n',[]).
 % ops which point at the clause's predicate.
 output_walk(C,"Osblp",_) :- !,
 	label_in_clause(C,"Osblp","p0").
 output_walk(C,"Osbpp",[Op|_]) :-
 	c_call_op(Op), !,
 	walk_to_c_code(C,"Osbpp","p").
-output_walk(C,"slp",[Op|_]) :-
+output_walk(C,"slpp",[Op|_]) :-
 	c_call_op(Op), !,
-	walk_to_c_code(C,"slp","p").
+	walk_to_c_code(C,"slpp","p").
 output_walk(C,"Osbpp",[Op|_]) :-
 	special_walk_op(Op), !,
 	walk_to_meta_call(C).
 output_walk(C,"Osbpp",_) :- !,
 	label_in_clause(C,"Osbpp","p0").
-output_walk(C,"pp",[Op|_]) :-
-	c_call_op(Op), !,
-	walk_to_c_code(C,"pp","p").
-output_walk(C,"pp",_) :- !,
-	label_in_clause(C,"pp","p0").
 output_walk(C,"OtapFs",_) :- !,
 	label_in_clause(C,"OtapFs","p").
 output_walk(C,"Otapl",_) :- !,
@@ -440,23 +465,23 @@ output_ewalks(C,["trust_fail"|Ops]) :-
 
 label_in_clause(C,Type,Field) :-
 	format(C,'      clause_code = TRUE;~n',[]),
-	format(C,'      pp = pc->u.~s.~s;~n',[Type,Field]),
+	format(C,'      pp = pc->y_u.~s.~s;~n',[Type,Field]),
 	format(C,'      pc = NEXTOP(pc,~s);
       break;~n',[Type]).
 
 label_in_index(C,Type,Field) :-
 	format(C,'      clause_code = FALSE;~n',[]),
-	format(C,'      pp = pc->u.~s.~s;~n',[Type,Field]),
+	format(C,'      pp = pc->y_u.~s.~s;~n',[Type,Field]),
 	format(C,'      pc = NEXTOP(pc,~s);
       break;~n',[Type]).
 
 add_pi(C,Type,Field) :-
-	format(C,'      pp = pc->u.~s.~s;~n',[Type,Field]),
+	format(C,'      pp = pc->y_u.~s.~s;~n',[Type,Field]),
 	format(C,'      clause_code = FALSE;~n',[]),
 	format(C,'      pc = NEXTOP(pc,~s);~n',[Type]).
 
 add_pp(C,Type,Field) :-
-	format(C,'      pp = pc->u.~s.~s;~n',[Type,Field]),
+	format(C,'      pp = pc->y_u.~s.~s;~n',[Type,Field]),
 	format(C,'      if (pp->PredFlags & MegaClausePredFlag)~n',[]),
 	format(C,'        return found_mega_clause(pp, startp, endp);~n',[]),
 	format(C,'      clause_code = TRUE;~n',[]),
@@ -466,7 +491,7 @@ walk_to_meta_call(C) :-
 	format(C,'      return found_meta_call(startp, endp);~n',[]).
 
 walk_to_c_code(C,Type,Field) :-
-	format(C,'      pp = pc->u.~s.~s;~n',[Type,Field]),
+	format(C,'      pp = pc->y_u.~s.~s;~n',[Type,Field]),
 	format(C,'      return walk_found_c_pred(pp, startp, endp);~n',[]).
 
 %
@@ -497,7 +522,7 @@ dump_actions([A|Actions], Op, T, L) :-
 % conditional jumps can 
 dump_action(body, _, _, _).
 dump_action(ifthenelse, _, T, L) :-
-	format(L,'      if (cl->u.~s.F != FAILCODE) {
+	format(L,'      if (cl->y_u.~s.F != FAILCODE) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T]).
@@ -514,44 +539,46 @@ dump_action(bind(Who,What,Extra), _, T, L) :-
 	handle_bind_extra(Extra, T, Command),
 	handle_constant(What, T, Constant),
 	check_atom_dbref(What, Constant, ExtraAction),
-	format(L,'      if (is_regcopy(myregs, nofregs, cl->u.~s.~s)) {
+	format(L,'      if (is_regcopy(myregs, nofregs, cl->y_u.~s.~s)) {
 	~sclause->Tag = ~s;~s
 	return;
       }~n', [T, Who, ExtraAction, Constant, Command]).
 dump_action(new(Who), _, T, L) :-
-	format(L,'      if (!(nofregs = delete_regcopy(myregs, nofregs, cl->u.~s.~s))) {
+	format(L,'      if (!(nofregs = delete_regcopy(myregs, nofregs, cl->y_u.~s.~s))) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who]).
 dump_action(dup(Who1,Who2), _, T, L) :-
-	format(L,'      if (!(nofregs = add_regcopy(myregs, nofregs, cl->u.~s.~s, cl->u.~s.~s))) {
+	format(L,'      if (!(nofregs = add_regcopy(myregs, nofregs, cl->y_u.~s.~s, cl->y_u.~s.~s))) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1,T,Who2]).
 dump_action(unify(Who1,Who2), _, T, L) :-
-	format(L,'      if (!(nofregs = link_regcopies(myregs, nofregs, cl->u.~s.~s, cl->u.~s.~s))) {
+	format(L,'      if (!(nofregs = link_regcopies(myregs, nofregs, cl->y_u.~s.~s, cl->y_u.~s.~s))) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1,T,Who2]).
 dump_action(logical, _, _, L) :-
 	format(L,'      if (regno == 2) {
 	LogUpdClause *lcl = ClauseCodeToLogUpdClause(cl);
-	Term t = lcl->ClSource->Entry;
-	if (IsVarTerm(t)) {
-	  clause->Tag = (CELL)NULL;
-	} else if (IsApplTerm(t)) {
-	  CELL *pt = RepAppl(t);
+	Term t = lcl->lusl.ClSource->Entry;
+        if (!(lcl->ClFlags & FactMask)) {
+	  if (IsVarTerm(t)) {
+	    clause->Tag = (CELL)NULL;
+	  } else if (IsApplTerm(t)) {
+	    CELL *pt = RepAppl(t);
 
-	  clause->Tag = AbsAppl((CELL *)pt[0]);
-	  clause->u.c_sreg = pt;
-	} else if (IsPairTerm(t)) {
-	  CELL *pt = RepPair(t);
+	    clause->Tag = AbsAppl((CELL *)pt[0]);
+	    clause->ucd.c_sreg = pt;
+	  } else if (IsPairTerm(t)) {
+	    CELL *pt = RepPair(t);
 
-	  clause->Tag = AbsPair(NULL);
-	  clause->u.c_sreg = pt-1;
-	} else {
-	  clause->Tag = t;
-	}
+	    clause->Tag = AbsPair(NULL);
+	    clause->ucd.c_sreg = pt-1;
+	  } else {
+	    clause->Tag = t;
+	  }
+        }
       } else {
 	clause->Tag = (CELL)NULL;
       }
@@ -565,20 +592,20 @@ check_atom_dbref(Constant, What, ExtraAction) :-
 	format_to_chars("if (IsApplTerm(~s)) {
           CELL *pt = RepAppl(~s);
 	  clause->Tag = AbsAppl((CELL *)pt[0]);
-	  clause->u.t_ptr = ~s;
+	  clause->ucd.t_ptr = ~s;
 	} else
 	  ",[What,What,What], ExtraAction).	
 check_atom_dbref(_, _, "").
 
 handle_bind_extra([], _, "").
 handle_bind_extra(t_ptr=[], _,S) :- !,
-	format_to_chars("~n	clause->u.t_ptr = (CELL)NULL;",[],S).
+	format_to_chars("~n	clause->ucd.t_ptr = (CELL)NULL;",[],S).
 handle_bind_extra(t_ptr=F, Type, S) :-
-	format_to_chars("~n	clause->u.t_ptr = AbsAppl(cl->u.~s.~s);",[Type,F],S).
+	format_to_chars("~n	clause->ucd.t_ptr = AbsAppl(cl->y_u.~s.~s);",[Type,F],S).
 handle_bind_extra(workpc=nextop, T,S) :-
-	format_to_chars("~n	clause->u.WorkPC = NEXTOP(cl,~s);",[T],S).
+	format_to_chars("~n	clause->ucd.WorkPC = NEXTOP(cl,~s);",[T],S).
 handle_bind_extra(workpc=currentop, _,S) :-
-	format_to_chars("~n	clause->u.WorkPC = cl;",[],S).
+	format_to_chars("~n	clause->ucd.WorkPC = cl;",[],S).
 
 handle_constant(What, T, Const) :-
 	What = [C|_],
@@ -591,7 +618,7 @@ handle_constant(What, T, Const) :-
 	->
 	 Const = What
 	;
-	 format_to_chars("cl->u.~s.~s",[T,What],Const)
+	 format_to_chars("cl->y_u.~s.~s",[T,What],Const)
 	).
 
 %
@@ -635,45 +662,45 @@ dump_head_action(bind(Who,What,Extra), _, T, L) :-
 	handle_constant(What, T, Constant),
 	handle_bind_extra(Extra, T, Command),
 	check_atom_dbref(What, Constant, ExtraAction),
-	format(L,'      if (iarg == cl->u.~s.~s) {
+	format(L,'      if (iarg == cl->y_u.~s.~s) {
 	~sclause->Tag = ~s;~s
 	return;
       }~n', [T,Who,ExtraAction,Constant,Command]).
 dump_head_action(new(Who), _, _, _) :- Who = [0'y|_], !. % 0'y done
 dump_head_action(new(Who), _, T, L) :-
-	format(L,'      if (iarg == cl->u.~s.~s) {
+	format(L,'      if (iarg == cl->y_u.~s.~s) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who]).
 dump_head_action(dup(Who1,Who2), _, T, L) :- Who1 = [0'y|_], !, % 0'y done
-	format(L,'      if (cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who2]).
 dump_head_action(dup(Who1,Who2), _, T, L) :- Who2 = [0'y|_], !, % 0'y done
-	format(L,'      if (cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1]).
 dump_head_action(dup(Who1,Who2), _, T, L) :-
-	format(L,'      if (cl->u.~s.~s == iarg ||
-        cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg ||
+        cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1,T,Who2]).
 dump_head_action(unify(Who1,Who2), _, T, L) :- Who1 = [0'y|_], !, % 0'y done
-	format(L,'      if (cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who2]).
 dump_head_action(unify(Who1,Who2), _, T, L) :- Who2 = [0'y|_], !, % 0'y done
-	format(L,'      if (cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1]).
 dump_head_action(unify(Who1,Who2), _, T, L) :-
-	format(L,'      if (cl->u.~s.~s == iarg ||
-        cl->u.~s.~s == iarg) {
+	format(L,'      if (cl->y_u.~s.~s == iarg ||
+        cl->y_u.~s.~s == iarg) {
 	clause->Tag = (CELL)NULL;
 	return;
       }~n', [T,Who1,T,Who2]).
@@ -682,38 +709,41 @@ dump_head_action(logical, _, _, L) :-
 	clause->Tag = (CELL)NULL;
       } else {
 	LogUpdClause *lcl = ClauseCodeToLogUpdClause(cl);
-	Term t = lcl->ClSource->Entry;
+	Term t = lcl->lusl.ClSource->Entry;
       
-	if (IsVarTerm(t)) {
-	  clause->Tag = (CELL)NULL;
-	} else if (IsApplTerm(t)) {
-	  CELL *pt = RepAppl(t);
+        if (!(lcl->ClFlags & FactMask)) {
+	  if (IsVarTerm(t)) {
+	    clause->Tag = (CELL)NULL;
+	  } else if (IsApplTerm(t)) {
+	    CELL *pt = RepAppl(t);
 	
-	  clause->Tag = AbsAppl((CELL *)pt[0]);
-	  if (IsExtensionFunctor(FunctorOfTerm(t))) {
-	    clause->u.t_ptr = t;
-	  } else {
-	    clause->u.c_sreg = pt;
-	  }
-	} else if (IsPairTerm(t)) {
-	  CELL *pt = RepPair(t);
+	    clause->Tag = AbsAppl((CELL *)pt[0]);
+	       if (IsExtensionFunctor(FunctorOfTerm(t))) {
+	      clause->ucd.t_ptr = t;
+	    } else {
+	      clause->ucd.c_sreg = pt;
+	    }
+	  } else if (IsPairTerm(t)) {
+	    CELL *pt = RepPair(t);
 
-	  clause->Tag = AbsPair(NULL);
-	  clause->u.c_sreg = pt-1;
-	} else {
-	  clause->Tag = t;
-	}
+	    clause->Tag = AbsPair(NULL);
+	    clause->ucd.c_sreg = pt-1;
+	  } else {
+	    clause->Tag = t;
+	  }
+        }
       }
       return;~n', []).
 	
 /* or_last requires special handling */
 footer(W) :-
 	format(W,'  /* this instruction is hardwired */~n',[]),
+        format(W,'  /* or_last must be the last instruction. */~n',[]),
 	format(W,'#ifdef YAPOR~n',[]),
-	format(W,'  OPCODE(~s~36+,~s)~n',["or_last","sblp"]),
-	format(W,'#else~n',[]),
-	format(W,'  OPCODE(~s~36+,~s)~n',["or_last","p"]),
-	format(W,'#endif~n',[]).
+        format(W,'  OPCODE(~s~36+,~s),~n',["or_last","sblp"]),
+        format(W,'#else~n',[]),
+        format(W,'  OPCODE(~s~36+,~s),~n',["or_last","p"]),
+        format(W,'#endif~n',[]).
 
 
 footer_rclause(W) :-
@@ -731,13 +761,13 @@ footer_rclause(W) :-
 
 footer_walk_clause(W) :-
 	format(W,'      /* this instruction is hardwired */~n',[]),
-	dump_ops(W,["or_last"]),
+         dump_ops(W,["or_last"]),
 	format(W,'#ifdef YAPOR~n',[]),
 	add_pp(W,"Osblp","p0"),
 	format(W,'#else~n',[]),
 	add_pp(W,"p","p"),
 	format(W,'#endif~n',[]),
-	format(W,'    }
+        format(W,'    }
   }
 ',[]).
 
@@ -775,7 +805,7 @@ read_field_by_field(A) :-
 	split(L," 	",Statement),
 	read_field_by_field(A,Statement).
 
-read_field_by_field(_,["}","u;"]) :- !.
+read_field_by_field(_,["}","y_u;"]) :- !.
 read_field_by_field(A,["struct","{"]) :- !,
 	read_fields(A,Fields,Type),
 	assert(tinfo(Type,Fields)),
@@ -800,6 +830,12 @@ read_fields(A,Fields,Type) :-
 	  read_fields(A,Fields,Type)
 	;
 	  Statements = ["#ifdef",If]
+	->
+	  retract(qual(_)),
+	  assert(qual(If)),
+	  read_fields(A,Fields,Type)
+	;
+	  Statements = ["#if",If]
 	->
 	  retract(qual(_)),
 	  assert(qual(If)),
@@ -850,7 +886,9 @@ opinfo("p_nonvar_x",[body,ifthenelse]).
 opinfo("p_nonvar_y",[body,ifthenelse]).
 opinfo("save_b_x",[body,new("x")]).
 opinfo("save_b_y",[body,new("y")]).
-opinfo("ensure_space",[body]).
+opinfo("ensure_space",[]).
+opinfo("lock_lu",[body]).
+opinfo("unlock_lu",[]).
 opinfo("write_x_loc",[body]).
 opinfo("write_x_var",[body,new("x")]).
 opinfo("write_y_var",[body,new("y")]).
@@ -875,9 +913,10 @@ opinfo("gl_void_valx",[bind("xl","AbsPair(NULL)",workpc=currentop)]).
 opinfo("gl_void_valy",[bind("y","AbsPair(NULL)",workpc=currentop)]).
 opinfo("gl_void_varx",[bind("xl","AbsPair(NULL)",workpc=currentop),new("xr")]).
 opinfo("gl_void_vary",[bind("y","AbsPair(NULL)",workpc=currentop),new("y")]).
-opinfo("get_struct",[bind("x","AbsAppl((CELL *)cl->u.xfa.f)",workpc=nextop)]).
+opinfo("get_struct",[bind("x","AbsAppl((CELL *)cl->y_u.xfa.f)",workpc=nextop)]).
 opinfo("get_float",[bind("x","AbsAppl((CELL *)FunctorDouble)",t_ptr="d")]).
 opinfo("get_longint",[bind("x","AbsAppl((CELL *)FunctorLongInt)",t_ptr="i")]).
+opinfo("get_string",[bind("x","AbsAppl((CELL *)FunctorString)",t_ptr=[])]).
 opinfo("get_bigint",[bind("x","AbsAppl((CELL *)FunctorBigInt)",t_ptr=[])]).
 opinfo("copy_idb_term",[logical]).
 opinfo("unify_idb_term",[logical]).
@@ -886,6 +925,7 @@ opinfo("put_dbterm",[new("x")]).
 opinfo("put_bigint",[new("x")]).
 opinfo("put_float",[new("x")]).
 opinfo("put_longint",[new("x")]).
+opinfo("put_string",[new("x")]).
 opinfo("put_list",[new("x")]).
 opinfo("put_struct",[new("x")]).
 opinfo("get_2atoms",[bind(1,"c1",[]),
@@ -1034,9 +1074,10 @@ opinfo("unify_l_n_atoms_write",[]).
 opinfo("write_n_atoms",[body]).
 opinfo("unify_struct",[]).
 opinfo("unify_struct_write",[]).
-opinfo("unify_l_struct",[]).
-opinfo("unify_l_struct_write",[]).
-opinfo("write_struct",[body]).
+opinfo("unify_l_struc",[]).
+opinfo("unify_l_struc_write",[]).
+opinfo("write_struc",[body]).
+opinfo("write_l_struc",[body]).
 opinfo("unify_float",[]).
 opinfo("unify_float_write",[]).
 opinfo("unify_l_float",[]).
@@ -1052,6 +1093,11 @@ opinfo("unify_bigint_write",[]).
 opinfo("unify_l_bigint",[]).
 opinfo("unify_l_bigint_write",[]).
 opinfo("write_bigint",[body]).
+opinfo("unify_string",[]).
+opinfo("unify_string_write",[]).
+opinfo("unify_l_string",[]).
+opinfo("unify_l_string_write",[]).
+opinfo("write_string",[body]).
 opinfo("unify_dbterm",[]).
 opinfo("unify_dbterm_write",[]).
 opinfo("unify_l_dbterm",[]).
@@ -1113,7 +1159,6 @@ opinfo("put_i_val_x",[body]).
 opinfo("put_fi_val_y",[body]).
 opinfo("put_f_val_y",[body]).
 opinfo("put_i_val_y",[body]).
-opinfo("lock_lu",[body]).
 opinfo("call_bfunc_xx",[body]).
 opinfo("call_bfunc_yx",[body]).
 opinfo("call_bfunc_xy",[body]).
@@ -1123,7 +1168,7 @@ opinfo("retry_eam",[body]).
 opinfo("alloc_for_logical_pred",[body]).
 opinfo("deallocate",[body]).
 opinfo("table_try_single",[]).
-opinfo("native_me",[]).
+opinfo("jit_handler",[]).
 
 output_save_clause(S) :-
 	setof(T,O^op(T,O),Types),
@@ -1133,12 +1178,14 @@ output_save_clause(S) :-
 output_save_clause(_).
 
 output_save_type(S, T) :-
+%(T=="e" -> start_low_level_trace; true),
 	format(S,'      /* instructions type ~s */~n',[T]),
 	setof(Op,op(T,Op),Ops),
 	dump_ops(S,Ops),
 	% then the code for every instruction with this header.
 	tinfo(T, Desc),
 	output_save(S, T, Desc, T),
+(T=="e" -> stop_low_level_trace; true),
 	format(S,'      pc = NEXTOP(pc,~s);~n',[T]),
 	format(S,'      break;~n',[]).
 
@@ -1151,10 +1198,10 @@ output_save(S, [Name|Names], [Type|Types], Desc) :-
 
 output_save_type(S, OpT, T-"none", Desc) :- !,
 	get_op(OpT, Name),
-	format(S, "      CHECK(save_~s(stream, pc->u.~s.~s));~n", [Name, Desc, T]).
+	format(S, "      CHECK(save_~s(stream, pc->y_u.~s.~s));~n", [Name, Desc, T]).
 output_save_type(S, OpT, T-Def, Desc) :-
 	get_op(OpT, Name),
-	format(S, "#ifdef ~s~n      CHECK(save_~s(stream, pc->u.~s.~s));~n#endif~n", [Def,Name, Desc, T]).
+	format(S, "#ifdef ~s~n      CHECK(save_~s(stream, pc->y_u.~s.~s));~n#endif~n", [Def,Name, Desc, T]).
 
 
 

@@ -13,55 +13,46 @@
 * version:      $Id: Regs.h,v 1.42 2008-08-12 01:27:22 vsc Exp $	 *
 *************************************************************************/
 
+#ifndef REGS_H
+#define REGS_H 1
 
 /*********  abstract machine registers **********************************/
 #ifdef YAP_H
-#ifdef CUT_C
 #include "cut_c.h"
-#endif
-
-#if defined MYDDAS_ODBC || defined MYDDAS_MYSQL
-#include "myddas.h"
-#endif
 #endif
 
 #define MaxTemps	512
 #define MaxArithms	32
 
-#ifdef i386
-#define PUSH_REGS 1
-#undef  PUSH_X
-#endif
+#if defined(__x86_64__)
 
-#ifdef sparc
-#define PUSH_REGS 1
-#undef  PUSH_X
-#endif
-
-#ifdef __x86_64__
 #define  PUSH_REGS 1
 #undef  PUSH_X
-#endif
 
-#ifdef __alpha
+#elif defined(i386)
+
+#undef PUSH_REGS
+#undef  PUSH_X
+
+#elif defined(sparc)
+#define PUSH_REGS 1
+#undef  PUSH_X
+
+#elif defined(__alpha)
+
+#undef  PUSH_REGS
+#undef  PUSH_X
+
+#elif defined(_POWER) || defined(__POWERPC__)
+
+#undef  PUSH_REGS
+#undef  PUSH_X
+
+#elif defined( hppa )
 #undef  PUSH_REGS
 #undef  PUSH_X
 #endif
 
-#if defined(_POWER) || defined(__POWERPC__)
-#undef  PUSH_REGS
-#undef  PUSH_X
-#endif
-
-#ifdef hppa
-#undef  PUSH_REGS
-#undef  PUSH_X
-#endif
-
-#ifdef mips
-#undef  PUSH_REGS
-#undef  PUSH_X
-#endif
 
 /* force a cache of WAM regs for multi-threaded architectures! */
 #ifdef THREADS
@@ -73,26 +64,34 @@
 #endif
 #endif
 
+#if _MSC_VER
+// no support for __builtin_expect
+#define __builtin_expect(Exp, Val) (Exp)
+#endif
+
 #include "inline-only.h"
 
-inline EXTERN void restore_machine_regs(void) INLINE_ONLY;
-inline EXTERN void save_machine_regs(void) INLINE_ONLY;
-inline EXTERN void restore_H(void) INLINE_ONLY;
-inline EXTERN void save_H(void) INLINE_ONLY;
-inline EXTERN void restore_B(void) INLINE_ONLY;
-inline EXTERN void save_B(void) INLINE_ONLY;
+INLINE_ONLY void restore_machine_regs(void);
+INLINE_ONLY void save_machine_regs(void);
+INLINE_ONLY void restore_H(void);
+INLINE_ONLY void save_H(void);
+INLINE_ONLY void restore_B(void);
+INLINE_ONLY void save_B(void);
 
 #define CACHE_REGS
+#define REFRESH_CACHE_REGS
 #define INIT_REGS
-#define PASS_REGS1 
+#define PASS_REGS1
 #define PASS_REGS
 #define USES_REGS1 void
 #define USES_REGS
+#define WORKER_REGS(WID)
 
 typedef struct regstore_t
   {
-    Int     CurSlot_;
+    CELL    EventFlag_;		/* 13                                         */
     CELL    CreepFlag_;		/* 13                                         */
+    yamop *P_;			/* 7 prolog machine program counter           */
     CELL   *HB_;		/* 4 heap (global) stack top at latest c.p.   */
 #if defined(YAPOR_SBA) || defined(TABLING)
     choiceptr BB_;		/* 4 local stack top at latest c.p.   */
@@ -106,13 +105,8 @@ typedef struct regstore_t
 #endif  /* DEPTH_LIMIT */
     yamop *CP_;			/* 28 continuation program counter            */
     CELL  *ENV_;		/* 1 current environment                      */
-#ifdef CUT_C
-    cut_c_str_ptr CUT_C_TOP;
-#endif
-#if defined CUT_C && (defined MYDDAS_ODBC || defined MYDDAS_MYSQL)
-    MYDDAS_GLOBAL MYDDAS_GLOBAL_POINTER;
-#endif
-    yamop *P_;			/* 7 prolog machine program counter           */
+    struct cut_c_str *CUT_C_TOP;
+
     CELL  *YENV_;		/* 5 current environment (may differ from ENV)*/
     CELL  *S_;			/* 6 structure pointer                        */
     CELL  *ASP_;		/* 8 top of local       stack                 */
@@ -122,8 +116,8 @@ typedef struct regstore_t
     CELL  *AuxSp_;		/* 9 Auxiliary stack pointer                  */
     ADDR   AuxTop_;		/* 10 Auxiliary stack top                     */
 /* visualc*/
-    struct DB_TERM   * EX_;     /* 18                                         */
     Term  CurrentModule_;
+    struct myddas_global *MYDDAS_GLOBAL_POINTER;
 #if defined(YAPOR_SBA) || defined(TABLING)
     CELL *H_FZ_;
     choiceptr B_FZ_;
@@ -165,7 +159,7 @@ extern REGSTORE *Yap_regp;
 
 #ifdef PUSH_X
 
-#define XREGS  (Yap_REGS.XTERMS)
+#define XREGS  (Yapregp->XTERMS)
 
 #else
 
@@ -182,13 +176,18 @@ extern Term Yap_XREGS[MaxTemps];	/* 29                                     */
 extern pthread_key_t Yap_yaamregs_key;
 
 #undef CACHE_REGS
+#undef REFRESH_CACHE_REGS
 #undef INIT_REGS
+#undef CACHE_REGS
 #undef PASS_REGS
 #undef PASS_REGS1
 #undef USES_REGS
 #undef USES_REGS1
+#undef WORKER_REGS
 #define CACHE_REGS REGSTORE *regcache = ((REGSTORE *)pthread_getspecific(Yap_yaamregs_key));
+#define REFRESH_CACHE_REGS regcache = ((REGSTORE *)pthread_getspecific(Yap_yaamregs_key));
 #define INIT_REGS , ((REGSTORE *)pthread_getspecific(Yap_yaamregs_key))
+#define WORKER_REGS(WID)  REGSTORE *regcache = REMOTE_ThreadHandle(WID).current_yaam_regs;
 #define PASS_REGS1 regcache
 #define PASS_REGS , regcache
 #define USES_REGS1 struct regstore_t *regcache
@@ -222,13 +221,13 @@ extern REGSTORE Yap_REGS;
 
 #define YENV2MEM
 #define YENV_ADDRESS (&(YENV))
-#define MEM2YENV  
+#define MEM2YENV
 
 #if defined(__GNUC__) && defined(__alpha)
 
 #define P               Yap_REGS.P_	/* prolog machine program counter */
 #define YENV            Yap_REGS.YENV_	/* current environment (may differ from ENV) */
-register CELL *H asm ("$9");
+register CELL *HR asm ("$9");
 register CELL *HB asm ("$10");
 register choiceptr B asm ("$11");
 register yamop *CP asm ("$12");
@@ -243,8 +242,8 @@ register CELL CreepFlag asm ("$15");
 
 /* Interface with foreign code, make sure the foreign code sees all the
    registers the way they used to be */
-EXTERN inline void save_machine_regs(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_machine_regs(void) {
+  Yap_REGS.H_  = HR;
   Yap_REGS.HB_ = HB;
   Yap_REGS.B_   = B;
   Yap_REGS.CP_ = CP;
@@ -254,8 +253,8 @@ EXTERN inline void save_machine_regs(void) {
   Yap_REGS.TR_  = TR;
 }
 
-EXTERN inline void restore_machine_regs(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_machine_regs(void) {
+  HR = Yap_REGS.H_;
   HB = Yap_REGS.HB_;
   B = Yap_REGS.B_;
   CP = Yap_REGS.CP_;
@@ -283,23 +282,23 @@ EXTERN inline void restore_machine_regs(void) {
   CP = BK_CP;                           \
   TR = BK_TR
 
-EXTERN inline void save_H(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_H(void) {
+  Yap_REGS.H_   = HR;
 }
 
-EXTERN inline void restore_H(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_H(void) {
+  HR = Yap_REGS.H_;
 }
 
-#define BACKUP_H()  CELL *BK_H = H; restore_H()
+#define BACKUP_H()  CELL *BK_H = HR; restore_H()
 
-#define RECOVER_H()  save_H(); H = BK_H
+#define RECOVER_H()  save_H(); HR = BK_H
 
-EXTERN inline void save_B(void) {
+INLINE_ONLY void save_B(void) {
   Yap_REGS.B_   = B;
 }
 
-EXTERN inline void restore_B(void) {
+INLINE_ONLY void restore_B(void) {
   B = Yap_REGS.B_;
 }
 
@@ -307,96 +306,22 @@ EXTERN inline void restore_B(void) {
 
 #define RECOVER_B()  save_B(); B = BK_B
 
-EXTERN void restore_TR(void);
-EXTERN void save_TR(void);
+INLINE_ONLY EXTERN void restore_TR(void);
+INLINE_ONLY EXTERN void save_TR(void);
 
-EXTERN inline void save_TR(void) {
+INLINE_ONLY void save_TR(void) {
   Yap_REGS.TR_ = TR;
 }
 
-EXTERN inline void restore_TR(void) {
+INLINE_ONLY void restore_TR(void) {
   TR = Yap_REGS.TR_;
 }
-
-#elif defined(__GNUC__) && defined(mips)
-
-#define P               Yap_REGS.P_	/* prolog machine program counter */
-#define YENV            Yap_REGS.YENV_	/* current environment (may differ from ENV) */
-register CELL *H asm ("$16");
-register CELL *HB asm ("$17");
-register choiceptr B asm ("$18");
-register yamop *CP asm ("$19");
-register CELL *S asm ("$20");
-register CELL CreepFlag asm ("$21");
-register tr_fr_ptr TR asm ("$22");
-
-EXTERN inline void save_machine_regs(void) {
-  Yap_REGS.H_   = H;
-  Yap_REGS.HB_ = HB;
-  Yap_REGS.B_   = B;
-  Yap_REGS.CP_  = CP;
-  Yap_REGS.CreepFlag_ = CreepFlag;
-  Yap_REGS.TR_  = TR;
-}
-
-EXTERN inline void restore_machine_regs(void) {
-  H = Yap_REGS.H_;
-  HB = Yap_REGS.HB_;
-  B = Yap_REGS.B_;
-  CP = Yap_REGS.CP_;
-  CreepFlag = Yap_REGS.CreepFlag_;
-  TR = Yap_REGS.TR_;
-}
-
-#define BACKUP_MACHINE_REGS()           \
-  CELL     *BK_H = H;                   \
-  CELL     *BK_HB = HB;                 \
-  choiceptr BK_B = B;                   \
-  CELL      BK_CreepFlag = CreepFlag;   \
-  yamop    *BK_CP = CP;                 \
-  tr_fr_ptr BK_TR = TR;                 \
-  restore_machine_regs()
-
-#define RECOVER_MACHINE_REGS()          \
-  save_machine_regs();                  \
-  H = BK_H;                             \
-  HB = BK_HB;                           \
-  B = BK_B;                             \
-  CreepFlag = BK_CreepFlag;             \
-  CP = BK_CP;                           \
-  TR = BK_TR
-
-EXTERN inline void save_H(void) {
-  Yap_REGS.H_   = H;
-}
-
-EXTERN inline void restore_H(void) {
-  H = Yap_REGS.H_;
-}
-
-#define BACKUP_H()  CELL *BK_H = H; restore_H()
-
-#define RECOVER_H()  save_H(); H = BK_H
-
-EXTERN inline void save_B(void) {
-  Yap_REGS.B_ = B;
-}
-
-EXTERN inline void restore_B(void) {
-  B = Yap_REGS.B_;
-}
-
-#define BACKUP_B()  choiceptr BK_B = B; restore_B()
-
-#define RECOVER_B()  save_B(); B = BK_B
-
-#define restore_TR() 
 
 #elif defined(__GNUC__) && defined(hppa)
 
 #define P               Yap_REGS.P_	/* prolog machine program counter */
 #define YENV            Yap_REGS.YENV_	/* current environment (may differ from ENV) */
-register CELL *H asm ("r12");
+register CELL *HR asm ("r12");
 register CELL *HB asm ("r13");
 register choiceptr B asm ("r14");
 register yamop *CP asm ("r15");
@@ -404,8 +329,8 @@ register CELL *S asm ("r16");
 register CELL CreepFlag asm ("r17");
 register tr_fr_ptr TR asm ("r18");
 
-EXTERN inline void save_machine_regs(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_machine_regs(void) {
+  Yap_REGS.H_   = HR;
   Yap_REGS.HB_ = HB;
   Yap_REGS.B_   = B;
   Yap_REGS.CP_  = CP;
@@ -413,8 +338,8 @@ EXTERN inline void save_machine_regs(void) {
   Yap_REGS.TR_  = TR;
 }
 
-EXTERN inline void restore_machine_regs(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_machine_regs(void) {
+  HR = Yap_REGS.H_;
   HB = Yap_REGS.HB_;
   B = Yap_REGS.B_;
   CP = Yap_REGS.CP_;
@@ -423,7 +348,7 @@ EXTERN inline void restore_machine_regs(void) {
 }
 
 #define BACKUP_MACHINE_REGS()           \
-  CELL     *BK_H = H;                   \
+  CELL     *BK_H = HR;                   \
   CELL     *BK_HB = HB;                 \
   choiceptr BK_B = B;                   \
   CELL      BK_CreepFlag = CreepFlag;   \
@@ -433,30 +358,30 @@ EXTERN inline void restore_machine_regs(void) {
 
 #define RECOVER_MACHINE_REGS()          \
   save_machine_regs();                  \
-  H = BK_H;                             \
+  HR = BK_H;                             \
   HB = BK_HB;                           \
   B = BK_B;                             \
   CreepFlag = BK_CreepFlag;             \
   CP = BK_CP;                           \
   TR = BK_TR
 
-EXTERN inline void save_H(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_H(void) {
+  Yap_REGS.H_   = HR;
 }
 
-EXTERN inline void restore_H(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_H(void) {
+  HR = Yap_REGS.H_;
 }
 
-#define BACKUP_H()  CELL *BK_H = H; restore_H()
+#define BACKUP_H()  CELL *BK_H = HR; restore_H()
 
-#define RECOVER_H()  save_H(); H = BK_H
+#define RECOVER_H()  save_H(); HR = BK_H
 
-EXTERN inline void save_B(void) {
+INLINE_ONLY void save_B(void) {
   Yap_REGS.B_ = B;
 }
 
-EXTERN inline void restore_B(void) {
+INLINE_ONLY void restore_B(void) {
   B = Yap_REGS.B_;
 }
 
@@ -464,20 +389,20 @@ EXTERN inline void restore_B(void) {
 
 #define RECOVER_B()  save_B(); B = BK_B
 
-EXTERN void restore_TR(void);
-EXTERN void save_TR(void);
+INLINE_ONLY EXTERN void restore_TR(void);
+INLINE_ONLY EXTERN void save_TR(void);
 
-EXTERN inline void save_TR(void) {
+INLINE_ONLY void save_TR(void) {
   Yap_REGS.TR_ = TR;
 }
 
-EXTERN inline void restore_TR(void) {
+INLINE_ONLY void restore_TR(void) {
   TR = Yap_REGS.TR_;
 }
 
 #elif defined(__GNUC__) && (defined(_POWER)  || defined(__POWERPC__))
 
-/* 
+/*
 
    Because of a bug in GCC, we should always start from the first available
    general register. According to rs6000.h, this is r13 everywhere
@@ -489,7 +414,7 @@ EXTERN inline void restore_TR(void) {
 
  */
 #define CreepFlag Yap_REGS.CreepFlag_
-/* 
+/*
    vsc: this MUST start from register 13, otherwise GCC will break down in flames and
    use the registers for evil purposes. :-(
  */
@@ -498,7 +423,7 @@ register tr_fr_ptr TR  asm ("r13");
 #else
 register tr_fr_ptr TR asm ("r21");
 #endif
-register CELL *H asm ("r14");
+register CELL *HR asm ("r14");
 register CELL *HB asm ("r15");
 register choiceptr B asm ("r16");
 register yamop *CP asm ("r17");
@@ -508,7 +433,7 @@ register CELL *YENV asm ("r19");
 
 #undef YENV2MEM
 #undef YENV_ADDRESS (&(YENV))
-#undef MEM2YENV  
+#undef MEM2YENV
 
 #define YENV2MEM     { CELL *YENV_MEM = YENV
 #define YENV_ADDRESS   (&YENV_MEM)
@@ -516,8 +441,8 @@ register CELL *YENV asm ("r19");
 
 
 
-EXTERN inline void save_machine_regs(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_machine_regs(void) {
+  Yap_REGS.H_   = HR;
   Yap_REGS.HB_ = HB;
   Yap_REGS.B_   = B;
   Yap_REGS.CP_ = CP;
@@ -525,8 +450,8 @@ EXTERN inline void save_machine_regs(void) {
   Yap_REGS.TR_  = TR;
 }
 
-EXTERN inline void restore_machine_regs(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_machine_regs(void) {
+  HR = Yap_REGS.H_;
   HB = Yap_REGS.HB_;
   B = Yap_REGS.B_;
   CP = Yap_REGS.CP_;
@@ -535,7 +460,7 @@ EXTERN inline void restore_machine_regs(void) {
 }
 
 #define BACKUP_MACHINE_REGS()           \
-  CELL     *BK_H = H;                   \
+  CELL     *BK_H = HR;                   \
   CELL     *BK_HB = HB;                 \
   choiceptr BK_B = B;                   \
   yamop    *BK_CP = CP;                 \
@@ -544,29 +469,29 @@ EXTERN inline void restore_machine_regs(void) {
 
 #define RECOVER_MACHINE_REGS()          \
   save_machine_regs();                  \
-  H = BK_H;                             \
+  HR = BK_H;                             \
   HB = BK_HB;                           \
   B = BK_B;                             \
   CP = BK_CP;                           \
   TR = BK_TR
 
-EXTERN inline void save_H(void) {
-  Yap_REGS.H_   = H;
+INLINE_ONLY void save_H(void) {
+  Yap_REGS.H_   = HR;
 }
 
-EXTERN inline void restore_H(void) {
-  H = Yap_REGS.H_;
+INLINE_ONLY void restore_H(void) {
+  HR = Yap_REGS.H_;
 }
 
-#define BACKUP_H()  CELL *BK_H = H; restore_H()
+#define BACKUP_H()  CELL *BK_H = HR; restore_H()
 
-#define RECOVER_H()  save_H(); H = BK_H
+#define RECOVER_H()  save_H(); HR = BK_H
 
-EXTERN inline void save_B(void) {
+INLINE_ONLY void save_B(void) {
   Yap_REGS.B_   = B;
 }
 
-EXTERN inline void restore_B(void) {
+INLINE_ONLY void restore_B(void) {
   B = Yap_REGS.B_;
 }
 
@@ -574,69 +499,68 @@ EXTERN inline void restore_B(void) {
 
 #define RECOVER_B()  save_B(); B = BK_B
 
-EXTERN void restore_TR(void);
-EXTERN void save_TR(void);
+INLINE_ONLY EXTERN void restore_TR(void);
+INLINE_ONLY EXTERN void save_TR(void);
 
-EXTERN inline void save_TR(void) {
+INLINE_ONLY void save_TR(void) {
   Yap_REGS.TR_ = TR;
 }
 
-EXTERN inline void restore_TR(void) {
+INLINE_ONLY void restore_TR(void) {
   TR = Yap_REGS.TR_;
 }
 
 #else
-
-#define CP         Yap_REGS.CP_	/* continuation   program counter         */
+/** continuation   program counter: what to do when we exit the goal.         */
+#define CP         (Yap_REGS.CP_)	
 #define P          Yap_REGS.P_	/* prolog machine program counter */
-#define YENV       Yap_REGS.YENV_ /* current environment (may differ from ENV) */
+/** current environment (may be pointing at an enevironment frame before the neck sets ENV) */
+#define YENV       (Yap_REGS).YENV_ 
 #define S          Yap_REGS.S_	/* structure pointer                      */
-#define	H          Yap_REGS.H_	/* top of heap (global)   stack           */
+#define	HR          Yap_REGS.H_	/* top of heap (global)   stack           */
 #define B          Yap_REGS.B_	/* latest choice point            */
 #define TR         Yap_REGS.TR_	/* top of trail                           */
 #define HB         Yap_REGS.HB_	/* heap (global) stack top at time of latest c.p. */
 #define CreepFlag Yap_REGS.CreepFlag_
 
-EXTERN inline void save_machine_regs(void) {
+INLINE_ONLY void save_machine_regs(void) {
 }
 
-EXTERN inline void restore_machine_regs(void) {
+INLINE_ONLY void restore_machine_regs(void) {
 }
 
 #define BACKUP_MACHINE_REGS()
 
 #define RECOVER_MACHINE_REGS()
 
-EXTERN inline void save_H(void) {
+INLINE_ONLY void save_H(void) {
 }
 
-EXTERN inline void restore_H(void) {
+INLINE_ONLY void restore_H(void) {
 }
 
 #define BACKUP_H()
 
 #define RECOVER_H()
 
-EXTERN inline void save_B(void) {
+INLINE_ONLY void save_B(void) {
 }
 
-EXTERN inline void restore_B(void) {
+INLINE_ONLY void restore_B(void) {
 }
 
 #define BACKUP_B()
 
 #define RECOVER_B()
 
-#define restore_TR() 
+#define restore_TR()
 
 #endif
 
-#define	CurSlot       Yap_REGS.CurSlot_
 #define	AuxBase       Yap_REGS.AuxBase_
 #define	AuxSp         Yap_REGS.AuxSp_
 #define	AuxTop        Yap_REGS.AuxTop_
 #define	CurrentTrailTop      Yap_REGS.CurrentTrailTop_
-#define EX            Yap_REGS.EX_
 #define DEPTH	      Yap_REGS.DEPTH_
 #if defined(YAPOR_SBA) || defined(TABLING)
 #define H_FZ          Yap_REGS.H_FZ_
@@ -658,6 +582,7 @@ EXTERN inline void restore_B(void) {
 #define frame_tail    Yap_REGS.frame_tail_
 #endif /* YAPOR_SBA */
 #else
+#define worker_id     0
 #define LOCAL	      (&Yap_local)
 #endif /* YAPOR || THREADS */
 #define CurrentModule Yap_REGS.CurrentModule_
@@ -665,6 +590,7 @@ EXTERN inline void restore_B(void) {
 #define Yap_isint     Yap_REGS.isint_
 #define Yap_Floats    Yap_REGS.Floats_
 #define Yap_Ints      Yap_REGS.Ints_
+#define EventFlag Yap_REGS.EventFlag_
 
 #define REG_SIZE	sizeof(REGS)/sizeof(CELL *)
 
@@ -694,6 +620,32 @@ EXTERN inline void restore_B(void) {
 #define BBREG         BB
 #endif /* YAPOR_SBA || TABLING */
 
+// define how to handle frozen segments in tabling, etv.
+#ifdef FROZEN_STACKS
+#ifdef YAPOR_SBA
+#define PROTECT_FROZEN_H(CPTR)                                  \
+       ((Unsigned((Int)((CPTR)->cp_h)-(Int)(H_FZ)) <            \
+	 Unsigned((Int)(B_FZ)-(Int)(H_FZ))) ?                   \
+	(CPTR)->cp_h : H_FZ)
+#define PROTECT_FROZEN_B(CPTR)                                  \
+       ((Unsigned((Int)(CPTR)-(Int)(H_FZ)) <                    \
+	 Unsigned((Int)(B_FZ)-(Int)(H_FZ)))  ?                  \
+	(CPTR) : B_FZ)
+	 /*
+#define PROTECT_FROZEN_H(CPTR) ((CPTR)->cp_h > H_FZ && (CPTR)->cp_h < (CELL *)B_FZ ? (CPTR)->cp_h : H_FZ )
+
+#define PROTECT_FROZEN_B(CPTR)  ((CPTR) < B_FZ && (CPTR) > (choiceptr)H_FZ ? (CPTR) : B_FZ )
+	 */
+#else /* TABLING */
+#define PROTECT_FROZEN_B(CPTR)  (YOUNGER_CP(CPTR, B_FZ) ? CPTR        : B_FZ)
+#define PROTECT_FROZEN_H(CPTR)  (((CPTR)->cp_h > H_FZ) ? (CPTR)->cp_h : H_FZ)
+#endif /* YAPOR_SBA */
+#else
+#define PROTECT_FROZEN_B(CPTR)  (CPTR)
+#define PROTECT_FROZEN_H(CPTR)  (CPTR)->cp_h
+#endif /* FROZEN_STACKS */
+
+
 #if !defined(THREADS)
 /* use actual addresses for regs */
 #define PRECOMPUTE_REGADDRESS 1
@@ -706,18 +658,34 @@ EXTERN inline void restore_B(void) {
 /* make standard registers globally accessible so that they are there
    when we come from a longjmp */
 #if PUSH_REGS
-/* In this case we need to initialise the abstract registers */
+/* In this case we need to initialize the abstract registers */
 extern REGSTORE Yap_standard_regs;
 #endif /* PUSH_REGS */
 
 /******************* controlling debugging ****************************/
 static inline UInt
-CalculateStackGap(void)
+StackGap( USES_REGS1 )
 {
-  CACHE_REGS
   UInt gmin = (LCL0-H0)>>2;
 
-  if (gmin < MinStackGap) gmin = MinStackGap; 
-  //  if (gmin > 1024*1024) return 1024*1024; 
+  if (gmin < MinStackGap) gmin = MinStackGap;
+  //  if (gmin > 1024*1024) return 1024*1024;
   return gmin;
 }
+
+static inline void
+CalculateStackGap( USES_REGS1 )
+{
+  CreepFlag = EventFlag = StackGap( PASS_REGS1 );
+}
+
+#define SET_ASP(Y,S) SET_ASP__(Y,S PASS_REGS)
+
+static inline
+void SET_ASP__(CELL *yreg, Int sz USES_REGS) {
+  ASP = (CELL *) (((char *) yreg) + sz);
+  if (ASP > (CELL *)PROTECT_FROZEN_B(B))
+    ASP = (CELL *)PROTECT_FROZEN_B(B);
+}
+
+#endif

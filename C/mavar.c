@@ -15,20 +15,54 @@
 *									 *
 *************************************************************************/
 
+
+/** 
+
+@file mavar.c
+
+@defgroup Term_Modification Term Modification
+@ingroup builtins
+
+
+It is sometimes useful to change the value of instantiated
+variables. Although, this is against the spirit of logic programming, it
+is sometimes useful. As in other Prolog systems, YAP has
+several primitives that allow updating Prolog terms. Note that these
+primitives are also backtrackable.
+
+The setarg/3 primitive allows updating any argument of a Prolog
+compound terms. The _mutable_ family of predicates provides
+<em>mutable variables</em>. They should be used instead of setarg/3,
+as they allow the encapsulation of accesses to updatable
+variables. Their implementation can also be more efficient for long
+deterministic computations.
+
+@{
+ 
+*/
+
+
 #include "Yap.h"
 
 #ifdef MULTI_ASSIGNMENT_VARIABLES
 
 #include "Yatom.h"
 #include "YapHeap.h"
-#include "eval.h"
+#include "YapEval.h"
 
-STD_PROTO(static Int p_setarg, ( USES_REGS1 ));
-STD_PROTO(static Int p_create_mutable, ( USES_REGS1 ));
-STD_PROTO(static Int p_get_mutable, ( USES_REGS1 ));
-STD_PROTO(static Int p_update_mutable, ( USES_REGS1 ));
-STD_PROTO(static Int p_is_mutable, ( USES_REGS1 ));
+static Int p_setarg( USES_REGS1 );
+static Int p_create_mutable( USES_REGS1 );
+static Int p_get_mutable( USES_REGS1 );
+static Int p_update_mutable( USES_REGS1 );
+static Int p_is_mutable( USES_REGS1 );
 
+/** @pred  setarg(+ _I_,+ _S_,? _T_) 
+
+
+Set the value of the  _I_th argument of term  _S_ to term  _T_. 
+
+ 
+*/
 static Int
 p_setarg( USES_REGS1 )
 {
@@ -36,7 +70,7 @@ p_setarg( USES_REGS1 )
   Int i;
 
   if (IsVarTerm(t3) &&
-      VarOfTerm(t3) > H &&VarOfTerm(t3) < ASP) {
+      VarOfTerm(t3) > HR &&VarOfTerm(t3) < ASP) {
     /* local variable */
     Term tn = MkVarTerm();
     Bind_Local(VarOfTerm(t3), tn);
@@ -109,7 +143,7 @@ p_setarg( USES_REGS1 )
 
 */
 
-/* create and initialise a new timed var. The problem is: how to set
+/* create and initialize a new timed var. The problem is: how to set
    the clock?
 
    If I give it the current value of B->TR, we may have trouble if no
@@ -124,17 +158,17 @@ NewTimedVar(CELL val USES_REGS)
   Term out;
   timed_var *tv;
   if (IsVarTerm(val) &&
-      VarOfTerm(val) > H) {
+      VarOfTerm(val) > HR) {
     Term nval = MkVarTerm();
     Bind_Local(VarOfTerm(val), nval);
     val = nval;
   }
-  out = AbsAppl(H);
-  *H++ = (CELL)FunctorMutable;
-  tv = (timed_var *)H;
+  out = AbsAppl(HR);
+  *HR++ = (CELL)FunctorMutable;
+  tv = (timed_var *)HR;
   RESET_VARIABLE(&(tv->clock));
   tv->value = val;
-  H += sizeof(timed_var)/sizeof(CELL);
+  HR += sizeof(timed_var)/sizeof(CELL);
   return(out);
 }
 
@@ -149,13 +183,13 @@ Term
 Yap_NewEmptyTimedVar( void )
 {
   CACHE_REGS
-  Term out = AbsAppl(H);
+  Term out = AbsAppl(HR);
   timed_var *tv;
-  *H++ = (CELL)FunctorMutable;
-  tv = (timed_var *)H;
+  *HR++ = (CELL)FunctorMutable;
+  tv = (timed_var *)HR;
   RESET_VARIABLE(&(tv->clock));
   RESET_VARIABLE(&(tv->value));
-  H += sizeof(timed_var)/sizeof(CELL);
+  HR += sizeof(timed_var)/sizeof(CELL);
   return(out);
 }
 
@@ -181,7 +215,7 @@ UpdateTimedVar(Term inv, Term new USES_REGS)
   CELL t = tv->value;
   CELL* timestmp = (CELL *)(tv->clock);
   if (IsVarTerm(new) &&
-      VarOfTerm(new) > H) {
+      VarOfTerm(new) > HR) {
     Term nnew = MkVarTerm();
     Bind_Local(VarOfTerm(new), nnew);
     new = nnew;
@@ -200,9 +234,9 @@ UpdateTimedVar(Term inv, Term new USES_REGS)
 #endif
       tv->value = new;
   } else {
-    Term nclock = (Term)H;
+    Term nclock = (Term)HR;
     MaBind(&(tv->value), new);
-    *H++ = TermFoundVar;
+    *HR++ = TermFoundVar;
     MaBind(&(tv->clock), nclock);
   }
   return(t);
@@ -216,6 +250,13 @@ Yap_UpdateTimedVar(Term inv, Term new)
   return UpdateTimedVar(inv, new PASS_REGS);
 }
 
+/** @pred  create_mutable(+ _D_,- _M_) 
+
+
+Create new mutable variable  _M_ with initial value  _D_.
+
+ 
+*/
 static Int
 p_create_mutable( USES_REGS1 )
 {
@@ -223,6 +264,13 @@ p_create_mutable( USES_REGS1 )
   return(Yap_unify(ARG2,t));
 }
 
+/** @pred  get_mutable(? _D_,+ _M_) 
+
+
+Unify the current value of mutable term  _M_ with term  _D_.
+
+ 
+*/
 static Int
 p_get_mutable( USES_REGS1 )
 {
@@ -243,6 +291,14 @@ p_get_mutable( USES_REGS1 )
   return(Yap_unify(ARG1, t));
 }
 
+/** @pred  update_mutable(+ _D_,+ _M_) 
+
+
+Set the current value of mutable term  _M_ to term  _D_.
+
+
+
+ */
 static Int
 p_update_mutable( USES_REGS1 )
 {
@@ -263,6 +319,13 @@ p_update_mutable( USES_REGS1 )
   return(TRUE);
 }
 
+/** @pred  is_mutable(? _D_) 
+
+
+Holds if  _D_ is a mutable term.
+
+ 
+*/
 static Int
 p_is_mutable( USES_REGS1 )
 {
@@ -285,7 +348,6 @@ void
 Yap_InitMaVarCPreds(void)
 {
 #ifdef MULTI_ASSIGNMENT_VARIABLES
-  /* The most famous contributions of SICStus to the Prolog language */
   Yap_InitCPred("setarg", 3, p_setarg, SafePredFlag);  
   Yap_InitCPred("create_mutable", 2, p_create_mutable, SafePredFlag);  
   Yap_InitCPred("get_mutable", 2, p_get_mutable, SafePredFlag);  
@@ -293,3 +355,7 @@ Yap_InitMaVarCPreds(void)
   Yap_InitCPred("is_mutable", 1, p_is_mutable, SafePredFlag);  
 #endif
 }
+
+/**
+@}
+*/

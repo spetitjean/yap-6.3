@@ -15,32 +15,104 @@
 *									 *
 *************************************************************************/
 
+
+/** 
+
+
+    @file inlines.c
+
+    @{
+
+    @defgroup YAP_Inlines Inlined Tests nad Ter Manipulation
+
+    @ingroup builtins
+
+
+*/
+
+
 #define IN_INLINES_C 1
 
 #include "absmi.h"
 
-#ifdef CUT_C
 #include "cut_c.h"
-#endif
 
-STATIC_PROTO(Int    p_atom, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_atomic, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_integer, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_nonvar, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_number, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_var, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_db_ref, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_primitive, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_compound, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_float, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_equal, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_dif, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_eq, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_arg, ( USES_REGS1 ));
-STATIC_PROTO(Int    p_functor, ( USES_REGS1 ));
+static Int    p_atom( USES_REGS1 );
+static Int    p_atomic( USES_REGS1 );
+static Int    p_integer( USES_REGS1 );
+static Int    p_nonvar( USES_REGS1 );
+static Int    p_number( USES_REGS1 );
+static Int    p_var( USES_REGS1 );
+static Int    p_db_ref( USES_REGS1 );
+static Int    p_primitive( USES_REGS1 );
+static Int    p_compound( USES_REGS1 );
+static Int    p_float( USES_REGS1 );
+static Int    p_equal( USES_REGS1 );
+static Int    p_dif( USES_REGS1 );
+static Int    p_eq( USES_REGS1 );
+static Int    p_arg( USES_REGS1 );
+static Int    p_functor( USES_REGS1 );
+static Int    p_fail( USES_REGS1 );
+static Int    p_true( USES_REGS1 );
+
+/** @pred  fail is iso
+
+Always fails. Defined as if by:
+
+ ~~~~~
+ fail :- 2=1.
+ ~~~~~
+*/
+
+/** @pred  false is iso
+
+The same as fail. Defined as if by:
+
+ ~~~~~
+ false :- 2=1.
+ ~~~~~
+*/
+
+static Int    p_fail( USES_REGS1 )
+{
+    return false;
+}
+
+/** @pred true is iso
+Succeed.
+
+Succeeds once. Defined as if by:
+
+ ~~~~~
+ true :- true.
+ ~~~~~
+*/
+
+/** @pred otherwise is iso
+Succeed.
+
+Succeeds once. Defined as if by:
+
+ ~~~~~
+ otherwise.
+ ~~~~~
+*/
 
 
-static Int 
+static Int    p_true( USES_REGS1 )
+{
+    return true;
+}
+
+
+/** @pred  atom( _T_) is iso
+
+
+Succeeds if and only if  _T_ is currently instantiated to an  atom.
+
+
+*/
+static Int
 p_atom( USES_REGS1 )
 {				/* atom(?)	 */
       BEGD(d0);
@@ -61,7 +133,14 @@ p_atom( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  atomic(T) is iso
+
+
+Checks whether  _T_ is an atomic symbol (atom or number).
+
+
+*/
+static Int
 p_atomic( USES_REGS1 )
 {				/* atomic(?)	 */
       BEGD(d0);
@@ -82,7 +161,14 @@ p_atomic( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  integer( _T_) is iso
+
+
+Succeeds if and only if  _T_ is currently instantiated to an  integer.
+
+
+*/
+static Int
 p_integer( USES_REGS1 )
 {				/* integer(?,?)	 */
       BEGD(d0);
@@ -96,10 +182,14 @@ p_integer( USES_REGS1 )
 	Functor f0 = FunctorOfTerm(d0);
 	if (IsExtensionFunctor(f0)) {
 	  switch ((CELL)f0) {
-	  case (CELL)FunctorLongInt:
-#ifdef USE_GMP
 	  case (CELL)FunctorBigInt:
-#endif
+	    { CELL *pt = RepAppl(d0);
+	      if ( pt[1] != BIG_INT ) {
+		return FALSE;
+	      }
+        return TRUE;
+	    }
+	  case (CELL)FunctorLongInt:
 	    return(TRUE);
 	  default:
 	    return(FALSE);
@@ -117,7 +207,14 @@ p_integer( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  number( _T_) is iso
+
+
+Checks whether `T` is an integer, rational or a float.
+
+
+*/
+static Int
 p_number( USES_REGS1 )
 {				/* number(?)	 */
       BEGD(d0);
@@ -131,11 +228,15 @@ p_number( USES_REGS1 )
 	Functor f0 = FunctorOfTerm(d0);
 	if (IsExtensionFunctor(f0)) {
 	  switch ((CELL)f0) {
+	  case (CELL)FunctorBigInt:
+	    { CELL *pt = RepAppl(d0);
+	      if (  pt[1] != BIG_RATIONAL || pt[1] != BIG_INT ) {
+		return FALSE;
+	      }
+        return(TRUE);
+    }
 	  case (CELL)FunctorLongInt:
 	  case (CELL)FunctorDouble:
-#ifdef USE_GMP
-	  case (CELL)FunctorBigInt:
-#endif
 	    return(TRUE);
 	  default:
 	    return(FALSE);
@@ -153,7 +254,14 @@ p_number( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  db_reference( _T_)
+
+
+Checks whether  _T_ is a database reference.
+
+
+*/
+static Int
 p_db_ref( USES_REGS1 )
 {				/* db_reference(?,?)	 */
       BEGD(d0);
@@ -174,7 +282,14 @@ p_db_ref( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  primitive( ?_T_)
+
+
+Checks whether  _T_ is an atomic term or a database reference.
+
+
+*/
+static Int
 p_primitive( USES_REGS1 )
 {				/* primitive(?)	 */
       BEGD(d0);
@@ -195,7 +310,14 @@ p_primitive( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  float( _T_) is iso
+
+
+Checks whether  _T_ is a floating point number.
+
+
+*/
+static Int
 p_float( USES_REGS1 )
 {				/* float(?)	 */
       BEGD(d0);
@@ -216,7 +338,14 @@ p_float( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  compound( _T_) is iso
+
+
+Checks whether  _T_ is a compound term.
+
+
+*/
+static Int
 p_compound( USES_REGS1 )
 {				/* compound(?)	 */
       BEGD(d0);
@@ -243,7 +372,14 @@ p_compound( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  nonvar( _T_) is iso
+
+
+The opposite of `var( _T_)`.
+
+
+*/
+static Int
 p_nonvar( USES_REGS1 )
 {				/* nonvar(?)	 */
       BEGD(d0);
@@ -251,7 +387,7 @@ p_nonvar( USES_REGS1 )
       deref_head(d0, nonvar_unk);
     nonvar_nvar:
       return(TRUE);
-	
+
       BEGP(pt0);
       deref_body(d0, pt0, nonvar_unk, nonvar_nvar);
       return(FALSE);
@@ -259,7 +395,14 @@ p_nonvar( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  var( _T_) is iso
+
+
+Succeeds if  _T_ is currently a free variable, otherwise fails.
+
+
+*/
+static Int
 p_var( USES_REGS1 )
 {				/* var(?)	 */
       BEGD(d0);
@@ -275,13 +418,20 @@ p_var( USES_REGS1 )
       ENDD(d0);
 }
 
-static Int 
+/** @pred  _X_ =  _Y_ is iso
+
+
+Tries to unify terms  _X_ and  _Y_.
+
+
+*/
+static Int
 p_equal( USES_REGS1 )
 {				/* ?=? */
   return(Yap_IUnify(ARG1, ARG2));
 }
 
-static Int 
+static Int
 eq(Term t1, Term t2 USES_REGS)
 {				/* ? == ? */
       BEGD(d0);
@@ -319,6 +469,8 @@ eq(Term t1, Term t2 USES_REGS)
 	    return (d0 == d1);
 	  case (CELL)FunctorLongInt:
 	    return(LongIntOfTerm(d0) == LongIntOfTerm(d1));
+	  case (CELL)FunctorString:
+	    return(strcmp((char *)StringOfTerm(d0), (char *)StringOfTerm(d1)) == 0);
 #ifdef USE_GMP
 	  case (CELL)FunctorBigInt:
 	    return (Yap_gmp_tcmp_big_big(d0, d1) == 0);
@@ -365,20 +517,58 @@ eq(Term t1, Term t2 USES_REGS)
       ENDD(d0);
 }
 
-static Int 
+
+
+/** @pred ?_X_ ==  ?_Y_ is iso
+
+Succeeds if terms  _X_ and  _Y_ are strictly identical. The
+difference between this predicate and =/2 is that, if one of the
+arguments is a free variable, it only succeeds when they have already
+been unified.
+
+~~~~~{.prolog}
+?- X == Y.
+~~~~~
+fails, but,
+
+~~~~~{.prolog}
+?- X = Y, X == Y.
+~~~~~
+succeeds.
+
+~~~~~{.prolog}
+?- X == 2.
+~~~~~
+fails, but,
+
+~~~~~{.prolog}
+?- X = 2, X == 2.
+~~~~~
+succeeds.
+
+
+*/
+static Int
 p_eq( USES_REGS1 )
 {				/* ? == ? */
   return eq(ARG1,ARG2 PASS_REGS);
 }
 
-int 
+int
 Yap_eq(Term t1, Term t2)
 {				/* ? == ? */
   CACHE_REGS
   return eq(t1,t2 PASS_REGS);
 }
 
-static Int 
+/** @pred  _X_ \=  _Y_ is iso
+
+
+Succeeds if terms  _X_ and  _Y_ are not unifiable.
+
+
+*/
+static Int
 p_dif( USES_REGS1 )
 {				/* ? \= ?  */
 #if SHADOW_HB
@@ -417,9 +607,9 @@ p_dif( USES_REGS1 )
     /* make B and HB point to H to guarantee all bindings will
      * be trailed
      */
-    HBREG = H;
-    B = (choiceptr) H;
-    B->cp_h = H;
+    HBREG = HR;
+    B = (choiceptr) HR;
+    B->cp_h = HR;
     SET_BB(B);
     save_hb();
     d0 = Yap_IUnify(d0, d1);
@@ -427,14 +617,14 @@ p_dif( USES_REGS1 )
     /* now restore Woken Goals to its old value */
     Yap_UpdateTimedVar(LOCAL_WokenGoals, OldWokenGoals);
     if (OldWokenGoals == TermNil) {
-      Yap_undo_signal(YAP_WAKEUP_SIGNAL);
+      Yap_get_signal(YAP_WAKEUP_SIGNAL);
     }
 #endif
     /* restore B */
     B = pt1;
     SET_BB(PROTECT_FROZEN_B(pt1));
 #ifdef COROUTINING
-    H = HBREG;
+    HR = HBREG;
 #endif
     HBREG = B->cp_h;
     /* untrail all bindings made by Yap_IUnify */
@@ -456,7 +646,7 @@ p_dif( USES_REGS1 )
 	CELL *pt = RepAppl(d1);
 	/* AbsAppl means */
 	/* multi-assignment variable */
-	/* so the next cell is the old value */ 
+	/* so the next cell is the old value */
 #ifdef FROZEN_STACKS
 	pt[0] = TrailVal(--TR);
 #else
@@ -486,7 +676,21 @@ p_dif( USES_REGS1 )
   ENDD(d0);
 }
 
-static Int 
+
+/** @pred  arg(+ _N_,+ _T_, _A_) is iso
+
+
+Succeeds if the argument  _N_ of the term  _T_ unifies with
+ _A_. The arguments are numbered from 1 to the arity of the term.
+
+The current version will generate an error if  _T_ or  _N_ are
+unbound, if  _T_ is not a compound term, of if  _N_ is not a positive
+integer. Note that previous versions of YAP would fail silently
+under these errors.
+
+
+*/
+static Int
 p_arg( USES_REGS1 )
 {				/* arg(?,?,?)	 */
 #if SHADOW_HB
@@ -502,7 +706,8 @@ p_arg( USES_REGS1 )
       else if (IsLongIntTerm(d0)) {
 	d0 = LongIntOfTerm(d0);
       } else {
-	Yap_Error(TYPE_ERROR_INTEGER,d0,"arg 1 of arg/3");
+	if (!IsBigIntTerm( d0 ))
+	  Yap_Error(TYPE_ERROR_INTEGER,d0,"arg 1 of arg/3");
 	return(FALSE);
       }
 
@@ -518,16 +723,17 @@ p_arg( USES_REGS1 )
 	pt0 = RepAppl(d1);
 	d1 = *pt0;
 	if (IsExtensionFunctor((Functor) d1)) {
+	  Yap_Error(TYPE_ERROR_COMPOUND, d1, "arg 2 of arg/3");
 	  return(FALSE);
 	}
 	save_hb();
 	if ((Int)d0 <= 0 ||
 	    (Int)d0 > ArityOfFunctor((Functor) d1) ||
 	    Yap_IUnify(pt0[d0], ARG3) == FALSE) {
-	  /* don't complain here for Prolog compatibility 
+	  /* don't complain here for Prolog compatibility
 	  if ((Int)d0 <= 0) {
 	    Yap_Error(DOMAIN_ERROR_NOT_LESS_THAN_ZERO,
-		  MkIntegerTerm(d0),"arg 1 of arg/3");	    
+		  MkIntegerTerm(d0),"arg 1 of arg/3");
 	  }
 	  */
 	  return(FALSE);
@@ -555,13 +761,13 @@ p_arg( USES_REGS1 )
 	else {
 	  if ((Int)d0 < 0)
 	    Yap_Error(DOMAIN_ERROR_NOT_LESS_THAN_ZERO,
-		  MkIntegerTerm(d0),"arg 1 of arg/3");	 
+		  MkIntegerTerm(d0),"arg 1 of arg/3");
 	  return(FALSE);
 	}
 	ENDP(pt0);
       }
       else {
-	/* Yap_Error(TYPE_ERROR_COMPOUND, d1, "arg 2 of arg/3"); */
+	Yap_Error(TYPE_ERROR_COMPOUND, d1, "arg 2 of arg/3");
 	return(FALSE);
       }
 
@@ -581,6 +787,26 @@ p_arg( USES_REGS1 )
 
 }
 
+/** @pred  functor( _T_, _F_, _N_) is iso
+
+
+The top functor of term  _T_ is named  _F_ and has  arity  _N_.
+
+When  _T_ is not instantiated,  _F_ and  _N_ must be. If
+ _N_ is 0,  _F_ must be an atomic symbol, which will be unified
+with  _T_. If  _N_ is not 0, then  _F_ must be an atom and
+ _T_ becomes instantiated to the most general term having functor
+ _F_ and arity  _N_. If  _T_ is instantiated to a term then
+ _F_ and  _N_ are respectively unified with its top functor name
+and arity.
+
+In the current version of YAP the arity  _N_ must be an
+integer. Previous versions allowed evaluable expressions, as long as the
+expression would evaluate to an integer. This feature is not available
+in the ISO Prolog standard.
+
+
+*/
 static Int
 p_functor( USES_REGS1 )			/* functor(?,?,?) */
 {
@@ -605,6 +831,8 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
 	d1 = MkIntTerm(0);
       } else if (d1 == (CELL)FunctorLongInt) {
 	d1 = MkIntTerm(0);
+      } else if (d1 == (CELL)FunctorString) {
+	d1 = MkIntTerm(0);
       } else
 	  return(FALSE);
     } else {
@@ -623,7 +851,7 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
   /* let's go and bind them */
   {
     register CELL arity = d1;
-    
+
     d1 = ARG2;
     deref_head(d1, func_nvar_unk);
   func_nvar_nvar:
@@ -634,11 +862,11 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
     /* have to buffer ENDP and label */
     d0 = arity;
     goto func_bind_x3;
-    
+
     BEGP(pt0);
     deref_body(d1, pt0, func_nvar_unk, func_nvar_nvar);
     /* A2 is a variable, go and bind it */
-    Bind(pt0, d0);
+    YapBind(pt0, d0);
     /* have to buffer ENDP and label */
     d0 = arity;
     ENDP(pt0);
@@ -659,7 +887,7 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
     BEGP(pt0);
     deref_body(d1, pt0, func_nvar3_unk, func_nvar3_nvar);
     /* A3 is a variable, go and bind it */
-    Bind(pt0, d0);
+    YapBind(pt0, d0);
     return(TRUE);
 
     ENDP(pt0);
@@ -697,10 +925,10 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
   /* We made it!!!!! we got in d0 the name, in d1 the arity and
    * in pt0 the variable to bind it to. */
   if (d0 == TermDot && d1 == 2) {
-    RESET_VARIABLE(H);
-    RESET_VARIABLE(H+1);
-    d0 = AbsPair(H);
-    H += 2;
+    RESET_VARIABLE(HR);
+    RESET_VARIABLE(HR+1);
+    d0 = AbsPair(HR);
+    HR += 2;
   }
   else if ((Int)d1 > 0) {
     /* now let's build a compound term */
@@ -714,12 +942,12 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
     }
     else
       d0 = (CELL) Yap_MkFunctor(AtomOfTerm(d0), (Int) d1);
-    pt1 = H;
+    pt1 = HR;
     *pt1++ = d0;
-    d0 = AbsAppl(H);
-    if (pt1+d1 > ENV - CreepFlag) {
+    d0 = AbsAppl(HR);
+    if (pt1+d1 > ENV - StackGap( PASS_REGS1 )) {
       if (!Yap_gcl((1+d1)*sizeof(CELL), 3, ENV, gc_P(P,CP))) {
-	Yap_Error(OUT_OF_STACK_ERROR, TermNil, LOCAL_ErrorMessage);
+	Yap_Error(RESOURCE_ERROR_STACK, TermNil, LOCAL_ErrorMessage);
 	return FALSE;
       }
       goto restart;
@@ -729,15 +957,15 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
       pt1++;
     }
     /* done building the term */
-    H = pt1;
+    HR = pt1;
     ENDP(pt1);
   } else if ((Int)d1  < 0) {
     Yap_Error(DOMAIN_ERROR_NOT_LESS_THAN_ZERO,MkIntegerTerm(d1),"functor/3");
     return(FALSE);
-  } 
+  }
   /* else if arity is 0 just pass d0 through */
   /* Ding, ding, we made it */
-  Bind(pt0, d0);
+  YapBind(pt0, d0);
   return(TRUE);
 
 
@@ -760,6 +988,13 @@ p_functor( USES_REGS1 )			/* functor(?,?,?) */
   ENDD(d0);
 }
 
+static Term
+cp_as_integer(choiceptr cp USES_REGS)
+{
+  return(MkIntegerTerm(LCL0-(CELL *)cp));
+}
+
+
 static Int
 p_cut_by( USES_REGS1 )
 {
@@ -780,14 +1015,12 @@ p_cut_by( USES_REGS1 )
 #else
   pt0 = (choiceptr)(LCL0-IntOfTerm(d0));
 #endif
-#ifdef CUT_C
   {
     while (POP_CHOICE_POINT(pt0))
       {
 	POP_EXECUTE();
       }
   }
-#endif /* CUT_C */
 #ifdef YAPOR
     CUT_prune_to(pt0);
 #endif /* YAPOR */
@@ -819,29 +1052,69 @@ p_cut_by( USES_REGS1 )
 static Int
 p_erroneous_call( USES_REGS1 )
 {
-  Yap_Error(SYSTEM_ERROR, TermNil, "bad call to internal built-in");
+  Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, "bad call to internal built-in");
   return(FALSE);
 }
 
-static Int 
-init_genarg( USES_REGS1 )
-{				/* getarg(?Atom)		 */
-  Term t0 = Deref(ARG1);
-  Term t1 = Deref(ARG2);
-  CELL *pt, *end;
-  int res;
-  UInt arity;
+ static Int
+   p_save_cp( USES_REGS1 )
+{
+  Term t = Deref(ARG1);
+  Term td;
+#if SHADOW_HB
+  register CELL *HBREG = HB;
+#endif
+  if (!IsVarTerm(t)) return(FALSE);
+  td = cp_as_integer(B PASS_REGS);
+  YapBind((CELL *)t,td);
+  return(TRUE);
+}
 
-  if (!IsVarTerm(t0)) {
-    res = p_arg( PASS_REGS1 );
-    if (res) {
-      cut_succeed();
-    } else {
-      cut_fail();
-    }
-  }
-  if (IsVarTerm(t1)) {
-    Yap_Error(INSTANTIATION_ERROR,t1,"genarg/3");
+ /// @}
+
+ /** 
+  *
+  * @addtogroup args
+  *
+  * @{
+  *
+  *  @namespace args
+  *
+  * @pred genarg( ?Index, +Term , -Arg )
+  *
+  * 
+  * Similar to arg/3, but it can also backtrack through _T_'s arguments, that is:
+
+  ~~~~~~~~~
+  ?- arg:genarg(I, f(a,b), A).
+  A = a,
+  I = 1.
+  ;
+  A = b,
+  I = 2.
+  ~~~~~~~~~
+  * 
+  * Note: SWI-Prolog defines arg/3 as genarg/3.  
+  */
+ static Int
+   genarg( USES_REGS1 )
+ {				/* getarg(?Atom)		 */
+   Term t0 = Deref(ARG1);
+   Term t1 = Deref(ARG2);
+   CELL *pt, *end;
+   int res;
+   UInt arity;
+
+   if (!IsVarTerm(t0)) {
+     res = p_arg( PASS_REGS1 );
+     if (res) {
+       cut_succeed();
+     } else {
+       cut_fail();
+     }
+   }
+   if (IsVarTerm(t1)) {
+     Yap_Error(INSTANTIATION_ERROR,t1,"genarg/3");
     return FALSE;
   }
   if (IsPrimitiveTerm(t1)) {
@@ -898,30 +1171,42 @@ cont_genarg( USES_REGS1 )
 }
 
 
-void 
-Yap_InitInlines(void)
-{
-  CACHE_REGS
-  Term cm = CurrentModule;
-  Yap_InitAsmPred("$$cut_by", 1, _cut_by, p_cut_by, SafePredFlag);
-  Yap_InitAsmPred("atom", 1, _atom, p_atom, SafePredFlag);
-  Yap_InitAsmPred("atomic", 1, _atomic, p_atomic, SafePredFlag);
-  Yap_InitAsmPred("integer", 1, _integer, p_integer, SafePredFlag);
-  Yap_InitAsmPred("nonvar", 1, _nonvar, p_nonvar, SafePredFlag);
-  Yap_InitAsmPred("number", 1, _number, p_number, SafePredFlag);
-  Yap_InitAsmPred("var", 1, _var, p_var, SafePredFlag);
-  Yap_InitAsmPred("db_reference", 1, _db_ref, p_db_ref, SafePredFlag);
-  Yap_InitAsmPred("primitive", 1, _primitive, p_primitive, SafePredFlag);
-  Yap_InitAsmPred("compound", 1, _compound, p_compound, SafePredFlag);
-  Yap_InitAsmPred("float", 1, _float, p_float, SafePredFlag);
-  Yap_InitAsmPred("=", 2, _equal, p_equal, SafePredFlag);
-  Yap_InitAsmPred("\\=", 2, _dif, p_dif, SafePredFlag);
-  Yap_InitAsmPred("==", 2, _eq, p_eq, SafePredFlag);
-  Yap_InitAsmPred("arg", 3, _arg, p_arg, SafePredFlag);
-  Yap_InitAsmPred("functor", 3, _functor, p_functor, 0);
-  Yap_InitAsmPred("$label_ctl", 2, _p_label_ctl, p_erroneous_call, SafePredFlag);
-  CurrentModule = ARG_MODULE;
-  Yap_InitCPredBack("genarg", 3, 3, init_genarg, cont_genarg,SafePredFlag);
-  CurrentModule = cm;
+ void
+   Yap_InitInlines(void)
+ {
+   CACHE_REGS
+     Term cm = CurrentModule;
+   Yap_InitAsmPred("$$cut_by", 1, _cut_by, p_cut_by, SafePredFlag);
+   Yap_InitAsmPred("$$save_by", 1, _save_by, p_save_cp, SafePredFlag);
+   Yap_InitAsmPred("atom", 1, _atom, p_atom, SafePredFlag);
+   Yap_InitAsmPred("atomic", 1, _atomic, p_atomic, SafePredFlag);
+   Yap_InitAsmPred("integer", 1, _integer, p_integer, SafePredFlag);
+   Yap_InitAsmPred("nonvar", 1, _nonvar, p_nonvar, SafePredFlag);
+   Yap_InitAsmPred("number", 1, _number, p_number, SafePredFlag);
+   Yap_InitAsmPred("var", 1, _var, p_var, SafePredFlag);
+   Yap_InitAsmPred("db_reference", 1, _db_ref, p_db_ref, SafePredFlag);
+   Yap_InitAsmPred("primitive", 1, _primitive, p_primitive, SafePredFlag);
+   Yap_InitAsmPred("compound", 1, _compound, p_compound, SafePredFlag);
+   Yap_InitAsmPred("float", 1, _float, p_float, SafePredFlag);
+   Yap_InitAsmPred("=", 2, _equal, p_equal, SafePredFlag);
+#if INLINE_BIG_COMPARISONS
+   Yap_InitAsmPred("\\=", 2, _dif, p_dif, SafePredFlag|TestPredFlag);
+   Yap_InitAsmPred("==", 2, _eq, p_eq, SafePredFlag|TestPredFlag);
+#else
+   Yap_InitCPred("\\=", 2, p_dif, SafePredFlag);
+   Yap_InitCPred("==", 2, p_eq, SafePredFlag);
+#endif
+   Yap_InitAsmPred("arg", 3, _arg, p_arg, SafePredFlag);
+   Yap_InitAsmPred("functor", 3, _functor, p_functor, 0);
+   Yap_InitAsmPred("$label_ctl", 2, _p_label_ctl, p_erroneous_call, SafePredFlag);
+   CurrentModule = ARG_MODULE;
+   Yap_InitCPredBack("genarg", 3, 3, genarg, cont_genarg,SafePredFlag);
+   CurrentModule = cm;
+     Yap_InitCPred("true", 0, p_true, SafePredFlag);
+     Yap_InitCPred("otherwise", 0, p_true, SafePredFlag);
+     Yap_InitCPred("false", 0, p_fail, SafePredFlag);
+     Yap_InitCPred("fail", 0, p_fail, SafePredFlag);
 }
 
+
+// @}

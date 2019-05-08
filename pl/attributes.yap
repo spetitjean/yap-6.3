@@ -1,6 +1,6 @@
 /*************************************************************************
 *									 *
-*	 YAP Prolog 							 *
+  *	 YAP Prolog 							 *
 *									 *
 *	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
 *									 *
@@ -15,32 +15,124 @@
 *									 *
 *************************************************************************/
 
-:- module('$attributes', [
-			  delayed_goals/4
-			  ]).
+/**
+  @file attributes.yap
 
-:- dynamic attributes:attributed_module/3, attributes:modules_with_attributes/1.
+@defgroup New_Style_Attribute_Declarations SWI Compatible attributes
+@ingroup attributes
 
+  @{
+
+*/
+
+:- module( attributes, [delayed_goals/4,
+all_attvars/1,
+        bind_attvar/1,
+        del_all_atts/1,
+        del_all_module_atts/2,
+        get_all_swi_atts/2,
+        get_module_atts/2,
+        modules_with_attributes/1,
+        put_att_term/2,
+        put_module_atts/2,
+        unbind_attvar/1,
+        woken_att_do/4]) .
+
+:- use_system_module( '$_boot', ['$undefp'/1]).
+
+:- use_system_module( '$_errors', ['$do_error'/2]).
+
+:- use_system_module( '$coroutining', [attr_unify_hook/2]).
+
+:- dynamic attributes:existing_attribute/4.
+:- dynamic attributes:modules_with_attributes/1.
+:- dynamic attributes:attributed_module/3.
+
+    :- multifile
+        attributes:attributed_module/3.
+
+:- dynamic existing_attribute/4.
+:- dynamic modules_with_attributes/1.
+:- dynamic attributed_module/3.
+
+
+/** @pred get_attr( + Var,+ Module,- Value)
+
+Request the current  _value_ for the attribute named  _Module_.  If
+ _Var_ is not an attributed variable or the named attribute is not
+associated to  _Var_ this predicate fails silently.  If  _Module_
+is not an atom, a type error is raised.
+
+
+*/
 prolog:get_attr(Var, Mod, Att) :-
 	functor(AttTerm, Mod, 2),
 	arg(2, AttTerm, Att),
 	attributes:get_module_atts(Var, AttTerm).
 
+/**
+ @pred put_attr(+ _Var_,+ _Module_,+ _Value_)
+
+If  _Var_ is a variable or attributed variable, set the value for the
+attribute named  _Module_ to  _Value_. If an attribute with this
+name is already associated with  _Var_, the old value is replaced.
+Backtracking will restore the old value (i.e., an attribute is a mutable
+term. See also `setarg/3`). This predicate raises a representation error if
+ _Var_ is not a variable and a type error if  _Module_ is not an atom.
+
+
+*/
 prolog:put_attr(Var, Mod, Att) :-
 	functor(AttTerm, Mod, 2),
 	arg(2, AttTerm, Att),
 	attributes:put_module_atts(Var, AttTerm).
 
+/** @pred del_attr(+ _Var_,+ _Module_)
+
+
+Delete the named attribute.  If  _Var_ loses its last attribute it
+is transformed back into a traditional Prolog variable.  If  _Module_
+is not an atom, a type error is raised. In all other cases this
+predicate succeeds regardless whether or not the named attribute is
+present.
+
+
+*/
 prolog:del_attr(Var, Mod) :-
 	functor(AttTerm, Mod, 2),
 	attributes:del_all_module_atts(Var, AttTerm).
 
+/** @pred del_attrs(+ _Var_)
+
+
+If  _Var_ is an attributed variable, delete <em>all</em> its
+attributes.  In all other cases, this predicate succeeds without
+side-effects.
+
+
+*/
 prolog:del_attrs(Var) :-
 	attributes:del_all_atts(Var).
 
+/**
+ @pred get_attrs(+ _Var_,- _Attributes_)
+
+Get all attributes of  _Var_.  _Attributes_ is a term of the form
+`att( _Module_,  _Value_,  _MoreAttributes_)`, where  _MoreAttributes_ is
+`[]` for the last attribute.
+
+*/
 prolog:get_attrs(AttVar, SWIAtts) :-
 	attributes:get_all_swi_atts(AttVar,SWIAtts).
 
+/** @pred put_attrs(+ _Var_,+ _Attributes_)
+
+
+Set all attributes of  _Var_.  See get_attrs/2 for a description of
+ _Attributes_.
+
+
+*/
 prolog:put_attrs(_, []).
 prolog:put_attrs(V, Atts) :-
 	cvt_to_swi_atts(Atts, YapAtts),
@@ -50,6 +142,47 @@ cvt_to_swi_atts([], _).
 cvt_to_swi_atts(att(Mod,Attribute,Atts), ModAttribute) :-
 	ModAttribute =.. [Mod, YapAtts, Attribute],
 	cvt_to_swi_atts(Atts, YapAtts).
+
+/** @pred copy_term(? _TI_,- _TF_,- _Goals_)
+
+Term  _TF_ is a variant of the original term  _TI_, such that for
+each variable  _V_ in the term  _TI_ there is a new variable  _V'_
+in term  _TF_ without any attributes attached.  Attributed
+variables are thus converted to standard variables.   _Goals_ is
+unified with a list that represents the attributes.  The goal
+`maplist(call, _Goals_)` can be called to recreate the
+attributes.
+
+Before the actual copying, `copy_term/3` calls
+`attribute_goals/1` in the module where the attribute is
+defined.
+
+
+*/
+prolog:copy_term(Term, Copy, Gs) :-
+	term_attvars(Term, Vs),
+	(   Vs == []
+	->  Gs = [],
+	    copy_term(Term, Copy)
+	;   findall(Term-Gs,
+	            '$attributes':residuals_and_delete_attributes(Vs, Gs, Term),
+		    [Copy-Gs])
+	).
+
+residuals_and_delete_attributes(Vs, Gs, Term) :-
+	attvars_residuals(Vs, Gs, []),
+	delete_attributes(Term).
+
+attvars_residuals([]) --> [].
+attvars_residuals([V|Vs]) -->
+	{ nonvar(V) }, !,
+	attvars_residuals(Vs).
+attvars_residuals([V|Vs]) -->
+	(   { get_attrs(V, As) }
+	->  attvar_residuals(As, V)
+	;   []
+	),
+	attvars_residuals(Vs).
 
 %
 % wake_up_goal is called by the system whenever a suspended goal
@@ -64,6 +197,7 @@ cvt_to_swi_atts(att(Mod,Attribute,Atts), ModAttribute) :-
 %	'$write'(4,vsc_woke:G+[Module1|Continuation]:'
 %'), fail.
 prolog:'$wake_up_goal'([Module1|Continuation], LG) :-
+%	writeln( [Module1|Continuation]:LG),
 	execute_woken_system_goals(LG),
 	do_continuation(Continuation, Module1).
 
@@ -72,20 +206,26 @@ prolog:'$wake_up_goal'([Module1|Continuation], LG) :-
 % in the first two cases restore register  immediately and proceed
 % to continuation. In the last case take care with modules, but do
 % not act as if a meta-call.
-% 
+%
 %
 do_continuation('$cut_by'(X), _) :- !,
 	'$$cut_by'(X).
 do_continuation('$restore_regs'(X), _) :- !,
+%	yap_flag(gc_trace,verbose),
+%	garbage_collect,
 	'$restore_regs'(X).
 do_continuation('$restore_regs'(X,Y), _) :- !,
+%	yap_flag(gc_trace,verbose),
+%	garbage_collect,
 	'$restore_regs'(X,Y).
 do_continuation(Continuation, Module1) :-
 	execute_continuation(Continuation,Module1).
 
 execute_continuation(Continuation, Module1) :-
 	'$undefined'(Continuation, Module1), !,
-        '$undefp'([Module1|Continuation]).
+	'$current_module'( M ),
+	current_prolog_flag( M:unknown, Default ),
+        '$undefp'([Module1|Continuation] , Default ).
 execute_continuation(Continuation, Mod) :-
          % do not do meta-expansion nor any fancy stuff.
 	'$execute0'(Continuation, Mod).
@@ -145,6 +285,22 @@ lcall2([Goal|Goals], Mod) :-
 
 
 
+/** @pred call_residue_vars(: _G_, _L_)
+
+
+
+Call goal  _G_ and unify  _L_ with a list of all constrained variables created <em>during</em> execution of  _G_:
+
+~~~~~
+  ?- dif(X,Z), call_residue_vars(dif(X,Y),L).
+dif(X,Z), call_residue_vars(dif(X,Y),L).
+L = [Y],
+dif(X,Z),
+dif(X,Y) ? ;
+
+no
+~~~~~
+ */
 prolog:call_residue_vars(Goal,Residue) :-
 	attributes:all_attvars(Vs0),
 	call(Goal),
@@ -168,67 +324,54 @@ prolog:call_residue_vars(Goal,Residue) :-
 	  '$ord_remove'([V1|Vss], Vs0s, Residue)
 	).
 
-%%  from SWI
-%%	copy_term(+Term, -Copy, -Gs) is det.
-%
-%	Creates a regular term Copy  as  a   copy  of  Term (without any
-%	attributes), and a list Gs of goals that when executed reinstate
-%	all attributes onto Copy. The nonterminal attribute_goals//1, as
-%	defined in the modules the  attributes   stem  from,  is used to
-%	convert attributes to lists of goals.
+/** @pred attribute_goals(+ _Var_,- _Gs_,+ _GsRest_)
 
-prolog:copy_term(Term, Copy, Gs) :-
-	term_attvars(Term, Vs),
-	(   Vs == []
-	->  Gs = [],
-	    copy_term(Term, Copy)
-	;   findall(Term-Gs,
-	            '$attributes':residuals_and_delete_attributes(Vs, Gs, Term),
-		    [Copy-Gs])
-	).
 
-residuals_and_delete_attributes(Vs, Gs, Term) :-
-	attvars_residuals(Vs, Gs, []),
-	delete_attributes(Term).
 
-attvars_residuals([]) --> [].
-attvars_residuals([V|Vs]) -->
-	(   { get_attrs(V, As) }
-	->  attvar_residuals(As, V)
-	;   []
-	),
-	attvars_residuals(Vs).
+This nonterminal, if it is defined in a module, is used by  _copy_term/3_
+to project attributes of that module to residual goals. It is also
+used by the toplevel to obtain residual goals after executing a query.
 
-attvar_residuals([], _) --> [].
+
+Normal user code should deal with put_attr/3, get_attr/3 and del_attr/2.
+The routines in this section fetch or set the entire attribute list of a
+variables. Use of these predicates is anticipated to be restricted to
+printing and other special purpose operations.
+
+*/
+
+/** @pred Module:attribute_goal( -Var, Goal)
+
+User-defined procedure, called to convert the attributes in  _Var_ to
+a  _Goal_. Should fail when no interpretation is available.
+ */
 attvar_residuals(att(Module,Value,As), V) -->
 	(   { nonvar(V) }
 	->  % a previous projection predicate could have instantiated
 	    % this variable, for example, to avoid redundant goals
 	    []
-	; { attributes:attributed_module(Module, _, _)  } ->
-	    % SICStus like run, put attributes back first
-	    { Value =.. [Name,_|Vs],
-	      NValue =.. [Name,_|Vs],
-	      attributes:put_module_atts(V,NValue)
-	    },
-	    attvar_residuals(As, V),
-	    ( { '$undefined'(attribute_goal(V, Goal), Module) }
-	       ->
-	      []
-	      ;
-	      { '$notrace'(Module:attribute_goal(V, Goal)) },
-	      dot_list(Goal)
-	    )
-	;   (	{ current_predicate(Module:attribute_goals/3) }
-	    ->	{ '$notrace'(Module:attribute_goals(V, Goals, [])) },
-		list(Goals)
-	    ;	{ current_predicate(Module:attribute_goal/2) }
-	    ->	{ '$notrace'(Module:attribute_goal(V, Goal)) },
-		dot_list(Goal)
-	    ;	[put_attr(V, Module, Value)]
-	    ),
-	    attvar_residuals(As, V)
-	).
+	;     generate_goals(  V, As, Value,  Module)
+    ).
+
+    generate_goals( V, _, Value, Module) -->
+        { attributes:module_has_attributes(Module)  },
+    	    %  like run, put attributes back first
+    	    { Value =.. [Name,_|Vs],
+    	      NValue =.. [Name,_|Vs],
+    	      attributes:put_module_atts(V,NValue)
+    	    },
+        { current_predicate(Module:attribute_goal/2) },
+		 { call(Module:attribute_goal(V, Goal)) },
+	      dot_list(Goal),
+          [put_attr(V, Module, Value)].
+    generate_goals( V, _, _Value   , Module) -->
+        { '$pred_exists'(attribute_goals(_,_,_), Module) },
+	    call(Module:attribute_goals(V) ).
+
+
+    attributes:module_has_attributes(Mod) :-
+        attributes:attributed_module(Mod, _, _), !.
+
 
 list([])     --> [].
 list([L|Ls]) --> [L], list(Ls).
@@ -247,6 +390,35 @@ delete_attributes_([V|Vs]) :-
 
 
 
+/** @pred call_residue(: _G_, _L_)
+
+
+
+Call goal  _G_. If subgoals of  _G_ are still blocked, return
+a list containing these goals and the variables they are blocked in. The
+goals are then considered as unblocked. The next example shows a case
+where dif/2 suspends twice, once outside call_residue/2,
+and the other inside:
+
+~~~~~
+?- dif(X,Y),
+       call_residue((dif(X,Y),(X = f(Z) ; Y = f(Z))), L).
+
+X = f(Z),
+L = [[Y]-dif(f(Z),Y)],
+dif(f(Z),Y) ? ;
+
+Y = f(Z),
+L = [[X]-dif(X,f(Z))],
+dif(X,f(Z)) ? ;
+
+no
+~~~~~
+The system only reports one invocation of dif/2 as having
+suspended.
+
+
+*/
 prolog:call_residue(Goal,Residue) :-
 	var(Goal), !,
 	'$do_error'(instantiation_error,call_residue(Goal,Residue)).
@@ -268,9 +440,10 @@ call_residue(Goal,Module,Residue) :-
 	),
 	copy_term(Goal, Goal, Residue).
 
-delayed_goals(G, Vs, NVs, Gs) :-
+attributes:delayed_goals(G, Vs, NVs, Gs) :-
 	project_delayed_goals(G),
-	copy_term(G.Vs, _.NVs, Gs).
+%	term_factorized([G|Vs], [_|NVs], Gs).
+	copy_term([G|Vs], [_|NVs], Gs).
 
 project_delayed_goals(G) :-
 % SICStus compatible step,
@@ -296,6 +469,27 @@ att_vars([_|LGs], AttVars) :-
 
 % make sure we set the suspended goal list to its previous state!
 % make sure we have installed a SICStus like constraint solver.
+
+/** @pred Module:project_attributes( +AttrVars, +Goal)
+
+
+
+Given a goal _Goal_ with variables  _QueryVars_ and list of attributed
+variables  _AttrVars_, project all attributes in  _AttrVars_ to
+ _QueryVars_. Although projection is constraint system dependent,
+typically this will involve expressing all constraints in terms of
+ _QueryVars_ and considering all remaining variables as existentially
+quantified.
+
+Projection interacts with attribute_goal/2 at the Prolog top
+level. When the query succeeds, the system first calls
+project_attributes/2. The system then calls
+attribute_goal/2 to get a user-level representation of the
+constraints. Typically, project_attributes/2 will convert from the
+original constraints into a set of new constraints on the projection,
+and these constraints are the ones that will have an
+attribute_goal/2 handler.
+ */
 project_attributes(AllVs, G) :-
 	attributes:modules_with_attributes(LMods),
 	LMods = [_|_],
@@ -312,9 +506,10 @@ pick_att_vars([_|L],NL) :-
 project_module([], _, _).
 project_module([Mod|LMods], LIV, LAV) :-
 	'$pred_exists'(project_attributes(LIV, LAV),Mod),
-	'$notrace'(Mod:project_attributes(LIV, LAV)), !,
+	call(Mod:project_attributes(LIV, LAV)), !,
 	attributes:all_attvars(NLAV),
 	project_module(LMods,LIV,NLAV).
 project_module([_|LMods], LIV, LAV) :-
 	project_module(LMods,LIV,LAV).
 
+%% @}

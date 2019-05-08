@@ -7,8 +7,8 @@
 
 /* YAP only stuff */
 
-void STD_PROTO(Yap_initdlmalloc,(void));
-void STD_PROTO(Yap_RestoreDLMalloc,(void));
+void Yap_initdlmalloc(void);
+void Yap_RestoreDLMalloc(void);
 
 
 /* Synopsis of compile-time options:
@@ -176,10 +176,13 @@ extern "C" {
   or other mallocs available that do this.
 */
 
+#define DEBUG_DLMALLOC 1
 #if DEBUG_DLMALLOC
 #include <assert.h>
 #else
+#ifndef assert
 #define assert(x) ((void)0)
+#endif
 #endif
 
 /*

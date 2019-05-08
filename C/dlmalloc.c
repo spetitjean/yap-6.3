@@ -180,7 +180,7 @@ void
 Yap_add_memory_hole(ADDR start, ADDR end)
 {
   if (Yap_NOfMemoryHoles == MAX_DLMALLOC_HOLES) {
-    Yap_Error(OPERATING_SYSTEM_ERROR, 0L, "Unexpected Too Much Memory Fragmentation: please contact YAP maintainers");
+    Yap_Error(SYSTEM_ERROR_OPERATING_SYSTEM, 0L, "Unexpected Too Much Memory Fragmentation: please contact YAP maintainers");
     return;
   }
   Yap_MemoryHoles[Yap_NOfMemoryHoles].start = start;
@@ -1978,7 +1978,7 @@ Void_t* rEALLOc(oldmem, bytes) Void_t* oldmem; size_t bytes;
           assert(ncopies >= 3);
           
           if (ncopies > 9)
-            memcpy(d, s, copysize);
+            memmove(d, s, copysize);
           
           else {
             *(d+0) = *(s+0);
@@ -2077,7 +2077,7 @@ Void_t* rEALLOc(oldmem, bytes) Void_t* oldmem; size_t bytes;
       /* Must alloc, copy, free. */
       newmem = mALLOc(nb - MALLOC_ALIGN_MASK);
       if (newmem != 0) {
-        memcpy(newmem, oldmem, oldsize - 2*SIZE_SZ);
+        memmove(newmem, oldmem, oldsize - 2*SIZE_SZ);
         fREe(oldmem);
       }
     }

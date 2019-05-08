@@ -183,7 +183,7 @@ int q_share_work(int worker_p) {
   /* install fase --> TR and LOCAL_top_cp->cp_tr are equal */
   TR = ((choiceptr)LOCAL_end_local_copy)->cp_tr;
   aux_tr = ((choiceptr) LOCAL_start_local_copy)->cp_tr;
-  NEW_MAHASH((ma_h_inner_struct *)H);
+  NEW_MAHASH((ma_h_inner_struct *)HR);
   while (TR != aux_tr) {
     aux_cell = TrailTerm(--aux_tr);
     if (IsVarTerm(aux_cell)) {
@@ -262,7 +262,7 @@ void share_private_nodes(int worker_q) {
   }
   /* update depth */
   if (depth >= MAX_BRANCH_DEPTH)
-    Yap_Error(INTERNAL_ERROR, TermNil, "maximum depth exceded (share_private_nodes)");
+    Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, "maximum depth exceded (share_private_nodes)");
   or_frame = B->cp_or_fr;
 
   while (or_frame != LOCAL_top_or_fr) {

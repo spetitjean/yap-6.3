@@ -14,498 +14,531 @@
 *************************************************************************/
 
 /* prototype file for Yap */
+/// @file Yapproto.h
+///
+/// @brief Prototype Declarations
 
-#define STD_PROTO(F,A)  F A
-#define STATIC_PROTO(F,A) static F A
+#ifndef YAP_PROTOS_H
+#define YAP_PROTOS_H 1
 
+#include "YapDefs.h"
 
 /* absmi.c */
-Int	     STD_PROTO(Yap_absmi,(int));
-int	     STD_PROTO(Yap_absmiEND,(void));
+extern Int Yap_absmi(int);
+extern  int Yap_absmiEND(void);
 
 /* adtdefs.c */
-Term	STD_PROTO(Yap_ArrayToList,(Term *,int));
-int	STD_PROTO(Yap_GetName,(char *,UInt,Term));
-Term	STD_PROTO(Yap_GetValue,(Atom));
-int     STD_PROTO(Yap_HasOp,(Atom));
-struct operator_entry *STD_PROTO(Yap_GetOpPropForAModuleHavingALock,(AtomEntry *, Term));
-Atom	STD_PROTO(Yap_LookupAtom,(char *));
-Atom	STD_PROTO(Yap_LookupMaybeWideAtom,(wchar_t *));
-Atom	STD_PROTO(Yap_LookupMaybeWideAtomWithLength,(wchar_t *, size_t));
-Atom	STD_PROTO(Yap_FullLookupAtom,(char *));
-void	STD_PROTO(Yap_LookupAtomWithAddress,(char *,AtomEntry *));
-Prop	STD_PROTO(Yap_NewPredPropByFunctor,(struct FunctorEntryStruct *, Term));
-Prop	STD_PROTO(Yap_NewPredPropByAtom,(struct AtomEntryStruct *, Term));
-Prop	STD_PROTO(Yap_PredPropByFunctorNonThreadLocal,(struct FunctorEntryStruct *, Term));
-Prop	STD_PROTO(Yap_PredPropByAtomNonThreadLocal,(struct AtomEntryStruct *, Term));
-Functor	STD_PROTO(Yap_UnlockedMkFunctor,(AtomEntry *,unsigned int));
-Functor	STD_PROTO(Yap_MkFunctor,(Atom,unsigned int));
-void	STD_PROTO(Yap_MkFunctorWithAddress,(Atom,unsigned int,FunctorEntry *));
-void	STD_PROTO(Yap_PutValue,(Atom,Term));
-void	STD_PROTO(Yap_ReleaseAtom,(Atom));
-Term	STD_PROTO(Yap_StringToList,(char *));
-Term	STD_PROTO(Yap_NStringToList,(char *, size_t));
-Term	STD_PROTO(Yap_WideStringToList,(wchar_t *));
-Term	STD_PROTO(Yap_NWideStringToList,(wchar_t *, size_t));
-Term	STD_PROTO(Yap_StringToDiffList,(char *,Term CACHE_TYPE));
-Term	STD_PROTO(Yap_NStringToDiffList,(char *,Term, size_t));
-Term	STD_PROTO(Yap_WideStringToDiffList,(wchar_t *,Term));
-Term	STD_PROTO(Yap_NWideStringToDiffList,(wchar_t *,Term, size_t));
-Term	STD_PROTO(Yap_StringToListOfAtoms,(char *));
-Term	STD_PROTO(Yap_NStringToListOfAtoms,(char *, size_t));
-Term	STD_PROTO(Yap_WideStringToListOfAtoms,(wchar_t *));
-Term	STD_PROTO(Yap_NWideStringToListOfAtoms,(wchar_t *, size_t));
-Term	STD_PROTO(Yap_NWideStringToDiffListOfAtoms,(wchar_t *, Term, size_t));
-int     STD_PROTO(Yap_AtomIncreaseHold,(Atom));
-int     STD_PROTO(Yap_AtomDecreaseHold,(Atom));
-struct operator_entry *STD_PROTO(Yap_OpPropForModule,(Atom, Term));
-Int	STD_PROTO(Yap_InitSlot,(Term CACHE_TYPE));
-Int     STD_PROTO(Yap_NewSlots,(int CACHE_TYPE));
-int     STD_PROTO(Yap_RecoverSlots,(int CACHE_TYPE));
-
+extern Term Yap_ArrayToList(Term *, size_t);
+extern int Yap_GetName(char *, UInt, Term);
+extern Term Yap_GetValue(Atom);
+extern int Yap_HasOp(Atom);
+extern struct operator_entry *
+     Yap_GetOpPropForAModuleHavingALock(struct AtomEntryStruct *, Term);
+extern Atom Yap_LookupAtom(const char *);
+extern Atom Yap_AtomInUse(const char *atom);
+extern Atom Yap_ULookupAtom(const unsigned char *);
+extern Atom Yap_LookupAtomWithLength(const char *, size_t);
+extern Atom Yap_FullLookupAtom(const char *);
+extern void Yap_LookupAtomWithAddress(const char *, struct AtomEntryStruct *);
+extern Prop Yap_NewPredPropByFunctor(struct FunctorEntryStruct *, Term);
+extern Prop Yap_NewPredPropByAtom(struct AtomEntryStruct *, Term);
+extern Prop Yap_PredPropByFunctorNonThreadLocal(struct FunctorEntryStruct *, Term);
+extern Prop Yap_PredPropByAtomNonThreadLocal(struct AtomEntryStruct *, Term);
+extern Functor Yap_UnlockedMkFunctor(struct AtomEntryStruct *, arity_t);
+extern Functor Yap_MkFunctor(Atom, arity_t);
+extern void Yap_MkFunctorWithAddress(Atom, unsigned int, FunctorEntry *);
+extern void Yap_PutValue(Atom, Term);
+extern void Yap_ReleaseAtom(Atom);
+extern int Yap_AtomIncreaseHold(Atom);
+extern int Yap_AtomDecreaseHold(Atom);
+extern struct operator_entry *Yap_OpPropForModule(Atom, Term);
 
 #ifdef SFUNC
-Term	STD_PROTO(MkSFTerm,(Functor,int,Term *,Term));
-CELL	STD_PROTO(*ArgsOfSFTerm,(Term));
+extern Term MkSFTerm(Functor, int, Term *, Term);
+extern CELL *ArgsOfSFTerm(Term);
 #endif
 
-Prop	STD_PROTO(Yap_GetPredPropByAtom,(Atom, Term));
-Prop	STD_PROTO(Yap_GetPredPropByFunc,(Functor, Term));
-Prop	STD_PROTO(Yap_GetPredPropByAtomInThisModule,(Atom, Term));
-Prop	STD_PROTO(Yap_GetPredPropByFuncInThisModule,(Functor, Term));
-Prop	STD_PROTO(Yap_GetPredPropHavingLock,(Atom,unsigned int, Term));
-Prop	STD_PROTO(Yap_GetExpProp,(Atom,unsigned int));
-Prop	STD_PROTO(Yap_GetExpPropHavingLock,(AtomEntry *,unsigned int));
+extern Prop Yap_GetPredPropByAtom(Atom, Term);
+extern Prop Yap_GetPredPropByFunc(Functor, Term);
+extern Prop Yap_GetPredPropByAtomInThisModule(Atom, Term);
+extern Prop Yap_GetPredPropByFuncInThisModule(Functor, Term);
+extern Prop Yap_GetPredPropHavingLock(Atom, unsigned int, Term);
+extern Prop Yap_GetExpProp(Atom, unsigned int);
+extern Prop Yap_GetExpPropHavingLock(struct AtomEntryStruct *, unsigned int);
 
 /* agc.c */
-void    STD_PROTO(Yap_atom_gc, (CACHE_TYPE1));
-void    STD_PROTO(Yap_init_agc, (void));
+extern void Yap_atom_gc(CACHE_TYPE1);
+extern void Yap_init_agc(void);
 
 /* alloc.c */
-void	STD_PROTO(Yap_FreeCodeSpace,(char *));
-char   *STD_PROTO(Yap_AllocAtomSpace,(unsigned long int));
-char   *STD_PROTO(Yap_AllocCodeSpace,(unsigned long int));
-char   *STD_PROTO(Yap_ReallocCodeSpace,(char *,unsigned long int));
-ADDR	STD_PROTO(Yap_AllocFromForeignArea,(Int));
-int     STD_PROTO(Yap_ExtendWorkSpace,(Int));
-void	STD_PROTO(Yap_FreeAtomSpace,(char *));
-int     STD_PROTO(Yap_FreeWorkSpace, (void));
-void	STD_PROTO(Yap_InitMemory,(UInt,UInt,UInt));
-void	STD_PROTO(Yap_InitExStacks,(int,int));
+extern void Yap_FreeCodeSpace(void *);
+extern void *Yap_AllocAtomSpace(size_t);
+extern void *Yap_AllocCodeSpace(size_t);
+extern void *Yap_ReallocCodeSpace(void *, size_t);
+extern ADDR Yap_AllocFromForeignArea(Int);
+extern int Yap_ExtendWorkSpace(Int);
+extern void Yap_FreeAtomSpace(void *);
+extern int Yap_FreeWorkSpace(void);
+extern void Yap_InitMemory(UInt, UInt, UInt);
+extern void Yap_InitExStacks(int, int, int);
 
 /* amasm.c */
-OPCODE	STD_PROTO(Yap_opcode,(op_numbers));
+extern OPCODE Yap_opcode(op_numbers);
 
 /* analyst.c */
 #ifdef ANALYST
-void   STD_PROTO(Yap_InitAnalystPreds,(void));
+extern void Yap_InitAnalystPreds(void);
 #endif /* ANALYST */
 
 /* arrays.c */
-void   STD_PROTO(Yap_InitArrayPreds,(void));
+extern void Yap_InitArrayPreds(void);
+
+/* atoms.c */
+extern void Yap_InitBackAtoms(void);
+extern void Yap_InitAtomPreds(void);
 
 /* attvar.c */
-void   STD_PROTO(Yap_InitAttVarPreds,(void));
+extern void Yap_InitAttVarPreds(void);
+extern void Yap_MkEmptyWakeUp(Atom mod);
 
 /* bb.c */
-void   STD_PROTO(Yap_InitBBPreds,(void));
+extern void Yap_InitBBPreds(void);
 
 /* bignum.c */
-Term   STD_PROTO(Yap_MkULLIntTerm, (YAP_ULONG_LONG));
-int    STD_PROTO(Yap_IsStringTerm, (Term));
-int    STD_PROTO(Yap_IsWideStringTerm, (Term));
-Term   STD_PROTO(Yap_RatTermToApplTerm, (Term));
-void   STD_PROTO(Yap_InitBigNums, (void));
-Term   STD_PROTO(Yap_AllocExternalDataInStack, (CELL, size_t));
-int    STD_PROTO(Yap_CleanOpaqueVariable, (CELL *));
+extern Term Yap_MkULLIntTerm(YAP_ULONG_LONG);
+extern int Yap_IsStringTerm(Term);
+extern int Yap_IsWideStringTerm(Term);
+extern Term Yap_RatTermToApplTerm(Term);
+extern void Yap_InitBigNums(void);
+extern Term Yap_AllocExternalDataInStack(CELL, size_t, void *);
+extern int Yap_CleanOpaqueVariable(Term t);
+extern CELL *Yap_HeapStoreOpaqueTerm(Term t);
+extern size_t Yap_OpaqueTermToString(Term t, char *str, size_t max);
+extern Int Yap_blob_tag(Term t);
 
 /* c_interface.c */
-Int    STD_PROTO(YAP_Execute,(struct pred_entry *, CPredicate));
-Int    STD_PROTO(YAP_ExecuteFirst,(struct pred_entry *, CPredicate));
-Int    STD_PROTO(YAP_ExecuteNext,(struct pred_entry *, CPredicate));
-Int    STD_PROTO(YAP_ExecuteOnCut,(struct pred_entry *, CPredicate, struct cut_c_str *));
+#ifndef YAP_CPP_INTERFACE
+extern X_API Int YAP_Execute(struct pred_entry *, CPredicate);
+extern X_API Int YAP_ExecuteFirst(struct pred_entry *, CPredicate);
+extern X_API Int YAP_ExecuteNext(struct pred_entry *, CPredicate);
+extern X_API Int YAP_ExecuteOnCut(struct pred_entry *, CPredicate, struct cut_c_str *);
+extern X_API Int YAP_RunGoalOnce(Term);
+#endif
 
 /* cdmgr.c */
-Term	STD_PROTO(Yap_all_calls,(void));
-Atom	STD_PROTO(Yap_ConsultingFile,(void));
-struct pred_entry *STD_PROTO(Yap_PredForChoicePt,(choiceptr));
-void	STD_PROTO(Yap_InitCdMgr,(void));
-void	STD_PROTO(Yap_init_consult,(int, char *));
-void	STD_PROTO(Yap_end_consult,(void));
-void	STD_PROTO(Yap_Abolish,(struct pred_entry *));
-void	STD_PROTO(Yap_BuildMegaClause,(struct pred_entry *));
-void	STD_PROTO(Yap_EraseMegaClause,(yamop *,struct pred_entry *));
-void	STD_PROTO(Yap_ResetConsultStack,(void));
-void	STD_PROTO(Yap_AssertzClause,(struct pred_entry *, yamop *));
-
+extern Term Yap_all_calls(void);
+extern Atom Yap_ConsultingFile(USES_REGS1);
+extern struct pred_entry *Yap_PredForChoicePt(choiceptr bptr, op_numbers *op);
+extern void Yap_InitCdMgr(void);
+extern struct pred_entry *Yap_PredFromClause(Term t USES_REGS);
+extern bool Yap_discontiguous(struct pred_entry *ap, Term mode USES_REGS);
+extern bool Yap_multiple(struct pred_entry *ap, Term mode USES_REGS);
+extern void Yap_init_consult(int, const char *);
+extern void Yap_end_consult(void);
+extern void Yap_Abolish(struct pred_entry *);
+extern void Yap_BuildMegaClause(struct pred_entry *);
+extern void Yap_EraseMegaClause(yamop *, struct pred_entry *);
+extern void Yap_ResetConsultStack(void);
+extern void Yap_AssertzClause(struct pred_entry *, yamop *);
+extern void Yap_HidePred(struct pred_entry *pe);
+extern int Yap_SetNoTrace(char *name, UInt arity, Term tmod);
+extern bool Yap_unknown(Term tflagvalue);
+extern struct pred_entry *Yap_MkLogPred(struct pred_entry *pe);
 
 /* cmppreds.c */
-Int	STD_PROTO(Yap_compare_terms,(Term,Term));
-void	STD_PROTO(Yap_InitCmpPreds,(void));
+extern Int Yap_compare_terms(Term, Term);
+extern Int Yap_acmp(Term, Term USES_REGS);
+extern void Yap_InitCmpPreds(void);
 
 /* compiler.c */
-yamop  *STD_PROTO(Yap_cclause,(Term, Int, Term, Term));
+extern yamop *Yap_cclause(Term, Int, Term, Term);
 
 /* computils.c */
+extern int Yap_DebugPutc(FILE *, wchar_t);
+extern int Yap_DebugPuts(FILE *, const char *);
+extern void Yap_DebugSetIFile(char *);
+extern void Yap_DebugEndline(void);
+extern void Yap_DebugPlWrite(Term t);
+extern void Yap_DebugPlWriteln(Term t);
 
 /* corout.c */
-void	STD_PROTO(Yap_InitCoroutPreds,(void));
+extern void Yap_InitCoroutPreds(void);
 #ifdef COROUTINING
-Term	STD_PROTO(Yap_ListOfWokenGoals,(void));
-void	STD_PROTO(Yap_WakeUp,(CELL *));
+extern Term Yap_ListOfWokenGoals(void);
+extern void Yap_WakeUp(CELL *);
 #endif
 
 /* dbase.c */
-struct pred_entry  *STD_PROTO(Yap_FindLUIntKey,(Int));
-int     STD_PROTO(Yap_DBTrailOverflow,(void));
-CELL	STD_PROTO(Yap_EvalMasks,(Term,CELL *));
-void	STD_PROTO(Yap_InitBackDB,(void));
-void	STD_PROTO(Yap_InitDBPreds,(void));
+extern struct pred_entry *Yap_FindLUIntKey(Int);
+extern int Yap_DBTrailOverflow(void);
+extern CELL Yap_EvalMasks(Term, CELL *);
+extern void Yap_InitBackDB(void);
+extern void Yap_InitDBPreds(void);
 
 /* errors.c */
-void	STD_PROTO(Yap_RestartYap,(int));
-void	STD_PROTO(Yap_exit,(int));
-yamop  *STD_PROTO(Yap_Error,(yap_error_number,Term,char *msg, ...));
-yamop  *STD_PROTO(Yap_NilError,(yap_error_number,char *msg, ...));
+#if DEBUG
+extern const char *Yap_PrintPredName(struct pred_entry *ap);
+#endif
+extern void Yap_RestartYap(int);
+extern void Yap_exit(int)
+#ifndef MSC_VER
+__attribute__((noreturn))
+#endif
+;
+extern bool Yap_Warning(const char *s, ...);
+extern bool Yap_PrintWarning(Term t);
+extern bool Yap_HandleError__(const char *file, const char *function, int lineno,
+                       const char *s, ...);
+#define Yap_HandleError(...)                                                   \
+  Yap_HandleError__(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+extern int Yap_SWIHandleError(const char *, ...);
+extern void Yap_InitErrorPreds(void);
 
 /* eval.c */
-void	STD_PROTO(Yap_InitEval,(void));
+extern void Yap_InitEval(void);
 
 /* exec.c */
-Term	STD_PROTO(Yap_ExecuteCallMetaCall,(Term));
-void	STD_PROTO(Yap_InitExecFs,(void));
-Int	STD_PROTO(Yap_JumpToEnv,(Term));
-Term	STD_PROTO(Yap_RunTopGoal,(Term));
-void	STD_PROTO(Yap_ResetExceptionTerm,(void));
-Int	STD_PROTO(Yap_execute_goal,(Term, int, Term));
-Int	STD_PROTO(Yap_exec_absmi,(int));
-void	STD_PROTO(Yap_trust_last,(void));
-Term	STD_PROTO(Yap_GetException,(void));
+extern void Yap_fail_all(choiceptr bb USES_REGS);
+extern Term Yap_ExecuteCallMetaCall(Term,Term);
+extern void Yap_InitExecFs(void);
+extern bool Yap_JumpToEnv(void);
+extern Term Yap_RunTopGoal(Term, bool);
+extern bool Yap_execute_goal(Term, int, Term, bool);
+extern bool Yap_exec_absmi(bool, yap_reset_t);
+extern void Yap_trust_last(void);
+
+extern void Yap_PrepGoal(UInt, CELL *, choiceptr USES_REGS);
+extern bool Yap_execute_pred(struct pred_entry *ppe, CELL *pt,
+                      bool pass_exception USES_REGS);
+extern int Yap_dogc(int extra_args, Term *tp USES_REGS);
+extern Term Yap_PredicateIndicator(Term t, Term mod);
+extern bool Yap_Execute(Term t USES_REGS);
+
+/* exo.c */
+extern void Yap_InitExoPreds(void);
+extern void Yap_udi_Interval_init(void);
+extern bool Yap_Reset(yap_reset_t mode, bool hard);
+
+/* foreign.c */
+extern char *Yap_FindExecutable(void);
 
 /* gprof.c */
-void	STD_PROTO(Yap_InitLowProf,(void));
-#if  LOW_PROF
-void	STD_PROTO(Yap_inform_profiler_of_clause__,(void *,void *,struct pred_entry *, gprof_info));
-#define Yap_inform_profiler_of_clause(CODE0,CODEF,AP,MODE) {if (LOCAL_FPreds) Yap_inform_profiler_of_clause__(CODE0,CODEF,AP,MODE);}
+extern void Yap_InitLowProf(void);
+#if LOW_PROF
+extern void Yap_inform_profiler_of_clause__(void *, void *, struct pred_entry *,
+                                     gprof_info);
+#define Yap_inform_profiler_of_clause(CODE0, CODEF, AP, MODE)                  \
+  {                                                                            \
+    if (GLOBAL_FPreds)                                                         \
+      Yap_inform_profiler_of_clause__(CODE0, CODEF, AP, MODE);                 \
+  }
 #else
-#define	Yap_inform_profiler_of_clause(CODE0,CODEF,AP,MODE)
+#define Yap_inform_profiler_of_clause(CODE0, CODEF, AP, MODE)
 #endif
-void    STD_PROTO(Yap_tell_gprof,(yamop *));
+extern void Yap_tell_gprof(yamop *);
 
 /* globals.c */
-Term	STD_PROTO(Yap_NewArena,(UInt,CELL *));
-CELL   *STD_PROTO(Yap_GetFromArena,(Term *,UInt,UInt));
-void	STD_PROTO(Yap_InitGlobals,(void));
-Term	STD_PROTO(Yap_SaveTerm, (Term));
-Term	STD_PROTO(Yap_SetGlobalVal, (Atom, Term));
-Int	STD_PROTO(Yap_DeleteGlobal, (Atom));
-void	STD_PROTO(Yap_AllocateDefaultArena, (Int, Int));
+extern Term Yap_NewArena(UInt, CELL *);
+extern CELL *Yap_GetFromArena(Term *, UInt, UInt);
+extern void Yap_InitGlobals(void);
+extern Term Yap_SaveTerm(Term);
+extern Term Yap_SetGlobalVal(Atom, Term);
+extern Term Yap_GetGlobal(Atom);
+extern  Int Yap_DeleteGlobal(Atom);
+extern void Yap_AllocateDefaultArena(Int, Int, int);
+extern CELL *Yap_ArenaLimit(Term arena);
 
 /* grow.c */
-Int     STD_PROTO(Yap_total_stack_shift_time,(void));
-void    STD_PROTO(Yap_InitGrowPreds, (void));
-UInt    STD_PROTO(Yap_InsertInGlobal, (CELL *, UInt));
-int     STD_PROTO(Yap_growheap,      (int, UInt, void *));
-int     STD_PROTO(Yap_growstack,     (long));
-int     STD_PROTO(Yap_growtrail,     (long, int));
-int     STD_PROTO(Yap_growglobal,    (CELL **));
-CELL  **STD_PROTO(Yap_shift_visit,   (CELL **, CELL ***, CELL ***));
+extern Int Yap_total_stack_shift_time(void);
+extern void Yap_InitGrowPreds(void);
+extern UInt Yap_InsertInGlobal(CELL *, UInt);
+extern int Yap_growheap(bool, size_t, void *);
+extern int Yap_growstack(size_t);
+extern int Yap_growtrail(size_t, bool);
+extern int Yap_growglobal(CELL **);
+extern int Yap_locked_growheap(bool, size_t, void *);
+extern int Yap_locked_growstack(size_t);
+extern int Yap_locked_growtrail(size_t, bool);
+extern int Yap_locked_growglobal(CELL **);
+extern CELL **Yap_shift_visit(CELL **, CELL ***, CELL ***);
 #ifdef THREADS
-void   STD_PROTO(Yap_CopyThreadStacks, (int, int, int));
+extern void Yap_CopyThreadStacks(int, int, int);
 #endif
 
 /* heapgc.c */
-Int  STD_PROTO(Yap_total_gc_time,(void));
-void STD_PROTO(Yap_init_gc,(void));
-int  STD_PROTO(Yap_is_gc_verbose, (void));
-int  STD_PROTO(Yap_gc, (Int, CELL *, yamop *));
-int  STD_PROTO(Yap_gcl, (UInt, Int, CELL *, yamop *));
+extern Int Yap_total_gc_time(void);
+extern void Yap_init_gc(void);
+extern bool Yap_is_gc_verbose(void);
+extern int Yap_gc(Int, CELL *, yamop *);
+extern int Yap_locked_gc(Int, CELL *, yamop *);
+extern int Yap_gcl(UInt, Int, CELL *, yamop *);
+extern int Yap_locked_gcl(UInt, Int, CELL *, yamop *);
 
 /* init.c */
-#ifdef DEBUG
-int	STD_PROTO(Yap_DebugPutc,(int,wchar_t));
-void	STD_PROTO(Yap_DebugSetIFile,(char *));
-void	STD_PROTO(Yap_DebugEndline,(void));
-int	STD_PROTO(Yap_DebugGetc,(void));
-#endif
-int	STD_PROTO(Yap_IsOpType,(char *));
-void	STD_PROTO(Yap_InitCPred,(char *, unsigned long int, CPredicate, UInt));
-void	STD_PROTO(Yap_InitAsmPred,(char *, unsigned long int, int, CPredicate, UInt));
-void	STD_PROTO(Yap_InitCmpPred,(char *, unsigned long int, CmpPredicate, UInt));
-void	STD_PROTO(Yap_InitCPredBack,(char *, unsigned long int, unsigned int, CPredicate,CPredicate,UInt));
-void	STD_PROTO(Yap_InitCPredBackCut,(char *, unsigned long int, unsigned int, CPredicate,CPredicate,CPredicate,UInt));
-#ifdef CUT_C
-void    STD_PROTO(Yap_InitCPredBack_,(char *, unsigned long int, unsigned int, CPredicate,CPredicate,CPredicate,UInt));
-#endif
-void	STD_PROTO(Yap_InitWorkspace,(UInt,UInt,UInt,UInt,UInt,int,int,int));
+extern int Yap_IsOpType(char *);
+extern void Yap_InitWorkspace(struct yap_boot_params *, UInt, UInt, UInt, UInt, UInt, int, int, int);
+extern bool Yap_AddCallToFli(struct pred_entry *pe, CPredicate call);
+extern bool Yap_AddRetryToFli(struct pred_entry *pe, CPredicate re);
+extern bool Yap_AddCutToFli(struct pred_entry *pe, CPredicate cut);
+extern const char *Yap_version(void);
 
 #ifdef YAPOR
-void    STD_PROTO(Yap_init_yapor_workers, (void));
+extern void Yap_init_yapor_workers(void);
 #endif /* YAPOR */
 #if defined(YAPOR) || defined(THREADS)
-void	STD_PROTO(Yap_KillStacks,(int));
+extern void Yap_KillStacks(int);
 #else
-void	STD_PROTO(Yap_KillStacks,(int));
+extern void Yap_KillStacks(int);
 #endif
-void	STD_PROTO(Yap_InitYaamRegs,(void));
-void    STD_PROTO(Yap_ReInitWallTime, (void));
-int	STD_PROTO(Yap_OpDec,(int,char *,Atom,Term));
-void    STD_PROTO(Yap_CloseScratchPad,(void));
+extern void Yap_InitYaamRegs(int, bool full_reset);
+extern void Yap_ReInitWTime(void);
+extern int Yap_OpDec(int, char *, Atom, Term);
+extern void Yap_CloseScratchPad(void);
 
 /* inlines.c */
-void    STD_PROTO(Yap_InitInlines,(void));
-int      STD_PROTO(Yap_eq,(Term, Term));
+extern void Yap_InitInlines(void);
+extern int Yap_eq(Term, Term);
 
 /* iopreds.c */
-void	STD_PROTO(Yap_InitBackIO,(void));
-void	STD_PROTO(Yap_InitIOPreds,(void));
-void   *Yap_GetStreamHandle(Atom at);
-void   *Yap_GetInputStream(Atom at);
-void   *Yap_GetOutputStream(Atom at);
-#ifdef DEBUG
-extern void Yap_DebugPlWrite (Term t);
-extern void Yap_DebugErrorPutc (int n);
-#endif
-int     STD_PROTO(Yap_readTerm, (void *, Term *, Term *, Term *, Term *));
-void    STD_PROTO(Yap_PlWriteToStream, (Term, int, int));
+extern bool Yap_IsAbsolutePath(const char *p, bool);
+extern Atom Yap_TemporaryFile(const char *prefix, int *fd);
+extern void Yap_InitPlIO( struct yap_boot_params *ts );
+extern void Yap_InitBackIO(void);
+extern void Yap_InitIOPreds(void);
+extern void Yap_DebugPlWrite(Term t);
+extern void Yap_DebugPlWriteln(Term t);
+extern void Yap_DebugErrorPutc(int n);
+extern void Yap_DebugErrorPuts(const char *s);
+extern void Yap_DebugWriteIndicator(struct pred_entry *ap);
+extern void Yap_CloseReadline(void);
 /* depth_lim.c */
-void	STD_PROTO(Yap_InitItDeepenPreds,(void));
+extern bool Yap_InitReadline(Term t);
+extern void Yap_InitItDeepenPreds(void);
+extern struct AliasDescS *Yap_InitStandardAliases(void);
 
 /* load_foreign.c */
-void	STD_PROTO(Yap_InitLoadForeign,(void));
+extern void Yap_InitLoadForeign(void);
+extern bool Yap_LateInit(const char s[]);
 
 /* mavar.c */
-void	STD_PROTO(Yap_InitMaVarCPreds,(void));
-Term    STD_PROTO(Yap_NewTimedVar,(Term));
-Term    STD_PROTO(Yap_NewEmptyTimedVar,(void));
-Term	STD_PROTO(Yap_ReadTimedVar,(Term));
-Term    STD_PROTO(Yap_UpdateTimedVar,(Term, Term));
+extern void Yap_InitMaVarCPreds(void);
+extern Term Yap_NewTimedVar(Term);
+extern Term Yap_NewEmptyTimedVar(void);
+extern Term Yap_ReadTimedVar(Term);
+extern Term Yap_UpdateTimedVar(Term, Term);
 
 /* modules.c */
-Term    STD_PROTO(Yap_Module, (Term));
-Term    STD_PROTO(Yap_Module_Name, (struct pred_entry *));
-struct pred_entry *STD_PROTO(Yap_ModulePred, (Term));
-void    STD_PROTO(Yap_NewModulePred, (Term, struct pred_entry *));
-Term    STD_PROTO(Yap_StripModule, (Term, Term *));
-void    STD_PROTO(Yap_InitModules, (void));
-void    STD_PROTO(Yap_InitModulesC, (void));
+extern Term Yap_Module(Term);
+extern Term Yap_Module_Name(struct pred_entry *);
+extern struct pred_entry *Yap_ModulePred(Term);
+extern void Yap_NewModulePred(Term, struct pred_entry *);
+extern Term Yap_StripModule(Term, Term *);
+extern Term Yap_YapStripModule(Term, Term *);
+extern void Yap_InitModules(void);
+extern void Yap_InitModulesC(void);
+extern struct mod_entry *Yap_GetModuleEntry(Term tmod);
+extern Term Yap_GetModuleFromEntry(struct mod_entry *me);
+extern bool Yap_CharacterEscapes(Term mt);
+extern bool Yap_constPred(struct pred_entry *pt);
+extern bool Yap_isSystemModule(Term mod);
 
 #if HAVE_MPI
 /* mpi.c */
-void    STD_PROTO(Yap_InitMPI,(void));
+extern void Yap_InitMPI(void);
 #endif
 
 #if HAVE_MPE
 /* mpe.c */
-void    STD_PROTO(Yap_InitMPE,(void));
+extern void Yap_InitMPE(void);
 #endif
 
-
 /* other.c */
-Term	STD_PROTO(Yap_MkApplTerm,(Functor,unsigned int,Term *));
-Term	STD_PROTO(Yap_MkNewApplTerm,(Functor,unsigned int));
-Term	STD_PROTO(Yap_MkNewPairTerm,(void));
-Term	STD_PROTO(Yap_Globalise,(Term));
-
-
-/* parser.c */
-Term	STD_PROTO(Yap_Parse,(void));
+extern Term Yap_MkApplTerm(Functor, arity_t, const Term *);
+extern Term Yap_MkNewApplTerm(Functor, arity_t);
+extern Term Yap_MkNewPairTerm(void);
+extern Term Yap_Globalise(Term);
 
 /* readutil.c */
-void	STD_PROTO(Yap_InitReadUtil,(void));
+extern void Yap_InitReadUtil(void);
 
 /* qly.c */
-void	STD_PROTO(Yap_InitQLY,(void));
-int 	STD_PROTO(Yap_Restore,(char *, char *));
-void	STD_PROTO(Yap_InitQLYR,(void));
+extern void Yap_InitQLY(void);
+extern YAP_file_type_t Yap_Restore(const char *);
+extern void Yap_InitQLYR(void);
+
+/* range.c */
+extern void Yap_InitRange(void);
 
 /* save.c */
-int	STD_PROTO(Yap_SavedInfo,(char *,char *,CELL *,CELL *,CELL *));
-int 	STD_PROTO(Yap_SavedStateRestore,(char *, char *));
-struct io_stream *STD_PROTO(Yap_OpenRestore,(char *, char *));
-void	STD_PROTO(Yap_InitSavePreds,(void));
+extern int Yap_SavedInfo(const char *, CELL *, CELL *, CELL *);
+extern int Yap_SavedStateRestore(char *);
+extern FILE *Yap_OpenRestore(const char *);
+extern void Yap_InitSavePreds(void);
 
 /* scanner.c */
 
+/* signals.c */
+extern void Yap_InitSignalCPreds(void);
+extern void *Yap_InitSignals(int wid);
+extern bool Yap_DisableInterrupts(int wid);
+extern bool Yap_EnableInterrupts(int wid);
+
+extern void Yap_InitSockets(void);
+
 /* sort.c */
-void    STD_PROTO(Yap_InitSortPreds,(void));
+extern void Yap_InitSortPreds(void);
+
+/* stack.c */
+extern void Yap_InitStInfo(void);
+extern void Yap_dump_stack(void);
+extern void Yap_output_bug_location(yamop *yap_pc, int where_from, int psize);
+
+#if !defined(YAPOR) && !defined(THREADS)
+extern bool Yap_search_for_static_predicate_in_use(struct pred_entry *, bool);
+#endif
 
 /* stdpreds.c */
-void	STD_PROTO(Yap_InitBackCPreds,(void));
-void	STD_PROTO(Yap_InitCPreds,(void));
-void	STD_PROTO(Yap_show_statistics,(void));
-void	STD_PROTO(Yap_signal,(yap_signals));
-void	STD_PROTO(Yap_undo_signal,(yap_signals));
-int	STD_PROTO(Yap_IsOpMaxPrio,(Atom));
+extern void Yap_InitBackCPreds(void);
+extern void Yap_InitCPreds(void);
+extern void Yap_show_statistics(void);
+extern int Yap_IsOpMaxPrio(Atom);
+
+extern bool Yap_SetInputStream( Term sd );
+extern bool Yap_SetOutputStream( Term sd );
+extern bool Yap_SetErrorStream( Term sd );
 
 /* sysbits.c */
-void    STD_PROTO(Yap_InitPageSize, (void));
-void	STD_PROTO(Yap_set_fpu_exceptions,(int));
-UInt	STD_PROTO(Yap_cputime,(void));
-Int	STD_PROTO(Yap_walltime,(void));
-int	STD_PROTO(Yap_dir_separator,(int));
-int	STD_PROTO(Yap_volume_header,(char *));
-void	STD_PROTO(Yap_InitSysPath,(void));
-int	STD_PROTO(Yap_signal_index,(const char *));
+extern size_t Yap_InitPageSize(void);
+extern bool Yap_set_fpu_exceptions(Term);
+extern UInt Yap_cputime(void);
+extern uint64_t Yap_walltime(void);
+extern int Yap_dir_separator(int);
+extern int Yap_volume_header(char *);
+extern int Yap_signal_index(const char *);
 #ifdef MAC
-void	STD_PROTO(Yap_SetTextFile,(char *));
+extern void Yap_SetTextFile(char *);
 #endif
-int     STD_PROTO(Yap_getcwd,(const char *, int));
-void    STD_PROTO(Yap_cputime_interval,(Int *,Int *));
-void    STD_PROTO(Yap_systime_interval,(Int *,Int *));
-void    STD_PROTO(Yap_walltime_interval,(Int *,Int *));
-void	STD_PROTO(Yap_InitSysbits,(void));
-void	STD_PROTO(Yap_InitSysPreds,(void));
-void	STD_PROTO(Yap_InitTime,(void));
-int     STD_PROTO(Yap_TrueFileName, (char *, char *, int));
-double  STD_PROTO(Yap_random, (void));
+extern const char *Yap_AbsoluteFile(const char *spec, bool expand);
+#if __ANDROID__
+#include <android/asset_manager.h>
+
+extern void *Yap_openAssetFile(const char *path);
+extern bool Yap_isAsset(const char *path);
+#endif
+extern const char *Yap_getcwd( char *, size_t);
+extern void Yap_cputime_interval(Int *, Int *);
+extern void Yap_systime_interval(Int *, Int *);
+extern void Yap_InitSysbits(int wid);
+extern void Yap_InitSysPreds(void);
+extern void Yap_InitcTime(int);
+extern void Yap_InitTime(int);
+extern double Yap_random(void);
 #ifdef _WIN32
-char	*STD_PROTO(Yap_RegistryGetString,(char *));
-void	STD_PROTO(Yap_WinError,(char *));
+extern char *Yap_RegistryGetString(char *);
+extern void Yap_WinError(char *);
 #endif
+
+extern const char *Yap_AbsoluteFileInBuffer(const char *spec, char *outp, size_t sz,
+                                     bool ok);
+extern bool Yap_ChDir(const char *path);
+bool Yap_isDirectory(const char *FileName);
+extern bool Yap_Exists(const char *f);
 
 /* threads.c */
-void   STD_PROTO(Yap_InitThreadPreds,(void));
+extern void Yap_InitThreadPreds(void);
+extern void Yap_InitFirstWorkerThreadHandle(void);
+extern int Yap_ThreadID(void);
+extern int Yap_NOfThreads(void);
 #if THREADS
-int    STD_PROTO(Yap_InitThread,(int));
+extern int Yap_InitThread(int);
 #endif
-
+extern intptr_t system_thread_id(void);
 /* tracer.c */
 #ifdef LOW_LEVEL_TRACER
-void	STD_PROTO(Yap_InitLowLevelTrace,(void));
+extern void Yap_InitLowLevelTrace(void);
 #endif
+
+extern void *Yap_InitTextAllocator( void );
 
 /* udi.c */
-void	STD_PROTO(Yap_udi_init,(void));
-void	STD_PROTO(Yap_udi_abolish,(struct pred_entry *));
+extern void Yap_udi_init(void);
+extern void Yap_udi_abolish(struct pred_entry *);
 
 /* unify.c */
-int          STD_PROTO(Yap_rational_tree_loop, (CELL *, CELL *, CELL **, CELL **));
-void         STD_PROTO(Yap_InitAbsmi,(void));
-void         STD_PROTO(Yap_InitUnify,(void));
-void         STD_PROTO(Yap_TrimTrail,(void));
-int          STD_PROTO(Yap_Unifiable,(Term d0, Term d1));
-int          STD_PROTO(Yap_IUnify,(register CELL d0,register CELL d1));
+extern int Yap_rational_tree_loop(CELL *, CELL *, CELL **, CELL **);
+extern void Yap_InitAbsmi(void);
+extern void Yap_InitUnify(void);
+extern void Yap_TrimTrail(void);
+extern int Yap_Unifiable(Term d0, Term d1);
+extern int Yap_IUnify(register CELL d0, register CELL d1);
 
 /* userpreds.c */
-void	STD_PROTO(Yap_InitUserCPreds,(void));
-void	STD_PROTO(Yap_InitUserBacks,(void));
+extern void Yap_InitUserCPreds(void);
+extern void Yap_InitUserBacks(void);
 
 /* utilpreds.c */
-Term	STD_PROTO(Yap_CopyTerm,(Term));
-int	STD_PROTO(Yap_Variant,(Term, Term));
-size_t	STD_PROTO(Yap_ExportTerm,(Term, char *, size_t, UInt));
-size_t	STD_PROTO(Yap_SizeOfExportedTerm,(char *));
-Term	STD_PROTO(Yap_ImportTerm,(char *));
-int	STD_PROTO(Yap_IsListTerm,(Term));
-int	STD_PROTO(Yap_IsListOrPartialListTerm,(Term));
-Term	STD_PROTO(Yap_CopyTermNoShare,(Term));
-int	STD_PROTO(Yap_SizeGroundTerm,(Term, int));
-int	STD_PROTO(Yap_IsGroundTerm,(Term));
-void	STD_PROTO(Yap_InitUtilCPreds,(void));
-Int     STD_PROTO(Yap_TermHash,(Term, Int, Int, int));
-Int     STD_PROTO(Yap_NumberVars,(Term, Int, int));
-Term    STD_PROTO(Yap_UnNumberTerm,(Term, int));
-Int     STD_PROTO(Yap_SkipList,(Term *, Term **));
+extern Term Yap_CopyTerm(Term);
+extern bool Yap_Variant(Term, Term);
+extern size_t Yap_ExportTerm(Term, char *, size_t, UInt);
+extern size_t Yap_SizeOfExportedTerm(char *);
+extern Term Yap_ImportTerm(char *);
+extern bool Yap_IsListTerm(Term);
+extern bool Yap_IsListOrPartialListTerm(Term);
+extern Term Yap_CopyTermNoShare(Term);
+extern int Yap_SizeGroundTerm(Term, int);
+extern bool Yap_IsGroundTerm(Term);
+extern bool Yap_IsAcyclicTerm(Term);
+extern void Yap_InitUtilCPreds(void);
+extern Int Yap_TermHash(Term, Int, Int, int);
+extern Int Yap_NumberVars(Term, Int, bool);
+extern Term Yap_TermVariables(Term t, UInt arity USES_REGS);
+extern Term Yap_UnNumberTerm(Term, int);
+extern  Int Yap_SkipList(Term *, Term **);
+extern Term Yap_BreakRational(Term inp, UInt arity, Term *of, Term oi USES_REGS);
+extern Term Yap_BreakTerml(Term inp, UInt arity, Term *of, Term oi USES_REGS);
+
 /* yap.c */
 
-
 /* write.c */
-void	STD_PROTO(Yap_plwrite,(Term, void *, int, int, int));
-
-
-/* MYDDAS */
-
-#if defined MYDDAS_MYSQL || defined MYDDAS_ODBC
-
-/* myddas_initialization.c */
-MYDDAS_GLOBAL          STD_PROTO(myddas_init_initialize_myddas,(void));
-MYDDAS_UTIL_CONNECTION STD_PROTO(myddas_init_initialize_connection,(void *,void *,MYDDAS_UTIL_CONNECTION));
-MYDDAS_UTIL_PREDICATE  STD_PROTO(myddas_init_initialize_predicate,(char *, int, char *,MYDDAS_UTIL_PREDICATE));
-
-#ifdef MYDDAS_STATS
-/* myddas_statistics.c */
-MYDDAS_GLOBAL          STD_PROTO(myddas_stats_initialize_global_stats,(MYDDAS_GLOBAL));
-MYDDAS_STATS_STRUCT    STD_PROTO(myddas_stats_initialize_connection_stats,(void));
-void                   STD_PROTO(myddas_stats_delete_stats_list,(MYDDAS_STATS_STRUCT));
-#endif /* MYDDAS_STATS */
-
-#ifdef MYDDAS_MYSQL
-/* myddas_util.c */
-void                   STD_PROTO(myddas_util_table_write,(MYSQL_RES *));
-#endif
-Short                  STD_PROTO(myddas_util_connection_type,(void *));
-MYDDAS_UTIL_CONNECTION STD_PROTO(myddas_util_add_connection,(void *,void *));
-MYDDAS_UTIL_CONNECTION STD_PROTO(myddas_util_search_connection,(void *));
-void                   STD_PROTO(myddas_util_delete_connection,(void *));
-MYDDAS_UTIL_CONNECTION STD_PROTO(myddas_util_add_predicate,(char * ,Int , char *,void *));
-MYDDAS_UTIL_PREDICATE  STD_PROTO(myddas_util_search_predicate,(char * ,Int , char *));
-void                   STD_PROTO(myddas_util_delete_predicate,(MYDDAS_UTIL_PREDICATE));
-
-/* Get's the number of queries to save */
-UInt                   STD_PROTO(myddas_util_get_total_multi_queries_number,(MYDDAS_UTIL_CONNECTION));
-void                   STD_PROTO(myddas_util_set_total_multi_queries_number,(MYDDAS_UTIL_CONNECTION,UInt));
-#ifdef MYDDAS_ODBC
-/* Return enviromment identifier*/
-SQLHENV                STD_PROTO(myddas_util_get_odbc_enviromment,(SQLHDBC));
-#endif
-
-void *                 STD_PROTO(myddas_util_get_list_pred,(MYDDAS_UTIL_CONNECTION));
-void *                 STD_PROTO(myddas_util_get_pred_next,(void *));
-char *                 STD_PROTO(myddas_util_get_pred_module,(void *));
-char *                 STD_PROTO(myddas_util_get_pred_name,(void *));
-MyddasInt              STD_PROTO(myddas_util_get_pred_arity,(void *));
-//DELETE THIS WHEN DB_STATS  IS COMPLETED
-MyddasInt              STD_PROTO(get_myddas_top,(void));
-
-#ifdef DEBUG
-void check_int(void);
-#endif
-
-#endif /* MYDDAS_MYSQL || MYDDAS_ODBC */
-
-/* myddas_mysql.c */
-#if defined MYDDAS_MYSQL
-void    STD_PROTO(Yap_InitMYDDAS_MySQLPreds,(void));
-void    STD_PROTO(Yap_InitBackMYDDAS_MySQLPreds,(void));
-#endif
-
-/* myddas_odbc.c */
-#if defined MYDDAS_ODBC
-void    STD_PROTO(Yap_InitMYDDAS_ODBCPreds,(void));
-void    STD_PROTO(Yap_InitBackMYDDAS_ODBCPreds,(void));
-#endif
-
-/* myddas_shared.c */
-#if defined MYDDAS_ODBC || defined MYDDAS_MYSQL
-void    STD_PROTO(Yap_MYDDAS_delete_all_myddas_structs,(void));
-void    STD_PROTO(Yap_InitMYDDAS_SharedPreds,(void));
-void    STD_PROTO(Yap_InitBackMYDDAS_SharedPreds,(void));
-#endif
-
-/* myddas_top_level.c */
-#if defined MYDDAS_TOP_LEVEL && defined MYDDAS_MYSQL //&& defined HAVE_LIBREADLINE
-void    STD_PROTO(Yap_InitMYDDAS_TopLevelPreds,(void));
-#endif
 
 /* yap2swi.c */
-void	STD_PROTO(Yap_swi_install,(void));
-void    STD_PROTO(Yap_InitSWIHash,(void));
-int     STD_PROTO(Yap_get_stream_handle,(Term, int, int, void *));
-Term    STD_PROTO(Yap_get_stream_position,(void *));
+extern void Yap_swi_install(void);
+extern void Yap_InitSWIHash(void);
+extern int Yap_get_stream_handle(Term, int, int, void *);
+extern Term Yap_get_stream_position(void *);
+extern struct AtomEntryStruct *Yap_lookupBlob(void *blob, size_t len, void *type,
+                                       int *newp);
+extern void *Yap_RepStreamFromId(int sno);
 
 /* opt.preds.c */
-void    STD_PROTO(Yap_init_optyap_preds,(void));
+extern void Yap_init_optyap_preds(void);
 
 /* pl-file.c */
-struct PL_local_data *Yap_InitThreadIO(int wid); 
-void Yap_flush(void);
+//  struct PL_local_data *Yap_InitThreadIO(int wid);
+extern void Yap_flush_all(void);
 
-static inline
-yamop *
-gc_P(yamop *p, yamop *cp)
-{
-  return (p->opc == Yap_opcode(_execute_cpred) ? cp : p);
-}
+extern X_API YAP_opaque_tag_t
+YAP_NewOpaqueType(struct YAP_opaque_handler_struct *f);
 
+/* pl-yap.c */
+extern Int Yap_source_line_no(void);
+extern Atom Yap_source_file_name(void);
 
+extern void Yap_install_blobs(void);
+
+extern yamop *Yap_gcP(void);
+
+#if USE_MYDDAS
+extern  void init_myddas(void);
+  #endif
+
+#if !HAVE_STRNCAT
+#define strncat(X, Y, Z) strcat(X, Y)
+#endif
+#if !HAVE_STRNCPY
+#define strncpy(X, Y, Z) strcpy(X, Y)
+#endif
+
+#endif /* YAP_PROTOS_H */
+
+/// @}

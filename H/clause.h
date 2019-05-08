@@ -15,130 +15,138 @@
 *									 *
 *************************************************************************/
 
+#ifndef CLAUSE_H
+#define CLAUSE_H 1
+
 #include "Yatom.h"
 #include "YapHeap.h"
 
 /* consulting files */
 
 typedef union CONSULT_OBJ {
-  char *filename;
+  Atom f_name;
   int mode;
-  Prop  p;
+  Prop p;
   UInt c;
+  Term r;
 } consult_obj;
 
 /* Either we are assembling clauses or indexing code */
 
-#define ASSEMBLING_CLAUSE	0
-#define ASSEMBLING_INDEX	1
-#define ASSEMBLING_EINDEX	2
+#define ASSEMBLING_CLAUSE 0
+#define ASSEMBLING_INDEX 1
+#define ASSEMBLING_EINDEX 2
 
-#define NextDynamicClause(X)	(((yamop *)X)->u.Otapl.d)
+#define NextDynamicClause(X) (((yamop *)X)->y_u.Otapl.d)
 
-#define PredFirstClause		0
-#define PredMiddleClause	1
-#define PredLastClause		2
+#define PredFirstClause 0
+#define PredMiddleClause 1
+#define PredLastClause 2
 
 typedef struct logic_upd_index {
-  CELL             ClFlags;
-  UInt             ClRefCount;
+  CELL ClFlags;
+  UInt ClRefCount;
 #if defined(YAPOR) || defined(THREADS)
-  /* A lock for manipulating the clause */
-  //  lockvar          ClLock;
+/* A lock for manipulating the clause */
+//  lockvar          ClLock;
 #endif
-  UInt		   ClSize;
+  UInt ClSize;
   struct logic_upd_index *ParentIndex;
   struct logic_upd_index *SiblingIndex;
   struct logic_upd_index *PrevSiblingIndex;
   struct logic_upd_index *ChildIndex;
   /* The instructions, at least one of the form sl */
   PredEntry *ClPred;
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } LogUpdIndex;
 
 /* The ordering of the first 3 fields should be compatible with dbrefs */
 typedef struct logic_upd_clause {
-  Functor Id;		/* allow pointers to this struct to id  */
-			/*   as dbref                           */
+  Functor Id; /* allow pointers to this struct to id  */
+              /*   as dbref                           */
   /* A set of flags describing info on the clause */
   /* A set of flags describing info on the clause */
-  CELL             ClFlags;
+  CELL ClFlags;
 #if defined(YAPOR) || defined(THREADS)
-  /* A lock for manipulating the clause */
-  //  lockvar          ClLock;
+/* A lock for manipulating the clause */
+//  lockvar          ClLock;
 #endif
-  UInt		  ClSize;
+  UInt ClSize;
   /* extra clause information for logical update indices and facts */
   /* indices that may still backtrack to this clause */
-  UInt             ClRefCount;
+  UInt ClRefCount;
   /* data for clauses  with environments */
-  yamop           *ClExt;
-  DBTerm          *ClSource;
+  yamop *ClExt;
+  union {
+    DBTerm *ClSource;
+    Int ClLine;
+  } lusl;
   /* doubly linked list of clauses */
-  struct logic_upd_clause   *ClPrev, *ClNext;
+  struct logic_upd_clause *ClPrev, *ClNext;
   /* parent pointer */
-  PredEntry   *ClPred;
-  UInt             ClTimeStart, ClTimeEnd;
+  PredEntry *ClPred;
+  UInt ClTimeStart, ClTimeEnd;
   /* The instructions, at least one of the form sl */
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } LogUpdClause;
 
 #include "inline-only.h"
-inline EXTERN int VALID_TIMESTAMP(UInt, struct logic_upd_clause *) INLINE_ONLY;
+INLINE_ONLY int VALID_TIMESTAMP(UInt, struct logic_upd_clause *);
 
-inline EXTERN int
-VALID_TIMESTAMP(UInt timestamp, struct logic_upd_clause *cl)
-{
+INLINE_ONLY int VALID_TIMESTAMP(UInt timestamp,
+                                              struct logic_upd_clause *cl) {
   return IN_BETWEEN(cl->ClTimeStart, timestamp, cl->ClTimeEnd);
 }
 
 typedef struct dynamic_clause {
   /* A set of flags describing info on the clause */
-  CELL            ClFlags;
+  CELL ClFlags;
 #if defined(YAPOR) || defined(THREADS)
   /* A lock for manipulating the clause */
-  lockvar          ClLock;
+  lockvar ClLock;
 #endif
-  UInt		   ClSize;
-  UInt             ClRefCount;
-  yamop              *ClPrevious;     /* immediate update clause */
+  UInt ClSize;
+  Int ClLine;
+  UInt ClRefCount;
+  yamop *ClPrevious; /* immediate update clause */
   /* The instructions, at least one of the form sl */
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } DynamicClause;
 
 typedef struct static_index {
   /* A set of flags describing info on the clause */
-  CELL            ClFlags;
-  UInt		  ClSize;
+  CELL ClFlags;
+  UInt ClSize;
   struct static_index *SiblingIndex;
   struct static_index *ChildIndex;
   /* The instructions, at least one of the form sl */
   PredEntry *ClPred;
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } StaticIndex;
 
 typedef struct static_clause {
   /* A set of flags describing info on the clause */
-  CELL            ClFlags;
-  UInt		  ClSize;
+  CELL ClFlags;
+  UInt ClSize;
   union {
-    DBTerm          *ClSource;
-    PredEntry       *ClPred;
+    DBTerm *ClSource;
+    Int ClLine;
   } usc;
-  struct static_clause   *ClNext;
+  struct static_clause *ClNext;
   /* The instructions, at least one of the form sl */
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } StaticClause;
 
 typedef struct static_mega_clause {
   /* A set of flags describing info on the clause */
-  CELL            ClFlags;
-  UInt		  ClSize;
-  PredEntry      *ClPred;
-  UInt            ClItemSize;
-  struct  static_mega_clause *ClNext;
+  CELL ClFlags;
+  UInt ClSize;
+  PredEntry *ClPred;
+  UInt ClItemSize;
+  Int ClLine;
+  struct static_mega_clause *ClNext;
   /* The instructions, at least one of the form sl */
-  yamop            ClCode[MIN_ARRAY];
+  yamop ClCode[MIN_ARRAY];
 } MegaClause;
 
 typedef union clause_obj {
@@ -159,6 +167,68 @@ typedef union clause_ptr {
   struct static_index *si;
 } ClausePointer;
 
+typedef struct index_t {
+  struct index_t *next, *prev;
+  UInt nels;
+  UInt arity;
+  PredEntry *ap;
+  CELL bmap;
+  int is_key;
+  int is_udi;
+  UInt ncollisions;
+  UInt max_col_count;
+  UInt ntrys;
+  UInt nentries;
+  UInt hsize;
+  BITS32 *key;
+  CELL *cls, *bcls;
+  BITS32 *links;
+  size_t size;
+  yamop *code;
+  BITS32 *udi_data;
+  void *udi_first, *udi_next;
+  UInt udi_free_args;
+  UInt udi_arg;
+} Index_t;
+
+INLINE_ONLY BITS32 EXO_ADDRESS_TO_OFFSET(struct index_t *it,
+                                                       CELL *ptr);
+
+INLINE_ONLY BITS32 EXO_ADDRESS_TO_OFFSET(struct index_t *it,
+                                                       CELL *ptr) {
+  return (ptr - it->cls) / it->arity + 1;
+}
+
+INLINE_ONLY CELL *EXO_OFFSET_TO_ADDRESS(struct index_t *it,
+                                                      BITS32 off);
+
+INLINE_ONLY CELL *EXO_OFFSET_TO_ADDRESS(struct index_t *it,
+                                                      BITS32 off) {
+  if (off == 0L)
+    return (CELL *)NULL;
+  return (it->cls) + (off - 1) * it->arity;
+}
+
+INLINE_ONLY BITS32 ADDRESS_TO_LINK(struct index_t *it,
+                                                 BITS32 *ptr);
+
+INLINE_ONLY BITS32 ADDRESS_TO_LINK(struct index_t *it,
+                                                 BITS32 *ptr) {
+  return ptr - it->links;
+}
+
+INLINE_ONLY BITS32 *LINK_TO_ADDRESS(struct index_t *it,
+                                                  BITS32 off);
+
+INLINE_ONLY BITS32 *LINK_TO_ADDRESS(struct index_t *it,
+                                                  BITS32 off) {
+  return it->links + off;
+}
+
+typedef void (*CRefitExoIndex)(struct index_t **ip, UInt b[] USES_REGS);
+typedef yamop *(*CEnterExoIndex)(struct index_t *it USES_REGS);
+typedef int (*CRetryExoIndex)(struct index_t *it USES_REGS);
+
 typedef struct dbterm_list {
   /* a list of dbterms associated with a clause */
   DBTerm *dbterms;
@@ -167,87 +237,105 @@ typedef struct dbterm_list {
   struct dbterm_list *next_dbl;
 } DBTermList;
 
-#define ClauseCodeToDynamicClause(p)    ((DynamicClause *)((CODEADDR)(p)-(CELL)(((DynamicClause *)NULL)->ClCode)))
-#define ClauseCodeToStaticClause(p)    ((StaticClause *)((CODEADDR)(p)-(CELL)(((StaticClause *)NULL)->ClCode)))
-#define ClauseCodeToLogUpdClause(p)    ((LogUpdClause *)((CODEADDR)(p)-(CELL)(((LogUpdClause *)NULL)->ClCode)))
-#define ClauseCodeToMegaClause(p)    ((MegaClause *)((CODEADDR)(p)-(CELL)(((MegaClause *)NULL)->ClCode)))
-#define ClauseCodeToLogUpdIndex(p)    ((LogUpdIndex *)((CODEADDR)(p)-(CELL)(((LogUpdIndex *)NULL)->ClCode)))
-#define ClauseCodeToStaticIndex(p)    ((StaticIndex *)((CODEADDR)(p)-(CELL)(((StaticIndex *)NULL)->ClCode)))
+#define ClauseCodeToDynamicClause(p)                                           \
+  ((DynamicClause *)((CODEADDR)(p) - (CELL)(((DynamicClause *)NULL)->ClCode)))
+#define ClauseCodeToStaticClause(p)                                            \
+  ((StaticClause *)((CODEADDR)(p) - (CELL)(((StaticClause *)NULL)->ClCode)))
+#define ClauseCodeToLogUpdClause(p)                                            \
+  ((LogUpdClause *)((CODEADDR)(p) - (CELL)(((LogUpdClause *)NULL)->ClCode)))
+#define ClauseCodeToMegaClause(p)                                              \
+  ((MegaClause *)((CODEADDR)(p) - (CELL)(((MegaClause *)NULL)->ClCode)))
+#define ClauseCodeToLogUpdIndex(p)                                             \
+  ((LogUpdIndex *)((CODEADDR)(p) - (CELL)(((LogUpdIndex *)NULL)->ClCode)))
+#define ClauseCodeToStaticIndex(p)                                             \
+  ((StaticIndex *)((CODEADDR)(p) - (CELL)(((StaticIndex *)NULL)->ClCode)))
 
-#define ClauseFlagsToDynamicClause(p)    ((DynamicClause *)(p))
-#define ClauseFlagsToLogUpdClause(p)     ((LogUpdClause *)((CODEADDR)(p)-(CELL)(&(((LogUpdClause *)NULL)->ClFlags))))
-#define ClauseFlagsToLogUpdIndex(p)      ((LogUpdIndex *)((CODEADDR)(p)-(CELL)(&(((LogUpdIndex *)NULL)->ClFlags))))
-#define ClauseFlagsToStaticClause(p)     ((StaticClause *)(p))
+#define ClauseFlagsToDynamicClause(p) ((DynamicClause *)(p))
+#define ClauseFlagsToLogUpdClause(p)                                           \
+  ((LogUpdClause *)((CODEADDR)(p) - (CELL)(&(((LogUpdClause *)NULL)->ClFlags))))
+#define ClauseFlagsToLogUpdIndex(p)                                            \
+  ((LogUpdIndex *)((CODEADDR)(p) - (CELL)(&(((LogUpdIndex *)NULL)->ClFlags))))
+#define ClauseFlagsToStaticClause(p) ((StaticClause *)(p))
 
-#define DynamicFlags(X)		(ClauseCodeToDynamicClause(X)->ClFlags)
+#define DynamicFlags(X) (ClauseCodeToDynamicClause(X)->ClFlags)
 
-#define DynamicLock(X)		(ClauseCodeToDynamicClause(X)->ClLock)
+#define DynamicLock(X) (ClauseCodeToDynamicClause(X)->ClLock)
 
 #if MULTIPLE_STACKS
 #define INIT_CLREF_COUNT(X) (X)->ClRefCount = 0
-#define  INC_CLREF_COUNT(X) (X)->ClRefCount++
-#define  DEC_CLREF_COUNT(X) (X)->ClRefCount--
+#define INC_CLREF_COUNT(X) (X)->ClRefCount++
+#define DEC_CLREF_COUNT(X) (X)->ClRefCount--
 
-#define        CL_IN_USE(X) ((X)->ClRefCount)
+#define CL_IN_USE(X) ((X)->ClRefCount)
 #else
 #define INIT_CLREF_COUNT(X)
-#define  INC_CLREF_COUNT(X) 
-#define  DEC_CLREF_COUNT(X) 
-#define        CL_IN_USE(X) ((X)->ClFlags & InUseMask || (X)->ClRefCount)
+#define INC_CLREF_COUNT(X)
+#define DEC_CLREF_COUNT(X)
+#define CL_IN_USE(X) ((X)->ClFlags & InUseMask || (X)->ClRefCount)
 #endif
 
 /* amasm.c */
-wamreg	STD_PROTO(Yap_emit_x,(CELL));
-COUNT   STD_PROTO(Yap_compile_cmp_flags,(PredEntry *));
-void    STD_PROTO(Yap_InitComma,(void));
+wamreg Yap_emit_x(CELL);
+COUNT Yap_compile_cmp_flags(PredEntry *);
+void Yap_InitComma(void);
+yamop *Yap_InitCommaContinuation(PredEntry *);
 
 /* cdmgr.c */
-void	STD_PROTO(Yap_IPred,(PredEntry *, UInt, yamop *));
-int	STD_PROTO(Yap_addclause,(Term,yamop *,int,Term,Term*));
-void	STD_PROTO(Yap_add_logupd_clause,(PredEntry *,LogUpdClause *,int));
-void	STD_PROTO(Yap_kill_iblock,(ClauseUnion *,ClauseUnion *,PredEntry *));
-void	STD_PROTO(Yap_EraseStaticClause,(StaticClause *, Term));
-ClauseUnion *STD_PROTO(Yap_find_owner_index,(yamop *, PredEntry *));
+void Yap_IPred(PredEntry *, UInt, yamop *);
+bool Yap_addclause(Term, yamop *, Term, Term, Term *);
+void Yap_add_logupd_clause(PredEntry *, LogUpdClause *, int);
+void Yap_kill_iblock(ClauseUnion *, ClauseUnion *, PredEntry *);
+void Yap_EraseStaticClause(StaticClause *, PredEntry *, Term);
+ClauseUnion *Yap_find_owner_index(yamop *, PredEntry *);
 
 /* dbase.c */
-void	STD_PROTO(Yap_ErCl,(DynamicClause *));
-void	STD_PROTO(Yap_ErLogUpdCl,(LogUpdClause *));
-void    STD_PROTO(Yap_ErLogUpdIndex,(LogUpdIndex *));
-Int	STD_PROTO(Yap_Recordz,(Atom, Term));
+void Yap_ErCl(DynamicClause *);
+void Yap_ErLogUpdCl(LogUpdClause *);
+void Yap_ErLogUpdIndex(LogUpdIndex *);
+Int Yap_Recordz(Atom, Term);
+Int Yap_db_nth_recorded(PredEntry *, Int USES_REGS);
+Int Yap_unify_immediate_ref(DBRef ref USES_REGS);
 
 /* exec.c */
-Term    STD_PROTO(Yap_cp_as_integer,(choiceptr));
+Term Yap_cp_as_integer(choiceptr);
 
 /* index.c */
-yamop   *STD_PROTO(Yap_PredIsIndexable,(PredEntry *, UInt, yamop *));
-yamop   *STD_PROTO(Yap_ExpandIndex,(PredEntry *, UInt));
-void     STD_PROTO(Yap_CleanUpIndex,(struct logic_upd_index *));
-void     STD_PROTO(Yap_CleanKids,(struct logic_upd_index *));
-void     STD_PROTO(Yap_AddClauseToIndex,(PredEntry *,yamop *,int));
-void     STD_PROTO(Yap_RemoveClauseFromIndex,(PredEntry *,yamop *));
-LogUpdClause  *STD_PROTO(Yap_NthClause,(PredEntry *,Int));
-LogUpdClause  *STD_PROTO(Yap_FollowIndexingCode,(PredEntry *,yamop *, Term *, yamop *,yamop *));
+yamop *Yap_PredIsIndexable(PredEntry *, UInt, yamop *);
+yamop *Yap_ExpandIndex(PredEntry *, UInt);
+void Yap_CleanUpIndex(struct logic_upd_index *);
+void Yap_CleanKids(struct logic_upd_index *);
+void Yap_AddClauseToIndex(PredEntry *, yamop *, int);
+void Yap_RemoveClauseFromIndex(PredEntry *, yamop *);
+LogUpdClause *Yap_NthClause(PredEntry *, Int);
+LogUpdClause *Yap_FollowIndexingCode(PredEntry *, yamop *, Term *, yamop *,
+                                     yamop *);
 
+/* exo.c */
+yamop *Yap_ExoLookup(PredEntry *ap USES_REGS);
+CELL Yap_NextExo(choiceptr cpt, struct index_t *it);
+
+#
 #if USE_THREADED_CODE
 
 #define OP_HASH_SIZE 2048
 
-static inline int
-rtable_hash_op(OPCODE opc, int hash_mask) {
-  return((((CELL)opc) >> 3) & hash_mask);
+INLINE_ONLY int rtable_hash_op(OPCODE opc, int hash_mask);
+
+INLINE_ONLY int rtable_hash_op(OPCODE opc, int hash_mask) {
+  return ((((CELL)opc) >> 3) & hash_mask);
 }
+
+INLINE_ONLY op_numbers Yap_op_from_opcode(OPCODE opc);
 
 /* given an opcode find the corresponding opnumber. This should make
    switches on ops a much easier operation */
-static inline op_numbers
-Yap_op_from_opcode(OPCODE opc)
-{
-  int j = rtable_hash_op(opc,OP_HASH_SIZE-1);
+INLINE_ONLY op_numbers Yap_op_from_opcode(OPCODE opc) {
+  int j = rtable_hash_op(opc, OP_HASH_SIZE - 1);
 
   while (OP_RTABLE[j].opc != opc) {
     if (!OP_RTABLE[j].opc)
       return _Nstop;
-    if (j == OP_HASH_SIZE-1) {
+    if (j == OP_HASH_SIZE - 1) {
       j = 0;
     } else {
       j++;
@@ -256,26 +344,23 @@ Yap_op_from_opcode(OPCODE opc)
   return OP_RTABLE[j].opnum;
 }
 #else
-static inline op_numbers
-Yap_op_from_opcode(OPCODE opc)
-{
-  return((op_numbers)opc);
+static inline op_numbers Yap_op_from_opcode(OPCODE opc) {
+  return ((op_numbers)opc);
 }
 #endif /* USE_THREADED_CODE */
 
 #if defined(YAPOR) || defined(THREADS)
 static inline int same_lu_block(yamop **, yamop *);
 
-static inline int
-same_lu_block(yamop **paddr, yamop *p)
-{
+static inline int same_lu_block(yamop **paddr, yamop *p) {
   yamop *np = *paddr;
   if (np != p) {
     OPCODE jmp_op = Yap_opcode(_jump_if_nonvar);
 
     while (np->opc == jmp_op) {
       np = NEXTOP(np, xll);
-      if (np == p) return TRUE;
+      if (np == p)
+        return TRUE;
     }
     return FALSE;
   } else {
@@ -284,39 +369,80 @@ same_lu_block(yamop **paddr, yamop *p)
 }
 #endif
 
-static inline Term 
-Yap_MkStaticRefTerm(StaticClause *cp)
-{
-  Term t[1];
+#define Yap_MkStaticRefTerm(cp, ap) __Yap_MkStaticRefTerm((cp), (ap)PASS_REGS)
+
+static inline Term __Yap_MkStaticRefTerm(StaticClause *cp,
+                                         PredEntry *ap USES_REGS) {
+  Term t[2];
   t[0] = MkIntegerTerm((Int)cp);
-  return Yap_MkApplTerm(FunctorStaticClause,1,t);
+  t[1] = MkIntegerTerm((Int)ap);
+  return Yap_MkApplTerm(FunctorStaticClause, 2, t);
 }
 
-static inline StaticClause *
-Yap_ClauseFromTerm(Term t)
-{
-  return (StaticClause *)IntegerOfTerm(ArgOfTerm(1,t));
+static inline StaticClause *Yap_ClauseFromTerm(Term t) {
+  return (StaticClause *)IntegerOfTerm(ArgOfTerm(1, t));
 }
 
-static inline Term 
-Yap_MkMegaRefTerm(PredEntry *ap,yamop *ipc)
-{
+#define Yap_MkMegaRefTerm(ap, ipc) __Yap_MkMegaRefTerm((ap), (ipc)PASS_REGS)
+
+static inline Term __Yap_MkMegaRefTerm(PredEntry *ap, yamop *ipc USES_REGS) {
   Term t[2];
   t[0] = MkIntegerTerm((Int)ap);
   t[1] = MkIntegerTerm((Int)ipc);
-  return Yap_MkApplTerm(FunctorMegaClause,2,t);
+  return Yap_MkApplTerm(FunctorMegaClause, 2, t);
 }
 
-static inline yamop * 
-Yap_MegaClauseFromTerm(Term t)
-{
-  return (yamop *)IntegerOfTerm(ArgOfTerm(2,t));
+static inline yamop *Yap_MegaClauseFromTerm(Term t) {
+  return (yamop *)IntegerOfTerm(ArgOfTerm(2, t));
 }
 
-static inline PredEntry * 
-Yap_MegaClausePredicateFromTerm(Term t)
-{
-  return (PredEntry *)IntegerOfTerm(ArgOfTerm(1,t));
+static inline PredEntry *Yap_MegaClausePredicateFromTerm(Term t) {
+  return (PredEntry *)IntegerOfTerm(ArgOfTerm(1, t));
+}
+
+#define Yap_MkExoRefTerm(ap, i) __Yap_MkExoRefTerm((ap), (i)PASS_REGS)
+
+static inline Term __Yap_MkExoRefTerm(PredEntry *ap, Int i USES_REGS) {
+  Term t[2];
+  t[0] = MkIntegerTerm((Int)ap);
+  t[1] = MkIntegerTerm((Int)i);
+  return Yap_MkApplTerm(FunctorExoClause, 2, t);
+}
+
+static inline Int Yap_ExoClauseFromTerm(Term t) {
+  return IntegerOfTerm(ArgOfTerm(2, t));
+}
+
+static inline PredEntry *Yap_ExoClausePredicateFromTerm(Term t) {
+  return (PredEntry *)IntegerOfTerm(ArgOfTerm(1, t));
+}
+
+/******************************************************************
+
+                        EXECUTING PROLOG CLAUSES
+
+******************************************************************/
+
+bool Yap_search_for_static_predicate_in_use(PredEntry *p,
+                                            bool check_everything);
+
+static inline bool Yap_static_in_use(PredEntry *p, bool check_everything) {
+#if defined(YAPOR) || defined(THREADS)
+  return TRUE;
+#else
+  pred_flags_t pflags = p->PredFlags;
+  if (pflags & (DynamicPredFlag | LogUpdatePredFlag)) {
+    return FALSE;
+  }
+  if (STATIC_PREDICATES_MARKED) {
+    return (p->PredFlags & InUsePredFlag);
+  } else {
+    /* This code does not work for YAPOR or THREADS!!!!!!!! */
+    return Yap_search_for_static_predicate_in_use(p, check_everything);
+  }
+#endif
+
+#define DEAD_REF(ref) FALSE
 }
 
 typedef enum {
@@ -325,23 +451,24 @@ typedef enum {
   FIND_PRED_FROM_ENV
 } find_pred_type;
 
-Int	        STD_PROTO(Yap_PredForCode,(yamop *, find_pred_type, Atom *, UInt *, Term *));
-PredEntry *STD_PROTO(Yap_PredEntryForCode,(yamop *, find_pred_type, CODEADDR *, CODEADDR *));
-LogUpdClause   *STD_PROTO(Yap_new_ludbe,(Term, PredEntry *, UInt));
-Term            STD_PROTO(Yap_LUInstance,(LogUpdClause *, UInt));
+Int Yap_PredForCode(yamop *, find_pred_type, Atom *, UInt *, Term *);
+PredEntry *Yap_PredEntryForCode(yamop *, find_pred_type, void **, void **);
+LogUpdClause *Yap_new_ludbe(Term, PredEntry *, UInt);
+Term Yap_LUInstance(LogUpdClause *, UInt);
 
 /* udi.c */
-void         STD_PROTO(Yap_udi_init,(void));
-yamop       *STD_PROTO(Yap_udi_search,(PredEntry *));
-int          STD_PROTO(Yap_new_udi_clause,(PredEntry *, yamop *, Term));
+extern int Yap_new_udi_clause(PredEntry *, yamop *, Term);
+extern yamop *Yap_udi_search(PredEntry *);
 
-#ifdef DEBUG
-void    STD_PROTO(Yap_bug_location,(yamop *));
+extern yap_error_descriptor_t *Yap_bug_location(yap_error_descriptor_t *t, yamop *p, yamop *cp, choiceptr b_ptr, void *env);
+extern yap_error_descriptor_t *Yap_pc_add_location(yap_error_descriptor_t *t, void *p, void *b_ptr, void *env); 
+extern yap_error_descriptor_t * Yap_env_add_location(yap_error_descriptor_t *t, void *p, void *b_ptr, void *env, YAP_Int ignore_first);
+
+#if LOW_PROF
+void Yap_InformOfRemoval(void *);
+void Yap_dump_code_area_for_profiler(void);
+#else
+#define Yap_InformOfRemoval(X)
 #endif
 
-#if  LOW_PROF
-void	STD_PROTO(Yap_InformOfRemoval,(void *));
-void	STD_PROTO(Yap_dump_code_area_for_profiler,(void));
-#else
-#define	Yap_InformOfRemoval(X)
 #endif

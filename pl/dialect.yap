@@ -1,35 +1,65 @@
+
+/**
+  * @file   dialect.yap
+  * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+  * @date   Thu Oct 19 10:50:33 2017
+  *
+  * @brief  support Prolog dialects
+  */
+
+
 :- module(dialect,
 	  [
 	   exists_source/1,
 	   source_exports/2
 	  ]).
 
+    /**
+     * @defgroup Dialects Compatibility with other Prolog dialects
+     * @ingroup extensions
+     * @{
+     * @brief Prolog dialects
+     *
+   */
 
-prolog:'$expects_dialect'(yap) :- !,
+
+:- use_system_module( '$_errors', ['$do_error'/2]).
+
+
+
+%%
+%	@pred expects_dialect(+Dialect)
+%
+%	  True if YAP can enable support for a different Prolog dialect.
+%   Currently there is support for bprolog, hprolog and swi-prolog.
+%   Notice that this support may be incomplete.
+%
+% 
+prolog:expects_dialect(yap) :- !,
 	eraseall('$dialect'),
 	recorda('$dialect',yap,_).
-prolog:'$expects_dialect'(Dialect) :-
-	check_dialect(Dialect), 
+prolog:expects_dialect(Dialect) :-
+	check_dialect(Dialect),
 	eraseall('$dialect'),
 	load_files(library(dialect/Dialect),[silent(true),if(not_loaded)]),
 	(   current_predicate(Dialect:setup_dialect/0)
 	->  Dialect:setup_dialect
 	;   true
 	),
-	recorda('$dialect',Dialect,_).		
+	recorda('$dialect',Dialect,_).
 
 check_dialect(Dialect) :-
 	var(Dialect),!,
-	'$do_error'(instantiation_error,(:- dialect(Dialect))).
+	'$do_error'(instantiation_error,(:- expects_dialect(Dialect))).
 check_dialect(Dialect) :-
 	\+ atom(Dialect),!,
-	'$do_error'(type_error(Dialect),(:- dialect(Dialect))).
+	'$do_error'(type_error(Dialect),(:- expects_dialect(Dialect))).
 check_dialect(Dialect) :-
 	exists_source(library(dialect/Dialect)), !.
 check_dialect(Dialect) :-
-	'$do_error'(domain_error(dialect,Dialect),(:- dialect(Dialect))).
+	'$do_error'(domain_error(dialect,Dialect),(:- expects_dialect(Dialect))).
 
-%%	exists_source(+Source) is semidet.
+%%	@pred exists_source(+Source) is semidet.
 %
 %	True if Source (a term  valid   for  load_files/2) exists. Fails
 %	without error if this is not the case. The predicate is intended
@@ -52,8 +82,8 @@ exists_source(Source, Path) :-
 			     file_errors(fail)
 			   ]).
 
-%%	source_exports(+Source, +Export) is semidet.
-%%	source_exports(+Source, -Export) is nondet.
+%%	@pred source_exports(+Source, +Export) is semidet.
+%%	@pred source_exports(+Source, -Export) is nondet.
 %
 %	True if Source exports Export. Fails   without  error if this is
 %	not the case.  See also exists_source/1.
@@ -64,11 +94,11 @@ source_exports(Source, Export) :-
 	open_source(Source, In),
 	catch(call_cleanup(exports(In, Exports), close(In)), _, fail),
 	(   ground(Export)
-	->  memberchk(Export, Exports)
-	;   member(Export, Exports)
+	->  lists:memberchk(Export, Exports)
+	;   lists:member(Export, Exports)
 	).
 
-%%	open_source(+Source, -In:stream) is semidet.
+%%	@pred open_source(+Source, -In:stream) is semidet.
 %
 %	Open a source location.
 
@@ -84,3 +114,4 @@ exports(In, Exports) :-
 	read(In, Term),
 	Term = (:- module(_Name, Exports)).
 
+%% @}

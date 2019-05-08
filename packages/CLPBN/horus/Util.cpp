@@ -1,39 +1,26 @@
-#include <limits>
-
-#include <sstream>
-#include <fstream>
-
 #include "Util.h"
 #include "Indexer.h"
 #include "ElimGraph.h"
+#include "BeliefProp.h"
 
+
+namespace Horus {
 
 namespace Globals {
+
 bool logDomain = false;
 
 unsigned verbosity = 0;
 
-LiftedSolver liftedSolver = LiftedSolver::FOVE;
+LiftedSolverType liftedSolver = LiftedSolverType::lveSolver;
 
-GroundSolver groundSolver = GroundSolver::VE;
+GroundSolverType groundSolver = GroundSolverType::veSolver;
 
-};
-
-
-
-namespace BpOptions {
-Schedule schedule = BpOptions::Schedule::SEQ_FIXED;
-//Schedule schedule = BpOptions::Schedule::SEQ_RANDOM;
-//Schedule schedule = BpOptions::Schedule::PARALLEL;
-//Schedule schedule = BpOptions::Schedule::MAX_RESIDUAL;
-double    accuracy  = 0.0001;
-unsigned  maxIter   = 1000;
 }
 
 
 
 namespace Util {
-
 
 template <> std::string
 toString (const bool& b)
@@ -46,15 +33,15 @@ toString (const bool& b)
 
 
 unsigned
-stringToUnsigned (string str)
+stringToUnsigned (std::string str)
 {
   int val;
-  stringstream ss;
+  std::stringstream ss;
   ss << str;
   ss >> val;
   if (val < 0) {
-    cerr << "error: the readed number is negative" << endl;
-    abort();
+    std::cerr << "Error: the number readed is negative." << std::endl;
+    exit (EXIT_FAILURE);
   }
   return static_cast<unsigned> (val);
 }
@@ -62,10 +49,10 @@ stringToUnsigned (string str)
 
 
 double
-stringToDouble (string str)
+stringToDouble (std::string str)
 {
   double val;
-  stringstream ss;
+  std::stringstream ss;
   ss << str;
   ss >> val;
   return val;
@@ -130,7 +117,7 @@ size_t
 sizeExpected (const Ranges& ranges)
 {
   return std::accumulate (ranges.begin(),
-      ranges.end(), 1, multiplies<unsigned>());
+      ranges.end(), 1, std::multiplies<unsigned>());
 }
 
 
@@ -140,7 +127,7 @@ nrDigits (int num)
 {
   unsigned count = 1;
   while (num >= 10) {
-    num /= 10; 
+    num /= 10;
     count ++;
   }
   return count;
@@ -149,10 +136,10 @@ nrDigits (int num)
 
 
 bool
-isInteger (const string& s)
+isInteger (const std::string& s)
 {
-  stringstream ss1 (s);
-  stringstream ss2;
+  std::stringstream ss1 (s);
+  std::stringstream ss2;
   int integer;
   ss1 >> integer;
   ss2 << integer;
@@ -161,12 +148,12 @@ isInteger (const string& s)
 
 
 
-string
+std::string
 parametersToString (const Params& v, unsigned precision)
 {
-  stringstream ss;
+  std::stringstream ss;
   ss.precision (precision);
-  ss << "[" ; 
+  ss << "[" ;
   for (size_t i = 0; i < v.size(); i++) {
     if (i != 0) ss << ", " ;
     ss << v[i];
@@ -177,7 +164,7 @@ parametersToString (const Params& v, unsigned precision)
 
 
 
-vector<string>
+std::vector<std::string>
 getStateLines (const Vars& vars)
 {
   Ranges ranges;
@@ -185,9 +172,9 @@ getStateLines (const Vars& vars)
     ranges.push_back (vars[i]->range());
   }
   Indexer indexer (ranges);
-  vector<string> jointStrings;
+  std::vector<std::string> jointStrings;
   while (indexer.valid()) {
-    stringstream ss;
+    std::stringstream ss;
     for (size_t i = 0; i < vars.size(); i++) {
       if (i != 0) ss << ", " ;
       ss << vars[i]->label() << "=" ;
@@ -201,86 +188,114 @@ getStateLines (const Vars& vars)
 
 
 
+bool invalidValue (std::string option, std::string value)
+{
+  std::cerr << "Warning: invalid value `" << value << "' " ;
+  std::cerr << "for `" << option << "'." ;
+  std::cerr << std::endl;
+  return false;
+}
+
+
+
 bool
-setHorusFlag (string key, string value)
+setHorusFlag (std::string option, std::string value)
 {
   bool returnVal = true;
-  if (key == "verbosity") {
-    stringstream ss;
+  if (option == "lifted_solver") {
+    if      (value == "lve")
+      Globals::liftedSolver = LiftedSolverType::lveSolver;
+    else if (value == "lbp")
+      Globals::liftedSolver = LiftedSolverType::lbpSolver;
+    else if (value == "lkc")
+      Globals::liftedSolver = LiftedSolverType::lkcSolver;
+    else
+      returnVal = invalidValue (option, value);
+
+  } else if (option == "ground_solver" || option == "solver") {
+    if      (value == "hve")
+      Globals::groundSolver = GroundSolverType::veSolver;
+    else if (value == "bp")
+      Globals::groundSolver = GroundSolverType::bpSolver;
+    else if (value == "cbp")
+      Globals::groundSolver = GroundSolverType::CbpSolver;
+    else
+      returnVal = invalidValue (option, value);
+
+  } else if (option == "verbosity") {
+    std::stringstream ss;
     ss << value;
     ss >> Globals::verbosity;
-  } else if (key == "lifted_solver") {
-    if (       value == "fove") {
-      Globals::liftedSolver = LiftedSolver::FOVE;
-    } else if (value == "lbp") {
-      Globals::liftedSolver = LiftedSolver::LBP;
-    } else {
-      cerr << "warning: invalid value `" << value << "' " ;
-      cerr << "for `" << key << "'" << endl;
-      returnVal = false;
-    }
-  } else if (key == "ground_solver") {
-    if (       value == "ve") {
-      Globals::groundSolver = GroundSolver::VE;
-    } else if (value == "bp") {
-      Globals::groundSolver = GroundSolver::BP;
-    } else if (value == "cbp") {
-      Globals::groundSolver = GroundSolver::CBP;
-    } else {
-      cerr << "warning: invalid value `" << value << "' " ;
-      cerr << "for `" << key << "'" << endl;
-      returnVal = false;
-    }
-  } else if (key == "elim_heuristic") {
-    if (       value == "sequential") {
-      ElimGraph::elimHeuristic = ElimHeuristic::SEQUENTIAL;
-    } else if (value == "min_neighbors") {
-      ElimGraph::elimHeuristic = ElimHeuristic::MIN_NEIGHBORS;
-    } else if (value == "min_weight") {
-      ElimGraph::elimHeuristic = ElimHeuristic::MIN_WEIGHT;
-    } else if (value == "min_fill") {
-      ElimGraph::elimHeuristic = ElimHeuristic::MIN_FILL;
-    } else if (value == "weighted_min_fill") {
-      ElimGraph::elimHeuristic = ElimHeuristic::WEIGHTED_MIN_FILL;
-    } else {
-      cerr << "warning: invalid value `" << value << "' " ;
-      cerr << "for `" << key << "'" << endl;
-      returnVal = false;
-    }
-  } else if (key == "schedule") {
-    if (       value == "seq_fixed") {
-      BpOptions::schedule = BpOptions::Schedule::SEQ_FIXED;
-    } else if (value == "seq_random") {
-      BpOptions::schedule = BpOptions::Schedule::SEQ_RANDOM;
-    } else if (value == "parallel") {
-      BpOptions::schedule = BpOptions::Schedule::PARALLEL;
-    } else if (value == "max_residual") {
-      BpOptions::schedule = BpOptions::Schedule::MAX_RESIDUAL;
-    } else {
-      cerr << "warning: invalid value `" << value << "' " ;
-      cerr << "for `" << key << "'" << endl;
-      returnVal = false;
-    }
-  } else if (key == "accuracy") {
-    stringstream ss;
+
+  } else if (option == "use_logarithms") {
+    if      (value == "true")  Globals::logDomain = true;
+    else if (value == "false") Globals::logDomain = false;
+    else                       returnVal = invalidValue (option, value);
+
+  } else if (option == "hve_elim_heuristic") {
+    typedef ElimGraph::ElimHeuristic ElimHeuristic;
+    if      (value == "sequential")
+      ElimGraph::setElimHeuristic (ElimHeuristic::sequentialEh);
+    else if (value == "min_neighbors")
+      ElimGraph::setElimHeuristic (ElimHeuristic::minNeighborsEh);
+    else if (value == "min_weight")
+      ElimGraph::setElimHeuristic (ElimHeuristic::minWeightEh);
+    else if (value == "min_fill")
+      ElimGraph::setElimHeuristic (ElimHeuristic::minFillEh);
+    else if (value == "weighted_min_fill")
+      ElimGraph::setElimHeuristic (ElimHeuristic::weightedMinFillEh);
+    else
+      returnVal = invalidValue (option, value);
+
+  } else if (option == "bp_msg_schedule") {
+    typedef BeliefProp::MsgSchedule MsgSchedule;
+    if      (value == "seq_fixed")
+      BeliefProp::setMsgSchedule (MsgSchedule::seqFixedSch);
+    else if (value == "seq_random")
+      BeliefProp::setMsgSchedule (MsgSchedule::seqRandomSch);
+    else if (value == "parallel")
+      BeliefProp::setMsgSchedule (MsgSchedule::parallelSch);
+    else if (value == "max_residual")
+      BeliefProp::setMsgSchedule (MsgSchedule::maxResidualSch);
+    else
+      returnVal = invalidValue (option, value);
+
+  } else if (option == "bp_accuracy") {
+    std::stringstream ss;
+    double acc;
     ss << value;
-    ss >> BpOptions::accuracy;
-  } else if (key == "max_iter") {
-    stringstream ss;
+    ss >> acc;
+    BeliefProp::setAccuracy (acc);
+
+  } else if (option == "bp_max_iter") {
+    std::stringstream ss;
+    unsigned mi;
     ss << value;
-    ss >> BpOptions::maxIter;
-  } else if (key == "use_logarithms") {
-    if (       value == "true") {
-      Globals::logDomain = true;
-    } else if (value == "false") {
-      Globals::logDomain = false;
-    } else {
-      cerr << "warning: invalid value `" << value << "' " ;
-      cerr << "for `" << key << "'" << endl;
-      returnVal = false;
-    }
+    ss >> mi;
+    BeliefProp::setMaxIterations (mi);
+
+  } else if (option == "export_libdai") {
+    if      (value == "true")  FactorGraph::enableExportToLibDai();
+    else if (value == "false") FactorGraph::disableExportToLibDai();
+    else                       returnVal = invalidValue (option, value);
+
+  } else if (option == "export_uai") {
+    if      (value == "true")  FactorGraph::enableExportToUai();
+    else if (value == "false") FactorGraph::disableExportToUai();
+    else                       returnVal = invalidValue (option, value);
+
+  } else if (option == "export_graphviz") {
+    if      (value == "true")  FactorGraph::enableExportToGraphViz();
+    else if (value == "false") FactorGraph::disableExportToGraphViz();
+    else                       returnVal = invalidValue (option, value);
+
+  } else if (option == "print_fg") {
+    if      (value == "true")  FactorGraph::enablePrintFactorGraph();
+    else if (value == "false") FactorGraph::disablePrintFactorGraph();
+    else                       returnVal = invalidValue (option, value);
+
   } else {
-    cerr << "warning: invalid key `" << key << "'" << endl;
+    std::cerr << "Warning: invalid option `" << option << "'" << std::endl;
     returnVal = false;
   }
   return returnVal;
@@ -289,20 +304,20 @@ setHorusFlag (string key, string value)
 
 
 void
-printHeader (string header, std::ostream& os)
+printHeader (std::string header, std::ostream& os)
 {
   printAsteriskLine (os);
-  os << header << endl;
+  os << header << std::endl;
   printAsteriskLine (os);
 }
 
 
 
 void
-printSubHeader (string header, std::ostream& os)
+printSubHeader (std::string header, std::ostream& os)
 {
   printDashedLine (os);
-  os << header << endl;
+  os << header << std::endl;
   printDashedLine (os);
 }
 
@@ -313,7 +328,7 @@ printAsteriskLine (std::ostream& os)
 {
   os << "********************************" ;
   os << "********************************" ;
-  os << endl;
+  os << std::endl;
 }
 
 
@@ -323,11 +338,10 @@ printDashedLine (std::ostream& os)
 {
   os << "--------------------------------" ;
   os << "--------------------------------" ;
-  os << endl;
+  os << std::endl;
 }
 
-
-}
+}  // namespace Util
 
 
 
@@ -339,7 +353,7 @@ normalize (Params& v)
   if (Globals::logDomain) {
     double sum = std::accumulate (v.begin(), v.end(),
         LogAware::addIdenty(), Util::logSum);
-    assert (sum != -numeric_limits<double>::infinity());
+    assert (sum != -std::numeric_limits<double>::infinity());
     v -= sum;
   } else {
     double sum = std::accumulate (v.begin(), v.end(), 0.0);
@@ -357,10 +371,10 @@ getL1Distance (const Params& v1, const Params& v2)
   double dist = 0.0;
   if (Globals::logDomain) {
     dist = std::inner_product (v1.begin(), v1.end(), v2.begin(), 0.0,
-        std::plus<double>(), FuncObject::abs_diff_exp<double>());
+        std::plus<double>(), FuncObj::abs_diff_exp<double>());
   } else {
     dist = std::inner_product (v1.begin(), v1.end(), v2.begin(), 0.0,
-        std::plus<double>(), FuncObject::abs_diff<double>());
+        std::plus<double>(), FuncObj::abs_diff<double>());
   }
   return dist;
 }
@@ -374,10 +388,10 @@ getMaxNorm (const Params& v1, const Params& v2)
   double max = 0.0;
   if (Globals::logDomain) {
     max = std::inner_product (v1.begin(), v1.end(), v2.begin(), 0.0,
-        FuncObject::max<double>(), FuncObject::abs_diff_exp<double>());
+        FuncObj::max<double>(), FuncObj::abs_diff_exp<double>());
   } else {
     max = std::inner_product (v1.begin(), v1.end(), v2.begin(), 0.0,
-        FuncObject::max<double>(), FuncObject::abs_diff<double>());
+        FuncObj::max<double>(), FuncObj::abs_diff<double>());
   }
   return max;
 }
@@ -423,5 +437,8 @@ pow (Params& v, double exp)
   Globals::logDomain ? v *= exp : v ^= exp;
 }
 
-}
+}  // namespace LogAware
+
+}  // namespace Horus
+
 

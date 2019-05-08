@@ -1,7 +1,10 @@
-%   File   : wdgraphs.yap
-%   Author : Vitor Santos Costa
-%   Updated: 2006
-%   Purpose: Weighted Directed Graph Processing Utilities.
+/**
+ * @file   wdgraphs.yap
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>
+ * @date   2006
+ *
+ *
+*/
 
 :- module( wdgraphs,
 	   [
@@ -30,6 +33,17 @@
 	    wdgraph_path/3,
 	    wdgraph_reachable/3]).
 
+/**
+ * @defgroup wdgraphs Weighted Directed Graphs
+ * @ingroup library
+ *
+ * @brief  Weighted Directed Graph Processing Utilities.
+ *
+ * @{
+ *
+ */
+
+
 :- reexport(library(dgraphs),
 	    [dgraph_add_vertex/3 as wdgraph_add_vertex,
 	     dgraph_add_vertices/3 as wdgraph_add_vertices,
@@ -39,7 +53,7 @@
 
 
 :- use_module(library(dgraphs),
-	[	    
+	[
 	dgraph_top_sort/2,
 	dgraph_path/3
 	]
@@ -76,12 +90,12 @@ wdgraph_new(Vertices) :-
 wdgraph_add_vertices_and_edges(Vs0,Vertices,Edges,Vs2) :-
 	wdgraph_add_vertices(Vs0, Vertices, Vs1),
 	wdgraph_add_edges(Vs1, Edges, Vs2).
-	
+
 
 wdgraph_add_edge(Vs0,V1,V2,Weight,Vs2) :-
 	wdgraph_new_edge(V1,V2,Weight,Vs0,Vs1),
 	dgraph_add_vertex(Vs1,V2,Vs2).
-	
+
 wdgraph_add_edges(V0, Edges, VF) :-
 	rb_empty(V0), !,
 	sort(Edges,SortedEdges),
@@ -166,7 +180,7 @@ wdgraph_edge(N1, N2, W, G) :-
 	find_edge(N2-W, Ns).
 
 find_edge(N-W,[N1-W|_]) :- N == N1, !.
-find_edge(El,[_|Edges]) :- 
+find_edge(El,[_|Edges]) :-
 	find_edge(El,Edges).
 
 wdgraph_del_edge(Vs0, V1, V2, W, Vs) :-
@@ -401,7 +415,7 @@ continue_dijkstra(H1, V2, WGraph, Status0, Path0, PathF, D, V0, V, W) :-
 	rb_lookup(V, Edges, WGraph),
 	queue_edges(Edges, V, D, H1, H2),
 	dijkstra(H2, V2, WGraph, Status, [e(V0,V,W)|Path0], PathF).
-	
+
 
 backtrace([], _, Path, Path, Cost, Cost).
 backtrace([e(V0,V,C)|EPath], V1, Path0, Path, Cost0, Cost) :-
@@ -437,7 +451,7 @@ continue_dijkstra(H1, WGraph, Status0, Path0, PathF, D, V0, V, W) :-
 	rb_lookup(V, Edges, WGraph),
 	queue_edges(Edges, V, D, H1, H2),
 	dijkstra(H2, WGraph, Status, [V0-(V-W)|Path0], PathF).
-	
+
 wdgraph_path(V, WG, P) :-
 	wdgraph_to_dgraph(WG, G),
 	dgraph_path(V, G, P).
@@ -456,3 +470,5 @@ reachable([V-_|Vertices], Done0, DoneF, G, [V|EdgesF], Edges0) :-
 	rb_insert(Done0, V, [], Done1),
 	reachable(Kids, Done1, DoneI, G, EdgesF, EdgesI),
 	reachable(Vertices, DoneI, DoneF, G, EdgesI, Edges0).
+
+%% @}

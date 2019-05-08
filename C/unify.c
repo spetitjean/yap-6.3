@@ -14,21 +14,46 @@
 * comments:	Unification and other auxiliary routines for absmi       *
 *									 *
 *************************************************************************/
+/** @defgroup Rational_Trees Rational Trees
+@ingroup extensions
+@{
+
+Prolog unification is not a complete implementation. For efficiency
+considerations, Prolog systems do not perform occur checks while
+unifying terms. As an example, `X = a(X)` will not fail but instead
+will create an infinite term of the form `a(a(a(a(a(...)))))`, or
+<em>rational tree</em>.
+
+Rational trees are now supported by default in YAP. In previous
+versions, this was not the default and these terms could easily lead
+to infinite computation. For example, `X = a(X), X = X` would
+enter an infinite loop.
+
+The `RATIONAL_TREES` flag improves support for these
+terms. Internal primitives are now aware that these terms can exist, and
+will not enter infinite loops. Hence, the previous unification will
+succeed. Another example, `X = a(X), ground(X)` will succeed
+instead of looping. Other affected built-ins include the term comparison
+primitives, numbervars/3, copy_term/2, and the internal
+data base routines. The support does not extend to Input/Output routines
+or to assert/1 YAP does not allow directly reading
+rational trees, and you need to use `write_depth/2` to avoid
+entering an infinite cycle when trying to write an infinite term.
+
+
+ */
+
 #define IN_UNIFY_C 1
 
 #define HAS_CACHE_REGS 1
 
 #include "absmi.h"
 
-STD_PROTO(int   Yap_rational_tree_loop, (CELL *, CELL *, CELL **, CELL **));
+int   Yap_rational_tree_loop(CELL *, CELL *, CELL **, CELL **);
 
-STATIC_PROTO(int    OCUnify_complex, (CELL *, CELL *, CELL *));
-STATIC_PROTO(int    OCUnify, (register CELL, register CELL));
-STATIC_PROTO(Int   p_ocunify, ( USES_REGS1 ));
-#ifdef THREADED_CODE
-STATIC_PROTO(int    rtable_hash_op, (OPCODE));
-STATIC_PROTO(void   InitReverseLookupOpcode, (void));
-#endif
+static int    OCUnify_complex(CELL *, CELL *, CELL *);
+static int    OCUnify(register CELL, register CELL);
+static Int   p_ocunify( USES_REGS1 );
 
 /* support for rational trees and unification with occur checking */
 
@@ -376,6 +401,8 @@ oc_unify_nvar_nvar:
 	  return(pt0[1] == pt1[1]);
 	case (CELL)FunctorDouble:
 	  return(FloatOfTerm(AbsAppl(pt0)) == FloatOfTerm(AbsAppl(pt1)));
+	case (CELL)FunctorString:
+	  return(strcmp( (const char *)(pt0+2),  (const char *)(pt1+2)) == 0);
 #ifdef USE_GMP
 	case (CELL)FunctorBigInt:
 	  return(Yap_gmp_tcmp_big_big(AbsAppl(pt0),AbsAppl(pt0)) == 0);
@@ -393,9 +420,9 @@ oc_unify_nvar_nvar:
 
   deref_body(d1, pt1, oc_unify_nvar_unk, oc_unify_nvar_nvar);
   /* d0 is bound and d1 is unbound */
-  Bind(pt1, d0);
+  YapBind(pt1, d0);
   /* local variables cannot be in a term */
-  if (pt1 > H && pt1 < LCL0)
+  if (pt1 > HR && pt1 < LCL0)
     return TRUE;
   if (rational_tree(d0))
     return(FALSE);
@@ -406,9 +433,9 @@ oc_unify_nvar_nvar:
   deref_head(d1, oc_unify_var_unk);
 oc_unify_var_nvar:
   /* pt0 is unbound and d1 is bound */
-  Bind(pt0, d1);
+  YapBind(pt0, d1);
   /* local variables cannot be in a term */
-  if (pt0 > H && pt0 < LCL0)
+  if (pt0 > HR && pt0 < LCL0)
     return TRUE;
   if (rational_tree(d1))
     return(FALSE);
@@ -434,6 +461,11 @@ p_cyclic( USES_REGS1 )
   if (IsVarTerm(t))
     return(FALSE);
   return rational_tree(t);
+}
+
+bool Yap_IsAcyclicTerm(Term t)
+{
+  return !rational_tree(t);
 }
 
 static Int
@@ -500,6 +532,8 @@ unify_nvar_nvar:
 	  return(pt0 == pt1);
 	case (CELL)FunctorLongInt:
 	  return(pt0[1] == pt1[1]);
+	case (CELL)FunctorString:
+	  return(strcmp( (const char *)(pt0+2),  (const char *)(pt1+2)) == 0);
 	case (CELL)FunctorDouble:
 	  return(FloatOfTerm(AbsAppl(pt0)) == FloatOfTerm(AbsAppl(pt1)));
 #ifdef USE_GMP
@@ -519,7 +553,7 @@ unify_nvar_nvar:
 
   deref_body(d1, pt1, unify_nvar_unk, unify_nvar_nvar);
   /* d0 is bound and d1 is unbound */
-  Bind(pt1, d0);
+  YapBind(pt1, d0);
   return (TRUE);
 
   deref_body(d0, pt0, unify_unk, unify_nvar);
@@ -527,7 +561,7 @@ unify_nvar_nvar:
   deref_head(d1, unify_var_unk);
 unify_var_nvar:
   /* pt0 is unbound and d1 is bound */
-  Bind(pt0, d1);
+  YapBind(pt0, d1);
   return TRUE;
 
 #if TRAILING_REQUIRES_BRANCH
@@ -564,21 +598,19 @@ unify_var_nvar_trail:
 static void
 InitReverseLookupOpcode(void)
 {
-  opentry *opeptr;
+  op_entry *opeptr;
   op_numbers i;
   /* 2 K should be OK */
   int hash_size_mask = OP_HASH_SIZE-1;
   UInt sz = OP_HASH_SIZE*sizeof(struct opcode_tab_entry);
 
-  while (OP_RTABLE == NULL) {
-    if ((OP_RTABLE = (opentry *)Yap_AllocCodeSpace(sz)) == NULL) {
+    if ((OP_RTABLE = (op_entry *)Yap_AllocCodeSpace(sz)) == NULL) {
       if (!Yap_growheap(FALSE, sz, NULL)) {
-	Yap_Error(INTERNAL_ERROR, TermNil,
+	Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil,
 		  "Couldn't obtain space for the reverse translation opcode table");
-      }
     }
   }
-  bzero(OP_RTABLE, sz);
+  memset(OP_RTABLE, 0, sz);
   opeptr = OP_RTABLE;
   /* clear up table */
   {
@@ -865,6 +897,8 @@ unifiable_nvar_nvar:
 	  return(pt0 == pt1);
 	case (CELL)FunctorLongInt:
 	  return(pt0[1] == pt1[1]);
+	case (CELL)FunctorString:
+	  return(strcmp( (const char *)(pt0+2),  (const char *)(pt1+2)) == 0);
 	case (CELL)FunctorDouble:
 	  return(FloatOfTerm(AbsAppl(pt0)) == FloatOfTerm(AbsAppl(pt1)));
 #ifdef USE_GMP
@@ -958,7 +992,37 @@ Yap_InitUnify(void)
   CACHE_REGS
   Term cm = CurrentModule;
   Yap_InitCPred("unify_with_occurs_check", 2, p_ocunify, SafePredFlag);
+  /** @pred  unify_with_occurs_check(?T1,?T2) is iso 
+
+
+Obtain the most general unifier of terms  _T1_ and  _T2_, if there
+is one.
+
+This predicate implements the full unification algorithm. An example:n
+
+~~~~~{.prolog}
+unify_with_occurs_check(a(X,b,Z),a(X,A,f(B)).
+~~~~~
+will succeed with the bindings `A = b` and `Z = f(B)`. On the
+other hand:
+
+~~~~~{.prolog}
+unify_with_occurs_check(a(X,b,Z),a(X,A,f(Z)).
+~~~~~
+would fail, because `Z` is not unifiable with `f(Z)`. Note that
+`(=)/2` would succeed for the previous examples, giving the following
+bindings `A = b` and `Z = f(Z)`.
+
+ 
+*/
   Yap_InitCPred("acyclic_term", 1, p_acyclic, SafePredFlag|TestPredFlag);
+/** @pred  acyclic_term( _T_) is iso 
+
+
+Succeeds if there are loops in the term  _T_, that is, it is an infinite term.
+
+ 
+*/
   CurrentModule = TERMS_MODULE;
   Yap_InitCPred("cyclic_term", 1, p_cyclic, SafePredFlag|TestPredFlag);
   Yap_InitCPred("unifiable", 3, p_unifiable, 0);
@@ -969,7 +1033,7 @@ Yap_InitUnify(void)
 void 
 Yap_InitAbsmi(void)
 {
-  /* initialise access to abstract machine instructions */
+  /* initialize access to abstract machine instructions */
 #if USE_THREADED_CODE
   Yap_absmi(1);
   InitReverseLookupOpcode();
@@ -994,3 +1058,5 @@ Yap_TrimTrail(void)
 
 #include "trim_trail.h"
 }
+
+//! @}

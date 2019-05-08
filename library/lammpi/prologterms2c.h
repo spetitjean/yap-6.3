@@ -68,14 +68,17 @@ void write_msg(const char *fun,const char *file, int line,const char *format, ..
  * Macros to manipulate the buffer
  *********************************************************************************************/
 
-extern int BLOCK_SIZE;
+extern size_t BLOCK_SIZE;
+
+#define buffer (buffers[YAP_ThreadSelf()])
 
 // deletes the buffer (all fields) but does not release the memory of the buffer.ptr
-#define DEL_BUFFER   {buffer.ptr=NULL;buffer.size=0;buffer.len=0;buffer.pos=0;}
+#define DEL_BUFFER()   {buffer.ptr=NULL;buffer.size=0;buffer.len=0;buffer.pos=0;}
 //  informs the prologterm2c module that the buffer is now used and should not be messed
-#define USED_BUFFER()  DEL_BUFFER
+#define USED_BUFFER()  DEL_BUFFER()
 // initialize buffer
-#define RESET_BUFFER {buffer.len=0;change_buffer_size(BLOCK_SIZE);buffer.pos=0;}
+#define RESET_BUFFER() \
+{buffer.len=0;change_buffer_size(BLOCK_SIZE);buffer.pos=0;}
 #define BUFFER_PTR   buffer.ptr
 #define BUFFER_SIZE  buffer.size
 #define BUFFER_LEN   buffer.len
@@ -92,6 +95,7 @@ struct buffer_ds {
   char *ptr;    // pointer to the buffer
   size_t pos;    // position (used while reading)
 };
-extern struct buffer_ds buffer;
+extern struct buffer_ds buffers[1024];
+
 
 #endif

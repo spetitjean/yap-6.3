@@ -17,6 +17,10 @@
 #ifdef SCCS
 static char     SccsId[] = "@(#)utilpreds.c	1.3";
 #endif
+/**
+ * @addtogroup Terms
+
+ */
 
 #include "absmi.h"
 #include "YapHeap.h"
@@ -32,18 +36,18 @@ typedef struct {
 }              *vcell;
 
 
-STATIC_PROTO(int   copy_complex_term, (CELL *, CELL *, int, int, CELL *, CELL * CACHE_TYPE));
-STATIC_PROTO(CELL  vars_in_complex_term, (CELL *, CELL *, Term CACHE_TYPE));
-STATIC_PROTO(Int   p_non_singletons_in_term, ( USES_REGS1));
-STATIC_PROTO(CELL  non_singletons_in_complex_term, (CELL *, CELL * CACHE_TYPE));
-STATIC_PROTO(Int   p_variables_in_term, ( USES_REGS1 ));
-STATIC_PROTO(Int   ground_complex_term, (CELL *, CELL * CACHE_TYPE));
-STATIC_PROTO(Int   p_ground, ( USES_REGS1 ));
-STATIC_PROTO(Int   p_copy_term, ( USES_REGS1 ));
-STATIC_PROTO(Int   var_in_complex_term, (CELL *, CELL *, Term CACHE_TYPE));
+static int   copy_complex_term(CELL *, CELL *, int, int, CELL *, CELL * CACHE_TYPE);
+static CELL  vars_in_complex_term(CELL *, CELL *, Term CACHE_TYPE);
+static Int   p_non_singletons_in_term( USES_REGS1);
+static CELL  non_singletons_in_complex_term(CELL *, CELL * CACHE_TYPE);
+static Int   p_variables_in_term( USES_REGS1 );
+static Int   ground_complex_term(CELL *, CELL * CACHE_TYPE);
+static Int   p_ground( USES_REGS1 );
+static Int   p_copy_term( USES_REGS1 );
+static Int   var_in_complex_term(CELL *, CELL *, Term CACHE_TYPE);
 
 #ifdef DEBUG
-STATIC_PROTO(Int  p_force_trail_expansion, ( USES_REGS1 ));
+static Int  p_force_trail_expansion( USES_REGS1 );
 #endif /* DEBUG */
 
 static inline void
@@ -73,12 +77,12 @@ static int
 copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, CELL *HLow USES_REGS)
 {
 
-  struct cp_frame *to_visit0, *to_visit = (struct cp_frame *)Yap_PreAllocCodeSpace();
+  struct cp_frame *to_visit0, *to_visit = (struct cp_frame *)Yap_PreAllocCodeSpace() ;
   CELL *HB0 = HB;
   tr_fr_ptr TR0 = TR;
   int ground = TRUE;
 
-  HB = HLow;
+  HB = HR;
   to_visit0 = to_visit;
  loop:
   while (pt0 < pt0_end) {
@@ -92,12 +96,12 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
     {
       if (IsPairTerm(d0)) {
 	CELL *ap2 = RepPair(d0);
-	if (ap2 >= HB && ap2 < H) {
+	if (ap2 >= HB && ap2 < HR) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
-	*ptf = AbsPair(H);
+	}
+	*ptf = AbsPair(HR);
 	ptf++;
 #ifdef RATIONAL_TREES
 	if (to_visit+1 >= (struct cp_frame *)AuxSp) {
@@ -109,7 +113,7 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsPair(H);
+	*pt0 = AbsPair(HR);
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -126,9 +130,9 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	ground = TRUE;
 	pt0 = ap2 - 1;
 	pt0_end = ap2 + 1;
-	ptf = H;
-	H += 2;
-	if (H > ASP - 2048) {
+	ptf = HR;
+	HR += 2;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else if (IsApplTerm(d0)) {
@@ -136,11 +140,11 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	register CELL *ap2;
 	/* store the terms to visit */
 	ap2 = RepAppl(d0);
-	if (ap2 >= HB && ap2 <= H) {
+	if (ap2 >= HB && ap2 <= HR) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
+	}
 	f = (Functor)(*ap2);
 
 	if (IsExtensionFunctor(f)) {
@@ -163,27 +167,29 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	  if (!share) {
 	    UInt sz;
 
-	    *ptf++ = AbsAppl(H);  /* you can just copy other extensions. */
+	    *ptf++ = AbsAppl(HR);  /* you can just copy other extensions. */
 	    /* make sure to copy floats */
 	    if (f== FunctorDouble) {
 	      sz = sizeof(Float)/sizeof(CELL)+2;
 	    } else if (f== FunctorLongInt) {
 	      sz = 3;
+	    } else if (f== FunctorString) {
+	      sz = 3+ap2[1];
 	    } else {
 	      CELL *pt = ap2+1;
 	      sz = 2+sizeof(MP_INT)+(((MP_INT *)(pt+1))->_mp_alloc*sizeof(mp_limb_t));
 	    }
-	    if (H+sz > ASP - 2048) {
+	    if (HR+sz > ASP - 2048) {
 	      goto overflow;
 	    }
-	    memcpy((void *)H, (void *)ap2, sz*sizeof(CELL));
-	    H += sz;
+	    memmove((void *)HR, (void *)ap2, sz*sizeof(CELL));
+	    HR += sz;
 	  } else {
 	    *ptf++ = d0;  /* you can just copy other extensions. */
 	  }
 	  continue;
 	}
-	*ptf = AbsAppl(H);
+	*ptf = AbsAppl(HR);
 	ptf++;
 	/* store the terms to visit */
 #ifdef RATIONAL_TREES
@@ -196,7 +202,7 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsAppl(H);
+	*pt0 = AbsAppl(HR);
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -215,10 +221,10 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 	pt0 = ap2;
 	pt0_end = ap2 + d0;
 	/* store the functor for the new term */
-	H[0] = (CELL)f;
-	ptf = H+1;
-	H += 1+d0;
-	if (H > ASP - 2048) {
+	HR[0] = (CELL)f;
+	ptf = HR+1;
+	HR += 1+d0;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else {
@@ -230,15 +236,15 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 
     derefa_body(d0, ptd0, copy_term_unk, copy_term_nvar);
     ground = FALSE;
-    if (ptd0 >= HLow && ptd0 < H) { 
+    if (ptd0 >= HLow && ptd0 < HR) {
       /* we have already found this cell */
       *ptf++ = (CELL) ptd0;
-    } else 
+    } else
 #if COROUTINING
       if (newattvs && IsAttachedTerm((CELL)ptd0)) {
 	/* if unbound, call the standard copy term routine */
 	struct cp_frame *bp;
-	
+
 	CELL new;
 
 	bp = to_visit;
@@ -275,9 +281,9 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 
       *newp = old;
       if (IsApplTerm(new))
-	H = RepAppl(new);
+	HR = RepAppl(new);
       else
-	H = RepPair(new);
+	HR = RepPair(new);
     }
     pt0 = to_visit->start_cp;
     pt0_end = to_visit->end_cp;
@@ -296,7 +302,7 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 
  overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -315,7 +321,7 @@ copy_complex_term(CELL *pt0, CELL *pt0_end, int share, int newattvs, CELL *ptf, 
 
 trail_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -339,7 +345,7 @@ trail_overflow:
 
  heap_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -355,7 +361,7 @@ trail_overflow:
   reset_trail(TR0);
   LOCAL_Error_Size = (ADDR)AuxSp-(ADDR)to_visit0;
   return -3;
-}
+        }
 
 
 static Term
@@ -365,8 +371,8 @@ handle_cp_overflow(int res, tr_fr_ptr TR0, UInt arity, Term t)
   XREGS[arity+1] = t;
   switch(res) {
   case -1:
-    if (!Yap_gcl((ASP-H)*sizeof(CELL), arity+1, ENV, gc_P(P,CP))) {
-      Yap_Error(OUT_OF_STACK_ERROR, TermNil, LOCAL_ErrorMessage);
+    if (!Yap_gcl((ASP-HR)*sizeof(CELL), arity+1, ENV, gc_P(P,CP))) {
+      Yap_Error(RESOURCE_ERROR_STACK, TermNil, LOCAL_ErrorMessage);
       return 0L;
     }
     return Deref(XREGS[arity+1]);
@@ -379,14 +385,14 @@ handle_cp_overflow(int res, tr_fr_ptr TR0, UInt arity, Term t)
       if (size > 4*1024*1024)
 	size = 4*1024*1024;
       if (!Yap_ExpandPreAllocCodeSpace(size, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, TermNil, LOCAL_ErrorMessage);
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, TermNil, LOCAL_ErrorMessage);
 	return 0L;
       }
     }
     return Deref(XREGS[arity+1]);
   case -4:
     if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), FALSE)) {
-      Yap_Error(OUT_OF_TRAIL_ERROR, TermNil, LOCAL_ErrorMessage);
+      Yap_Error(RESOURCE_ERROR_TRAIL, TermNil, LOCAL_ErrorMessage);
       return 0L;
     }
     return Deref(XREGS[arity+1]);
@@ -407,11 +413,11 @@ CopyTerm(Term inp, UInt arity, int share, int newattvs USES_REGS) {
       int res;
     restart_attached:
 
-      *H = t;
-      Hi = H+1;
-      H += 2;
+      *HR = t;
+      Hi = HR+1;
+      HR += 2;
       if ((res = copy_complex_term(Hi-2, Hi-1, share, newattvs, Hi, Hi PASS_REGS)) < 0) {
-	H = Hi-1;
+	HR = Hi-1;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_attached;
@@ -429,18 +435,18 @@ CopyTerm(Term inp, UInt arity, int share, int newattvs USES_REGS) {
 
   restart_list:
     ap = RepPair(t);
-    Hi = H;
-    tf = AbsPair(H);
-    H += 2;
+    Hi = HR;
+    tf = AbsPair(HR);
+    HR += 2;
     {
       int res;
       if ((res = copy_complex_term(ap-1, ap+1, share, newattvs, Hi, Hi PASS_REGS)) < 0) {
-	H = Hi;
+	HR = Hi;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_list;
       } else if (res && share) {
-	H = Hi;
+	HR = Hi;
 	return t;
       }
     }
@@ -453,13 +459,13 @@ CopyTerm(Term inp, UInt arity, int share, int newattvs USES_REGS) {
 
   restart_appl:
     f = FunctorOfTerm(t);
-    HB0 = H;
+    HB0 = HR;
     ap = RepAppl(t);
-    tf = AbsAppl(H);
-    H[0] = (CELL)f;
-    H += 1+ArityOfFunctor(f);
-    if (H > ASP-128) {
-      H = HB0;
+    tf = AbsAppl(HR);
+    HR[0] = (CELL)f;
+    HR += 1+ArityOfFunctor(f);
+    if (HR > ASP-128) {
+      HR = HB0;
       if ((t = handle_cp_overflow(-1, TR0, arity, t))== 0L)
 	return FALSE;
       goto restart_appl;
@@ -467,19 +473,19 @@ CopyTerm(Term inp, UInt arity, int share, int newattvs USES_REGS) {
       int res;
 
       if ((res = copy_complex_term(ap, ap+ArityOfFunctor(f), share, newattvs, HB0+1, HB0 PASS_REGS)) < 0) {
-	H = HB0;
+	HR = HB0;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_appl;
       } else if (res && share && FunctorOfTerm(t) != FunctorMutable) {
-	H = HB0;
+	HR = HB0;
 	return t;
       }
     }
     return tf;
   }
 }
- 
+
 Term
 Yap_CopyTerm(Term inp) {
   CACHE_REGS
@@ -492,27 +498,27 @@ Yap_CopyTermNoShare(Term inp) {
   return CopyTerm(inp, 0, FALSE, FALSE PASS_REGS);
 }
 
-static Int 
+static Int
 p_copy_term( USES_REGS1 )		/* copy term t to a new instance  */
 {
-  Term t = CopyTerm(ARG1, 2, TRUE, TRUE PASS_REGS); 
+  Term t = CopyTerm(ARG1, 2, TRUE, TRUE PASS_REGS);
   if (t == 0L)
     return FALSE;
   /* be careful, there may be a stack shift here */
   return Yap_unify(ARG2,t);
 }
 
-static Int 
+static Int
 p_duplicate_term( USES_REGS1 )		/* copy term t to a new instance  */
 {
-  Term t = CopyTerm(ARG1, 2, FALSE, TRUE PASS_REGS); 
+  Term t = CopyTerm(ARG1, 2, FALSE, TRUE PASS_REGS);
   if (t == 0L)
     return FALSE;
   /* be careful, there may be a stack shift here */
   return Yap_unify(ARG2,t);
 }
 
-static Int 
+static Int
 p_copy_term_no_delays( USES_REGS1 )		/* copy term t to a new instance  */
 {
   Term t = CopyTerm(ARG1, 2, TRUE, FALSE PASS_REGS);
@@ -523,511 +529,174 @@ p_copy_term_no_delays( USES_REGS1 )		/* copy term t to a new instance  */
   return(Yap_unify(ARG2,t));
 }
 
+
+
+typedef struct bp_frame {
+  CELL *start_cp;
+  CELL *end_cp;
+  CELL *to;
+  CELL *oldp;
+  CELL oldv;
+} bp_frame_t;
+
+
+
 typedef struct copy_frame {
   CELL *start_cp;
   CELL *end_cp;
   CELL *to;
-#ifdef RATIONAL_TREES
-  CELL oldv;
-  CELL *parent;
-  int ground;
-#endif
 } copy_frame_t;
 
+static Term
+add_to_list( Term inp, Term v, Term t PASS_REGS)
+{
+  Term ta[2];
+
+  ta[0] = v;
+  ta[1] = t;
+  return MkPairTerm(Yap_MkApplTerm( FunctorEq, 2, ta ), inp);
+}
+                                                                                                                                       
+
 static int
-break_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow USES_REGS)
+break_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, Term *vout, Term vin,CELL *HLow USES_REGS)
 {
 
-  struct copy_frame *to_visit0, *to_visit = (struct copy_frame *)Yap_PreAllocCodeSpace();
+  struct bp_frame *to_visit0, *to_visit = (struct bp_frame *)Yap_PreAllocCodeSpace() ;
   CELL *HB0 = HB;
   tr_fr_ptr TR0 = TR;
-  int ground = TRUE;
-  CELL *parent = ptf;
 
-  HB = HLow;
+  HB = HR;
   to_visit0 = to_visit;
- loop:
+  loop:
   while (pt0 < pt0_end) {
     register CELL d0;
     register CELL *ptd0;
     ++ pt0;
     ptd0 = pt0;
     d0 = *ptd0;
-    deref_head(d0, break_rationals_unk);
-  break_rationals_nvar:
+    deref_head(d0, copy_term_unk);
+  copy_term_nvar:
     {
       if (IsPairTerm(d0)) {
 	CELL *ap2 = RepPair(d0);
-	if (ap2 >= HB && ap2 < H) {
-	  /* If this is newer than the current term, just reuse */
-	  *ptf++ = d0;
-	  continue;
-	} 
-	*ptf = AbsPair(H);
-	ptf++;
-#ifdef RATIONAL_TREES
-	if (to_visit+1 >= (struct copy_frame *)AuxSp) {
-	  goto heap_overflow;
-	}
-	to_visit->start_cp = pt0;
-	to_visit->end_cp = pt0_end;
-	to_visit->to = ptf;
-	to_visit->oldv = *pt0;
-	to_visit->ground = ground;
-	to_visit->parent = parent;
-	parent = ptf-1;
-	/* fool the system into thinking we had a variable there */
-	*pt0 = TermFoundVar;
-	to_visit ++;
-#else
-	if (pt0 < pt0_end) {
-	  if (to_visit+1 >= (struct copy_frame *)AuxSp) {
-	    goto heap_overflow;
-	  }
-	  to_visit->start_cp = pt0;
-	  to_visit->end_cp = pt0_end;
-	  to_visit->to = ptf;
-	  to_visit->ground = ground;
-	  to_visit ++;
-	}
-#endif
-	ground = TRUE;
-	pt0 = ap2 - 1;
-	pt0_end = ap2 + 1;
-	ptf = H;
-	H += 2;
-	if (H > ASP - 2048) {
-	  goto overflow;
-	}
-      } else if (IsApplTerm(d0)) {
-	register Functor f;
-	register CELL *ap2;
-	/* store the terms to visit */
-	ap2 = RepAppl(d0);
-	if (ap2 >= HB && ap2 <= H) {
-	  /* If this is newer than the current term, just reuse */
-	  *ptf++ = d0;
-	  continue;
-	} 
-	f = (Functor)(*ap2);
-
-	if (IsExtensionFunctor(f)) {
-	  *ptf++ = d0;  /* you can just copy extensions, what about DB?*/
-	  continue;
-	}
-	*ptf = AbsAppl(H);
-	ptf++;
-	/* store the terms to visit */
-#ifdef RATIONAL_TREES
-	if (to_visit+1 >= (struct copy_frame *)AuxSp) {
-	  goto heap_overflow;
-	}
-	to_visit->start_cp = pt0;
-	to_visit->end_cp = pt0_end;
-	to_visit->to = ptf;
-	to_visit->oldv = *pt0;
-	to_visit->ground = ground;
-	to_visit->parent = parent;
-	parent = ptf-1;
-	/* fool the system into thinking we had a variable there */
-	*pt0 = TermFoundVar;
-	to_visit ++;
-#else
-	if (pt0 < pt0_end) {
-	  if (to_visit+1 >= (struct copy_frame *)AuxSp) {
-	    goto heap_overflow;
-	  }
-	  to_visit->start_cp = pt0;
-	  to_visit->end_cp = pt0_end;
-	  to_visit->to = ptf;
-	  to_visit->ground = ground;
-	  to_visit ++;
-	}
-#endif
-	d0 = ArityOfFunctor(f);
-	pt0 = ap2;
-	pt0_end = ap2 + d0;
-	/* store the functor for the new term */
-	H[0] = (CELL)f;
-	ptf = H+1;
-	H += 1+d0;
-	if (H > ASP - 2048) {
-	  goto overflow;
-	}
-      } else {
-	/* just copy atoms or integers */
-	if (d0 == TermFoundVar) {
-	  struct copy_frame *visited = to_visit-1;
-	  CELL *end = pt0_end;
-	  RESET_VARIABLE(ptf);
-	  while (visited >= to_visit0) {
-	    if (visited->end_cp == end) {
-	      Term t[1];
-	      t[0] = MkIntegerTerm(to_visit-visited);
-	      *parent = Yap_MkApplTerm(FunctorLOOP,1,t);
-	      break;
-	    }
-	    visited--;
-	  }
+	fprintf(stderr, "%ld \n", RepPair(ap2[0])- ptf);
+	if (IsVarTerm(ap2[0]) && IN_BETWEEN(HB, (ap2[0]),HR)) {
+	  Term v = MkVarTerm();
+	  *ptf = v;
+	  vin = add_to_list(vin,  (CELL)(ptf), AbsPair(ptf) );
 	  ptf++;
-	  ground = FALSE;
+	  continue;
+	}
+	if (to_visit+1 >= (struct bp_frame *)AuxSp) {
+	  goto heap_overflow;
+	}
+	*ptf++ = (CELL)(HR);
+	to_visit->start_cp = pt0;
+	to_visit->end_cp = pt0_end;
+	to_visit->to = ptf;
+	to_visit->oldp = ap2;
+	d0 = to_visit->oldv = ap2[0];
+	/* fool the system into thinking we had a variable there */
+	to_visit ++;
+	pt0 = ap2;
+	pt0_end = ap2 + 1;
+	ptf = HR;
+	*ap2 = AbsPair(HR);
+	HR += 2;
+	if (HR > ASP - 2048) {
+	  goto overflow;
+	}
+	if (IsVarTerm(d0) && d0 == (CELL)ap2) {
+	  RESET_VARIABLE(ptf);
+	  ptf++;
+	  continue;
+	}
+	d0 = Deref(d0);
+	if (!IsVarTerm(d0)) {
+	  goto copy_term_nvar;
 	} else {
 	  *ptf++ = d0;
 	}
-      }
-      continue;
-    }
-
-    derefa_body(d0, ptd0, break_rationals_unk, break_rationals_nvar);
-    /* we have already found this cell */
-    *ptf++ = (CELL) ptd0;
-  }
-  /* Do we still have compound terms to visit */
-  if (to_visit > to_visit0) {
-    to_visit --;
-    if (ground) {
-      CELL old = to_visit->oldv;
-      CELL *newp = to_visit->to-1;
-      CELL new = *newp;
-
-      *newp = old;
-      if (IsApplTerm(new))
-	H = RepAppl(new);
-      else
-	H = RepPair(new);
-    }
-    pt0 = to_visit->start_cp;
-    pt0_end = to_visit->end_cp;
-    ptf = to_visit->to;
-    parent = to_visit->parent;
-#ifdef RATIONAL_TREES
-    *pt0 = to_visit->oldv;
-#endif
-    ground = (ground && to_visit->ground);
-    goto loop;
-  }
-
-  /* restore our nice, friendly, term to its original state */
-  clean_dirty_tr(TR0 PASS_REGS);
-  HB = HB0;
-  return ground;
-
- overflow:
-  /* oops, we're in trouble */
-  H = HLow;
-  /* we've done it */
-  /* restore our nice, friendly, term to its original state */
-  HB = HB0;
-#ifdef RATIONAL_TREES
-  while (to_visit > to_visit0) {
-    to_visit --;
-    pt0 = to_visit->start_cp;
-    pt0_end = to_visit->end_cp;
-    ptf = to_visit->to;
-    parent = to_visit->parent;
-    *pt0 = to_visit->oldv;
-  }
-#endif
-  reset_trail(TR0);
-  /* follow chain of multi-assigned variables */
-  return -1;
-
- heap_overflow:
-  /* oops, we're in trouble */
-  H = HLow;
-  /* we've done it */
-  /* restore our nice, friendly, term to its original state */
-  HB = HB0;
-#ifdef RATIONAL_TREES
-  while (to_visit > to_visit0) {
-    to_visit --;
-    pt0 = to_visit->start_cp;
-    pt0_end = to_visit->end_cp;
-    ptf = to_visit->to;
-    parent = to_visit->parent;
-    *pt0 = to_visit->oldv;
-  }
-#endif
-  reset_trail(TR0);
-  LOCAL_Error_Size = (ADDR)AuxSp-(ADDR)to_visit0;
-  return -3;
-}
-
-
-static Term
-BreakRational(Term inp, UInt arity USES_REGS) {
-  Term t = Deref(inp);
-  tr_fr_ptr TR0 = TR;
-
-  if (IsVarTerm(t)) {
-    return t;
-  } else if (IsPrimitiveTerm(t)) {
-    return t;
-  } else if (IsPairTerm(t)) {
-    Term tf;
-    CELL *ap;
-    CELL *Hi;
-
-  restart_list:
-    ap = RepPair(t);
-    Hi = H;
-    tf = AbsPair(H);
-    H += 2;
-    {
-      int res;
-      if ((res = break_rationals_complex_term(ap-1, ap+1, Hi, Hi PASS_REGS)) < 0) {
-	H = Hi;
-	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
-	  return FALSE;
-	goto restart_list;
-      } else if (res) {
-	H = Hi;
-	return t;
-      }
-    }
-    return tf;
-  } else {
-    Functor f = FunctorOfTerm(t);
-    Term tf;
-    CELL *HB0;
-    CELL *ap;
-
-  restart_appl:
-    f = FunctorOfTerm(t);
-    HB0 = H;
-    ap = RepAppl(t);
-    tf = AbsAppl(H);
-    H[0] = (CELL)f;
-    H += 1+ArityOfFunctor(f);
-    if (H > ASP-128) {
-      H = HB0;
-      if ((t = handle_cp_overflow(-1, TR0, arity, t))== 0L)
-	return FALSE;
-      goto restart_appl;
-    } else {
-      int res;
-
-      if ((res = break_rationals_complex_term(ap, ap+ArityOfFunctor(f), HB0+1, HB0 PASS_REGS)) < 0) {
-	H = HB0;
-	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
-	  return FALSE;
-	goto restart_appl;
-      } else if (res && FunctorOfTerm(t) != FunctorMutable) {
-	H = HB0;
-	return t;
-      }
-    }
-    return tf;
-  }
-}
- 
-static Int
-p_break_rational( USES_REGS1 ) 
-{
-  return Yap_unify(ARG2, BreakRational(ARG1, 2 PASS_REGS));
-}
-
-
-typedef struct restore_frame {
-  CELL *start_cp;
-  CELL *end_cp;
-  CELL *to;
-#ifdef RATIONAL_TREES
-  CELL oldv;
-  CELL *parent;
-  int ground;
-  int term_type;
-#endif
-} restore_frame_t;
-
-static int
-restore_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int pair USES_REGS)
-{
-
-  struct restore_frame *to_visit0, *to_visit = (struct restore_frame *)Yap_PreAllocCodeSpace();
-  CELL *HB0 = HB;
-  tr_fr_ptr TR0 = TR;
-  int ground = TRUE;
-  CELL *parent = ptf;
-
-  HB = HLow;
-  to_visit0 = to_visit;
- loop:
-  while (pt0 < pt0_end) {
-    register CELL d0;
-    register CELL *ptd0;
-    ++ pt0;
-    ptd0 = pt0;
-    d0 = *ptd0;
-    deref_head(d0, restore_rationals_unk);
-  restore_rationals_nvar:
-    {
-      if (IsPairTerm(d0)) {
-	CELL *ap2 = RepPair(d0);
-	if (ap2 >= HB && ap2 < H) {
-	  /* If this is newer than the current term, just reuse */
-	  *ptf++ = d0;
-	  continue;
-	} 
-	*ptf = AbsPair(H);
-	ptf++;
-#ifdef RATIONAL_TREES
-	if (to_visit+1 >= (struct restore_frame *)AuxSp) {
-	  goto heap_overflow;
-	}
-	to_visit->start_cp = pt0;
-	to_visit->end_cp = pt0_end;
-	to_visit->to = ptf;
-	to_visit->oldv = *pt0;
-	to_visit->ground = ground;
-	to_visit->parent = parent;
-	to_visit->term_type = pair;
-	parent = ptf;
-	/* fool the system into thinking we had a variable there */
-	*pt0 = TermFoundVar;
-	to_visit ++;
-#else
-	if (pt0 < pt0_end) {
-	  if (to_visit+1 >= (struct restore_frame *)AuxSp) {
-	    goto heap_overflow;
-	  }
-	  to_visit->start_cp = pt0;
-	  to_visit->end_cp = pt0_end;
-	  to_visit->to = ptf;
-	  to_visit->ground = ground;
-	  to_visit ++;
-	}
-#endif
-	ground = TRUE;
-	pair = TRUE;
-	pt0 = ap2 - 1;
-	pt0_end = ap2 + 1;
-	ptf = H;
-	H += 2;
-	if (H > ASP - 2048) {
-	  goto overflow;
-	}
+	continue;
       } else if (IsApplTerm(d0)) {
 	register Functor f;
 	register CELL *ap2;
 	/* store the terms to visit */
-	ap2 = RepAppl(d0);
-	if (ap2 >= HB && ap2 <= H) {
-	  /* If this is newer than the current term, just reuse */
-	  *ptf++ = d0;
-	  continue;
-	} 
-	f = (Functor)(*ap2);
-
+	ap2 = RepAppl(d0)+1;
+	f = (Functor)(ap2[-1]);
 	if (IsExtensionFunctor(f)) {
-	  *ptf++ = d0;  /* you can just copy extensions, what about DB?*/
+	    *ptf++ = d0;  /* you can just copy other extensions. */
 	  continue;
-	} else if (f == FunctorLOOP) {
-	  Int nlevels = IntegerOfTerm(ap2[1])-1;
-	  struct restore_frame *visited = to_visit-nlevels;
-	  CELL *p;
-	  int type_pair;
+	}
+	if (IsApplTerm(ap2[0]) && IN_BETWEEN(HB, RepAppl(ap2[0]),HR)) {
+	  RESET_VARIABLE(ptf);
+	  vin = add_to_list(vin, (CELL)ptf, ap2[0] );
+	  ptf++;
+	  continue;
+	}
 
-	  if (nlevels) {
-	    p = visited->parent;
-	    type_pair = visited->term_type;
-	  } else {
-	    p = parent;
-	    type_pair = pair;
-	  }
-	  if (type_pair) {
-	    *ptf++ = AbsPair(p);
-	  } else {
-	    *ptf++ = AbsAppl(p-1);
-	  }
-	  ground = FALSE;
-	  continue;
-	} 
-	*ptf = AbsAppl(H);
-	ptf++;
-	/* store the terms to visit */
-#ifdef RATIONAL_TREES
-	if (to_visit+1 >= (struct restore_frame *)AuxSp) {
+	arity_t arity = ArityOfFunctor(f);
+	if (to_visit+1 >= (struct bp_frame *)AuxSp) {
 	  goto heap_overflow;
 	}
+	*ptf++ = AbsAppl(HR);
 	to_visit->start_cp = pt0;
 	to_visit->end_cp = pt0_end;
 	to_visit->to = ptf;
-	to_visit->oldv = *pt0;
-	to_visit->ground = ground;
-	to_visit->parent = parent;
-	to_visit->term_type = pair;
-	parent = ptf;
+	to_visit->oldp = ap2;
+	d0 = to_visit->oldv = ap2[0];
 	/* fool the system into thinking we had a variable there */
-	*pt0 = TermFoundVar;
 	to_visit ++;
-#else
-	if (pt0 < pt0_end) {
-	  if (to_visit+1 >= (struct restore_frame *)AuxSp) {
-	    goto heap_overflow;
-	  }
-	  to_visit->start_cp = pt0;
-	  to_visit->end_cp = pt0_end;
-	  to_visit->to = ptf;
-	  to_visit->ground = ground;
-	  to_visit ++;
-	}
-#endif
-	d0 = ArityOfFunctor(f);
 	pt0 = ap2;
-	pt0_end = ap2 + d0;
-	/* store the functor for the new term */
-	H[0] = (CELL)f;
-	ptf = H+1;
-	H += 1+d0;
-	pair = FALSE;
-	if (H > ASP - 2048) {
+	pt0_end = ap2 + (arity-1);
+	ptf = HR;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
+	*ptf++ =(CELL)f;
+	*ap2  = AbsAppl(HR);
+	HR += (arity+1);
+	if (IsVarTerm(d0) && d0 == (CELL)(ap2)) {
+	  RESET_VARIABLE(ptf);
+	  ptf++;
+	  continue;
+	}
+	d0 = Deref(d0);
+	if (!IsVarTerm(d0)) {
+	  goto copy_term_nvar;
+	} else {
+	  *ptf++ = d0;
+	}
+	continue;
       } else {
+	/* just copy atoms or integers */
 	*ptf++ = d0;
       }
       continue;
     }
 
-    derefa_body(d0, ptd0, restore_rationals_unk, restore_rationals_nvar);
-    /* we have already found this cell */
+    derefa_body(d0, ptd0, copy_term_unk, copy_term_nvar);
     *ptf++ = (CELL) ptd0;
   }
   /* Do we still have compound terms to visit */
   if (to_visit > to_visit0) {
     to_visit --;
-    if (ground) {
-      CELL old = to_visit->oldv;
-      CELL *newp = to_visit->to-1;
-      CELL new = *newp;
-
-      *newp = old;
-      if (IsApplTerm(new))
-	H = RepAppl(new);
-      else
-	H = RepPair(new);
-    }
+    *to_visit->oldp = to_visit->oldv;
+    ptf = to_visit->to;
     pt0 = to_visit->start_cp;
     pt0_end = to_visit->end_cp;
-    ptf = to_visit->to;
-#ifdef RATIONAL_TREES
-    parent = to_visit->parent;
-    pair = to_visit->term_type;
-    *pt0 = to_visit->oldv;
-#endif
-    ground = (ground && to_visit->ground);
     goto loop;
   }
 
   /* restore our nice, friendly, term to its original state */
-  clean_dirty_tr(TR0 PASS_REGS);
   HB = HB0;
-  return ground;
+  *vout = vin;
+  return true;
 
  overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -1037,9 +706,7 @@ restore_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, 
     pt0 = to_visit->start_cp;
     pt0_end = to_visit->end_cp;
     ptf = to_visit->to;
-    parent = to_visit->parent;
-    pair = to_visit->term_type;
-    *pt0 = to_visit->oldv;
+    *to_visit->oldp = to_visit->oldv;
   }
 #endif
   reset_trail(TR0);
@@ -1048,7 +715,7 @@ restore_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, 
 
  heap_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -1058,9 +725,7 @@ restore_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, 
     pt0 = to_visit->start_cp;
     pt0_end = to_visit->end_cp;
     ptf = to_visit->to;
-    parent = to_visit->parent;
-    pair = to_visit->term_type;
-    *pt0 = to_visit->oldv;
+    *to_visit->oldp = to_visit->oldv;
   }
 #endif
   reset_trail(TR0);
@@ -1069,81 +734,281 @@ restore_rationals_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, 
 }
 
 
-static Term
-RestoreRational(Term inp, UInt arity USES_REGS) {
+ Term
+Yap_BreakRational(Term inp, UInt arity, Term *to, Term ti USES_REGS) {
   Term t = Deref(inp);
+  Term tii = ti;
   tr_fr_ptr TR0 = TR;
 
   if (IsVarTerm(t)) {
+    *to = ti;
     return t;
   } else if (IsPrimitiveTerm(t)) {
+        *to = ti;
     return t;
   } else if (IsPairTerm(t)) {
-    Term tf;
     CELL *ap;
     CELL *Hi;
 
   restart_list:
     ap = RepPair(t);
-    Hi = H;
-    tf = AbsPair(H);
-    H += 2;
+    Hi = HR;
+    HR += 2;
     {
-      int res;
-      if ((res = restore_rationals_complex_term(ap-1, ap+1, Hi, Hi, TRUE PASS_REGS)) < 0) {
-	H = Hi;
+      Int res;
+      if ((res = break_rationals_complex_term(ap-1, ap+1, Hi, to, ti, Hi PASS_REGS)) < 0) {
+	HR = Hi;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_list;
-      } else if (res) {
-	H = Hi;
+      } else if (*to == tii) {
+	HR = Hi;
 	return t;
+      } else {
+	return AbsPair(Hi);
       }
     }
-    return tf;
   } else {
-    Functor f = FunctorOfTerm(t);
-    Term tf;
+    Functor f;
     CELL *HB0;
     CELL *ap;
 
   restart_appl:
     f = FunctorOfTerm(t);
-    HB0 = H;
+    if (IsExtensionFunctor(f)) {
+      *to = ti;
+      return t;
+    }
+    HB0 = HR;
     ap = RepAppl(t);
-    tf = AbsAppl(H);
-    H[0] = (CELL)f;
-    H += 1+ArityOfFunctor(f);
-    if (H > ASP-128) {
-      H = HB0;
-      if ((t = handle_cp_overflow(-1, TR0, arity, t))== 0L)
-	return FALSE;
-      goto restart_appl;
-    } else {
-      int res;
-
-      if ((res = restore_rationals_complex_term(ap, ap+ArityOfFunctor(f), HB0+1, HB0, FALSE PASS_REGS)) < 0) {
-	H = HB0;
+    HR[0] = (CELL)f;
+    arity = ArityOfFunctor(f);
+    HR += 1+arity;
+    
+   {
+      Int res;
+      if ((res = break_rationals_complex_term(ap, ap+(arity), HB0+1, to, ti, HB0 PASS_REGS)) < 0) {
+	HR = HB0;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_appl;
-      } else if (res && FunctorOfTerm(t) != FunctorMutable) {
-	H = HB0;
+      } else if (*to == ti) {
+	HR = HB0;
 	return t;
+      } else {
+	return AbsAppl(HB0);
       }
     }
-    return tf;
   }
 }
+
+  static int
+break_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, Term *of, Term oi, CELL *HLow USES_REGS)
+{
+
+  struct copy_frame *to_visit0, *to_visit = (struct copy_frame *)Yap_PreAllocCodeSpace();
+  CELL *HB0 = HB;
+  tr_fr_ptr TR0 = TR;
+  CELL new = 0L;
+
+  HB = HLow;
+  to_visit0 = to_visit;
+ loop:
+  while (pt0 < pt0_end) {
+    register CELL d0;
+    register CELL *ptd0;
+    ++ pt0;
+    ptd0 = pt0;
+    d0 = *ptd0;
+    if (new) {
+      /* mark cell as pointing to new copy */
+      /* we can only mark after reading the value of the first argument */
+      MaBind(pt0, new);
+      new = 0L;
+    }
+    deref_head(d0, break_rationals_unk);
+  break_rationals_nvar:
+    {
+      CELL first;
+      CELL *newp;
+      if (IsPairTerm(d0)) {
+	CELL *ap2 = RepPair(d0);
+
+	if (IsVarTerm(first = *ap2) && (newp = (CELL*)first) && newp >= HB && newp < HR) {
+	  // found a marked term:
+	found_term:
+	  if (!IsVarTerm(*newp)) {
+	    Term v = (CELL)newp, t = *newp;
+	    RESET_VARIABLE(newp);
+	    oi = add_to_list( oi, v, t PASS_REGS);
+	  }
+	  *ptf++ = (CELL)newp;
+	  continue;
+	}
+	new = (CELL)ptf;
+	*ptf++ = AbsPair(HR);
+	if (pt0 < pt0_end) {
+	  if (to_visit+1 >= (struct copy_frame *)AuxSp) {
+	    goto heap_overflow;
+	  }
+	  to_visit->start_cp = pt0;
+	  to_visit->end_cp = pt0_end;
+	  to_visit->to = ptf;
+	  to_visit ++;
+	}
+	pt0 = ap2 - 1;
+	pt0_end = ap2 + 1;
+	ptf = HR;
+	HR += 2;
+	if (HR > ASP - 2048) {
+	  goto overflow;
+	}
+      } else if (IsApplTerm(d0)) {
+	register Functor f;
+	register CELL *ap2;
+	/* store the terms to visit */
+	ap2 = RepAppl(d0);
+	f = (Functor)(*ap2);
+	if (IsExtensionFunctor(f)) {
+	  *ptf++ = d0;  /* you can just share extensions, what about DB? */
+	  continue;
+	}
+	if (IsVarTerm(first = ap2[1]) && (newp = (CELL*)first) && newp >= HB && newp < HR) {
+	  goto found_term;
+	}
+	// new
+	/* store the terms to visit */
+	new = (CELL)ptf;
+	*ptf++ = AbsAppl(HR);
+	if (pt0 < pt0_end) {
+	  if (to_visit+1 >= (struct copy_frame *)AuxSp) {
+	    goto heap_overflow;
+	  }
+	  to_visit->start_cp = pt0;
+	  to_visit->end_cp = pt0_end;
+	  to_visit->to = ptf;
+	  to_visit ++;
+	}
+	d0 = ArityOfFunctor(f);
+	pt0 = ap2;
+	pt0_end = ap2 + d0;
+	/* store the functor for the new term */
+	HR[0] = (CELL)f;
+	ptf = HR+1;
+	HR += 1+d0;
+	if (HR > ASP - 2048) {
+	  goto overflow;
+	}
+      } else {
+	/* just copy atoms or integers */
+	*ptf++ = d0;
+      }
+      continue;
+    }
+
+    derefa_body(d0, ptd0, break_rationals_unk, break_rationals_nvar);
+    *ptf++ = d0;
+  }
+  /* Do we still have compound terms to visit */
+  if (to_visit > to_visit0) {
+    to_visit --;
+    pt0 = to_visit->start_cp;
+    pt0_end = to_visit->end_cp;
+    ptf = to_visit->to;
+    goto loop;
+  }
+
+  /* restore our nice, friendly, term to its original state */
+  HB = HB0;
+  reset_trail(TR0);
+  *of = oi;
+  return TRUE;
+
+ overflow:
+  /* oops, we're in trouble */
+  HR = HLow;
+  /* we've done it */
+  /* restore our nice, friendly, term to its original state */
+  HB = HB0;
+  while (to_visit > to_visit0) {
+    to_visit --;
+    pt0 = to_visit->start_cp;
+    pt0_end = to_visit->end_cp;
+    ptf = to_visit->to;
+  }
+  reset_trail(TR0);
+  /* follow chain of multi-assigned variables */
+  return -1;
+
+ heap_overflow:
+  /* oops, we're in trouble */
+  HR = HLow;
+  /* we've done it */
+  /* restore our nice, friendly, term to its original state */
+  HB = HB0;
+  while (to_visit > to_visit0) {
+    to_visit --;
+    pt0 = to_visit->start_cp;
+    pt0_end = to_visit->end_cp;
+    ptf = to_visit->to;
+  }
+  reset_trail(TR0);
+  LOCAL_Error_Size = (ADDR)AuxSp-(ADDR)to_visit0;
+  return -3;
+}
+
+ Term
+Yap_BreakTerm(Term inp, UInt arity, Term *to, Term ti USES_REGS) {
+  Term t = Deref(inp);
+  tr_fr_ptr TR0 = TR;
+
+  if (IsVarTerm(t)) {
+    *to = ti;
+    return t;
+  } else if (IsPrimitiveTerm(t)) {
+    *to = ti;
+    return t;
+  } else  {
+    CELL *ap;
+    CELL *Hi = HR;
+
+  restart_term:
+    ap = &t;
+    Hi = HR++;
+    {
+      int res;
+
+      if ((res = break_complex_term(ap-1, ap, Hi, to, ti, Hi PASS_REGS)) < 0) {
+	HR = Hi;
+	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
+	  return FALSE;
+	goto restart_term;
+      }
+    }
+    return Hi[0];
+  }
+}
+
  
 static Int
-p_restore_rational( USES_REGS1 ) 
+p_break_rational( USES_REGS1 )
 {
-  return Yap_unify(ARG2, RestoreRational(ARG1, 2 PASS_REGS));
+  Term tf;
+  return Yap_unify(ARG2, Yap_BreakTerm(ARG1, 4, &tf, ARG4 PASS_REGS)) &&
+    Yap_unify(tf, ARG3);
 }
 
 
-/* 
+static Int
+p_break_rational3( USES_REGS1 )
+{
+  Term tf;
+  return Yap_unify(ARG2, Yap_BreakTerm(ARG1, 4, &tf, TermNil PASS_REGS)) &&
+    Yap_unify(tf, ARG3);
+}
+
+
+/*
    FAST EXPORT ROUTINE. Export a Prolog term to something like:
 
    CELL 0: offset for start of term
@@ -1176,38 +1041,27 @@ CELL *AdjustSize(CELL *x, char *buf)
 }
 
 /* export an atom from the symbol table to a buffer */
-static inline 
+static inline
 Atom export_atom(Atom at, char **hpp, char *buf, size_t len)
-{				 
+{
   char *ptr, *p0;
   size_t sz;
 
   ptr = *hpp;
   ptr = (char *)AdjustSize((CELL*)ptr, buf);
-  
+
   p0 = ptr;
-  if (IsWideAtom(at)) {
-    wchar_t *wptr = (wchar_t *)ptr;
-    *wptr++ = -1;
-    sz = wcslen(RepAtom(at)->WStrOfAE);
-    if (sizeof(wchar_t)*(sz+1) >= len)
-      return (Atom)NULL;
-    wcsncpy(wptr, RepAtom(at)->WStrOfAE, len);
-    *hpp = (char *)(wptr+(sz+1));
-  } else {
-    *ptr++ = 0;
-    sz = strlen(RepAtom(at)->StrOfAE);
-    if (sz + 1 + sizeof(wchar_t) >= len)
-      return (Atom)NULL;
-    strcpy(ptr, RepAtom(at)->StrOfAE);
-    *hpp = ptr+(sz+1);
-  }
-  ptr += sz;
+  *ptr++ = 0;
+  sz = strlen(RepAtom(at)->StrOfAE);
+  if (sz + 1  >= len)
+    return (Atom)NULL;
+  strcpy(ptr, RepAtom(at)->StrOfAE);
+  *hpp = ptr+(sz+1);
   return (Atom)(p0-buf);
 }
 
 /* place a buffer: first arity then the atom */
-static inline 
+static inline
 Functor export_functor(Functor f, char **hpp, char *buf, size_t len)
 {
   CELL *hptr = AdjustSize((CELL *)*hpp, buf);
@@ -1224,9 +1078,9 @@ Functor export_functor(Functor f, char **hpp, char *buf, size_t len)
   return (Functor)(((char *)hptr-buf)+1);
 }
 
-#define export_derefa_body(D,A,LabelUnk,LabelNonVar)                \
+#define export_derefa_body(D,A,LabelUnk,LabelNonVar)	     \
 		do {                                         \
-		  if ((CELL *)(D) < CellDifH(H,HLow)) { (A) = (CELL *)(D); break; } \
+		  if ((CELL *)(D) < CellDifH(HR,HLow)) { (A) = (CELL *)(D); break; } \
                    (A) = (CELL *)(D);                        \
                    (D) = *(CELL *)(D);                       \
                    if(!IsVarTerm(D)) goto LabelNonVar;       \
@@ -1242,7 +1096,7 @@ export_term_to_buffer(Term inpt, char *buf, char *bptr, CELL *t0 , CELL *tf, siz
   if (buf + len < (char *)((CELL *)td + (tf-t0))) {
     return FALSE;
   }
-  memcpy((void *)td, (void *)t0, (tf-t0)* sizeof(CELL)); 
+  memmove((void *)td, (void *)t0, (tf-t0)* sizeof(CELL));
   bf[0] = (td-buf);
   bf[1] = (tf-t0);
   bf[2] = inpt;
@@ -1274,12 +1128,12 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
     {
       if (IsPairTerm(d0)) {
 	CELL *ap2 = RepPair(d0);
-	if (ap2 < CellDifH(H,HLow)) {
+	if (ap2 < CellDifH(HR,HLow)) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
-	*ptf = AbsPair(CellDifH(H,HLow));
+	}
+	*ptf = AbsPair(CellDifH(HR,HLow));
 	ptf++;
 #ifdef RATIONAL_TREES
 	if (to_visit+1 >= (struct cp_frame *)AuxSp) {
@@ -1291,7 +1145,7 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsPair(CellDifH(H,HLow));
+	*pt0 = AbsPair(CellDifH(HR,HLow));
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -1307,9 +1161,9 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 #endif
 	pt0 = ap2 - 1;
 	pt0_end = ap2 + 1;
-	ptf = H;
-	H += 2;
-	if (H > ASP - 2048) {
+	ptf = HR;
+	HR += 2;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else if (IsApplTerm(d0)) {
@@ -1317,14 +1171,14 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 	register CELL *ap2;
 	/* store the terms to visit */
 	ap2 = RepAppl(d0);
-	if (ap2 < CellDifH(H,HLow)) {
+	if (ap2 < CellDifH(HR,HLow)) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
+	}
 	f = (Functor)(*ap2);
 
-	*ptf++ = AbsAppl(CellDifH(H,HLow));
+	*ptf++ = AbsAppl(CellDifH(HR,HLow));
 	if (IsExtensionFunctor(f)) {
 	  UInt sz;
 
@@ -1333,15 +1187,17 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 	    sz = sizeof(Float)/sizeof(CELL)+2;
 	  } else if (f== FunctorLongInt) {
 	    sz = 3;
+	  } else if (f== FunctorString) {
+	    sz = 3+ap2[1];
 	  } else {
 	    CELL *pt = ap2+1;
 	    sz = 2+sizeof(MP_INT)+(((MP_INT *)(pt+1))->_mp_alloc*sizeof(mp_limb_t));
 	  }
-	  if (H+sz > ASP - 2048) {
+	  if (HR+sz > ASP - 2048) {
 	    goto overflow;
 	  }
-	  memcpy((void *)H, (void *)ap2, sz*sizeof(CELL));
-	  H += sz;
+	  memmove((void *)HR, (void *)ap2, sz*sizeof(CELL));
+	  HR += sz;
 	  continue;
 	}
 	/* store the terms to visit */
@@ -1355,7 +1211,7 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsAppl(H);
+	*pt0 = AbsAppl(HR);
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -1374,14 +1230,14 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 	pt0 = ap2;
 	pt0_end = ap2 + d0;
 	/* store the functor for the new term */
-	ptf = H+1;
-	H += 1+d0;
-	if (H > ASP - 2048) {
+	ptf = HR+1;
+	HR += 1+d0;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
 	ptf[-1] = (CELL)export_functor(f, &bptr, buf, len);
 	len = len0 - (bptr-buf);
-	if (H > ASP - 2048) {
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else {
@@ -1398,7 +1254,7 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 
     export_derefa_body(d0, ptd0, export_term_unk, export_term_nvar);
     ground = FALSE;
-    if (ptd0 < CellDifH(H,HLow)) { 
+    if (ptd0 < CellDifH(HR,HLow)) {
       /* we have already found this cell */
       *ptf++ = (CELL) ptd0;
     } else {
@@ -1450,11 +1306,11 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
   /* restore our nice, friendly, term to its original state */
   clean_dirty_tr(TR0 PASS_REGS);
   HB = HB0;
-  return export_term_to_buffer(tf, buf, bptr, HLow, H, len0);
+  return export_term_to_buffer(tf, buf, bptr, HLow, HR, len0);
 
  overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -1473,7 +1329,7 @@ export_complex_term(Term tf, CELL *pt0, CELL *pt0_end, char * buf, size_t len0, 
 
 trail_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -1497,7 +1353,7 @@ trail_overflow:
 
  heap_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -1520,22 +1376,31 @@ ExportTerm(Term inp, char * buf, size_t len, UInt arity, int newattvs USES_REGS)
   Term t = Deref(inp);
   tr_fr_ptr TR0 = TR;
   size_t res = 0;
-  CELL *Hi;
+  CELL *Hi = HR;
 
   do {
+    if (IsVarTerm(t) || IsIntTerm(t)) {
+      return export_term_to_buffer(t, buf, buf+ 3*sizeof(CELL), &inp, &inp, len);
+    }
+    if (IsAtomTerm(t)) {
+      Atom at = AtomOfTerm(t);
+      char *b = buf+3*sizeof(CELL);
+      export_atom(at, &b, b, len-3*sizeof(CELL));
+      return export_term_to_buffer(t, buf, b, &inp, &inp, len);
+    }
     if ((Int)res < 0) {
-      H = Hi;
+      HR = Hi;
       TR = TR0;
       if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	return res;
     }
-    Hi = H;
+    Hi = HR;
     TR0 = TR;
     res = export_complex_term(inp, &t-1, &t, buf, len, newattvs, Hi, Hi PASS_REGS);
   } while ((Int)res < 0);
   return res;
 }
- 
+
 size_t
 Yap_ExportTerm(Term inp, char * buf, size_t len, UInt arity) {
   CACHE_REGS
@@ -1550,29 +1415,27 @@ ShiftPtr(CELL t, char *base)
 }
 
 static Atom
-AddAtom(Atom t, char *buf)
+addAtom(Atom t, char *buf)
 {
   char *s = buf+(UInt)t;
 
   if (!*s) {
     return Yap_LookupAtom(s+1);
-  } else {
-    wchar_t *w = (wchar_t *)s;
-    return Yap_LookupWideAtom(w+1);
   }
+    return NULL;
 }
 
 static UInt
 FetchFunctor(CELL *pt, char *buf)
 {
-  CELL *ptr = (CELL *)(buf+(*pt-1)); 
+  CELL *ptr = (CELL *)(buf+(*pt-1));
   // do arity first
   UInt arity = *ptr++;
   Atom name, at;
   // and then an atom
   ptr = AdjustSize(ptr, buf);
   name = (Atom)((char *)ptr-buf);
-  at = AddAtom(name, buf);
+  at = addAtom(name, buf);
   *pt = (CELL)Yap_MkFunctor(at, arity);
   return arity;
 }
@@ -1588,7 +1451,7 @@ import_arg(CELL *hp, char *abase, char *buf, CELL *amax)
   if (IsVarTerm(t)) {
     hp[0] = (CELL)ShiftPtr(t, abase);
   } else if (IsAtomTerm(t)) {
-    hp[0] = MkAtomTerm(AddAtom(AtomOfTerm(t), buf));
+    hp[0] = MkAtomTerm(addAtom(AtomOfTerm(t), buf));
   } else if (IsPairTerm(t)) {
     CELL *newp = ShiftPtr((CELL)RepPair(t), abase);
     hp[0] = AbsPair(newp);
@@ -1616,7 +1479,7 @@ import_compound(CELL *hp, char *abase, char *buf, CELL *amax)
   ar = FetchFunctor(hp, buf);
   for (i=1; i<=ar; i++) {
     amax = import_arg(hp+i, abase, buf, amax);
-  }    
+  }
   return amax;
 }
 
@@ -1634,28 +1497,32 @@ Yap_ImportTerm(char * buf) {
   CELL *bc = (CELL *)buf;
   size_t sz = bc[1];
   Term tinp, tret;
-
   tinp = bc[2];
   if (IsVarTerm(tinp))
     return MkVarTerm();
-  if (IsAtomOrIntTerm(tinp)) {
-    if (IsAtomTerm(tinp)) {
-      char *pt = (char *)AdjustSize(bc+3, buf);
-      return MkAtomTerm(Yap_LookupAtom(pt));
-    } else
-      return tinp;
+  else if (IsIntTerm(tinp))
+    return tinp;
+  else if (IsAtomTerm(tinp)) {
+    tret = MkAtomTerm(addAtom(NULL,(char *)(bc+3)));
+    return tret;
   }
-  if (H + sz > ASP)
-    return (Term)0;
-  memcpy(H, buf+bc[0], sizeof(CELL)*sz);
+  // call the gc/stack shifter mechanism
+  // if not enough stack available
+  while (HR + sz > ASP - 4096) {
+    if (!Yap_gcl( (sz+4096)*sizeof(CELL), PP->ArityOfPE, ENV, gc_P(P,CP))) {
+      Yap_Error(RESOURCE_ERROR_STACK, TermNil, LOCAL_ErrorMessage);
+      return 0L;
+    }
+  }
+  memmove(HR, buf+bc[0], sizeof(CELL)*sz);
   if (IsApplTerm(tinp)) {
-    tret = AbsAppl(H);
-    import_compound(H, (char *)H, buf, H);
+    tret = AbsAppl(HR);
+    import_compound(HR, (char *)HR, buf, HR);
   } else {
-    tret = AbsPair(H);
-    import_pair(H, (char *)H, buf, H);
+    tret = AbsPair(HR);
+    import_pair(HR, (char *)HR, buf, HR);
   }
-  H += sz;
+  HR += sz;
   return tret;
 }
 
@@ -1691,7 +1558,7 @@ p_import_term( USES_REGS1 )
   if (!export_buf)
     return FALSE;
   Int out = Yap_unify(ARG2,Yap_ImportTerm(export_buf));
-  return out;						 
+  return out;
 }
 
 static Int
@@ -1701,7 +1568,7 @@ p_kill_exported_term( USES_REGS1 )
   if (!export_buf)
     return FALSE;
   free(export_buf);
-  return TRUE;						 
+  return TRUE;
 }
 
 
@@ -1710,8 +1577,8 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
 
   register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
-  CELL output = AbsPair(H);
+  CELL *InitialH = HR;
+  CELL output = AbsPair(HR);
 
   to_visit0 = to_visit;
  loop:
@@ -1775,19 +1642,19 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, vars_in_term_unk, vars_in_term_nvar);
     /* do or pt2 are unbound  */
     *ptd0 = TermNil;
     /* leave an empty slot to fill in later */
-    if (H+1024 > ASP) {
+    if (HR+1024 > ASP) {
       goto global_overflow;
     }
-    H[1] = AbsPair(H+2);
-    H += 2;
-    H[-2] = (CELL)ptd0;
-    /* next make sure noone will see this as a variable again */ 
+    HR[1] = AbsPair(HR+2);
+    HR += 2;
+    HR[-2] = (CELL)ptd0;
+    /* next make sure noone will see this as a variable again */
     if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
       /* Trail overflow */
       if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
@@ -1813,14 +1680,14 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
 
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  if (H != InitialH) {
+  if (HR != InitialH) {
     /* close the list */
     Term t2 = Deref(inp);
     if (IsVarTerm(t2)) {
-      RESET_VARIABLE(H-1);
-      Yap_unify((CELL)(H-1),ARG2);
+      RESET_VARIABLE(HR-1);
+      Yap_unify((CELL)(HR-1),inp);
     } else {
-      H[-1] = t2;		/* don't need to trail */
+      HR[-1] = t2;		/* don't need to trail */
     }
     return(output);
   } else {
@@ -1835,13 +1702,13 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_TRAIL_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
   LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  aux_overflow:
   LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
 #ifdef RATIONAL_TREES
@@ -1851,12 +1718,12 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_AUXSPACE_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_AUXILIARY_STACK;
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  global_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
@@ -1867,11 +1734,11 @@ static Term vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Ter
 #endif
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  LOCAL_Error_TYPE = OUT_OF_STACK_ERROR;
-  LOCAL_Error_Size = (ASP-H)*sizeof(CELL);
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
   return 0L;
-  
+
 }
 
 static int
@@ -1879,15 +1746,15 @@ expand_vts( int args USES_REGS )
 {
   UInt expand = LOCAL_Error_Size;
   yap_error_number yap_errno = LOCAL_Error_TYPE;
-  
+
   LOCAL_Error_Size = 0;
   LOCAL_Error_TYPE = YAP_NO_ERROR;
-  if (yap_errno == OUT_OF_TRAIL_ERROR) {
+  if (yap_errno == RESOURCE_ERROR_TRAIL) {
     /* Trail overflow */
     if (!Yap_growtrail(expand, FALSE)) {
       return FALSE;
     }
-  } else if (yap_errno == OUT_OF_AUXSPACE_ERROR) {
+  } else if (yap_errno == RESOURCE_ERROR_AUXILIARY_STACK) {
     /* Aux space overflow */
     if (expand > 4*1024*1024)
       expand = 4*1024*1024;
@@ -1896,19 +1763,19 @@ expand_vts( int args USES_REGS )
     }
   } else {
     if (!Yap_gcl(expand, 3, ENV, gc_P(P,CP))) {
-      Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in term_variables");
+      Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in term_variables");
       return FALSE;
     }
   }
   return TRUE;
 }
- 
-static Int 
+
+static Int
 p_variables_in_term( USES_REGS1 )	/* variables in term t		 */
 {
   Term out, inp;
   int count;
-  
+
 
  restart:
   count = 0;
@@ -1933,13 +1800,13 @@ p_variables_in_term( USES_REGS1 )	/* variables in term t		 */
   do {
     Term t = Deref(ARG1);
     if (IsVarTerm(t)) {
-      out = AbsPair(H);
-      H += 2;
-      RESET_VARIABLE(H-2);
-      RESET_VARIABLE(H-1);
-      Yap_unify((CELL)(H-2),ARG1);
-      Yap_unify((CELL)(H-1),ARG2);
-    }  else if (IsPrimitiveTerm(t)) 
+      out = AbsPair(HR);
+      HR += 2;
+      RESET_VARIABLE(HR-2);
+      RESET_VARIABLE(HR-1);
+      Yap_unify((CELL)(HR-2),ARG1);
+      Yap_unify((CELL)(HR-1),ARG2);
+    }  else if (IsPrimitiveTerm(t))
       out = ARG2;
     else if (IsPairTerm(t)) {
       out = vars_in_complex_term(RepPair(t)-1,
@@ -1961,7 +1828,7 @@ p_variables_in_term( USES_REGS1 )	/* variables in term t		 */
 }
 
 
-static Int 
+static Int
 p_term_variables( USES_REGS1 )	/* variables in term t		 */
 {
   Term out;
@@ -1999,16 +1866,59 @@ p_term_variables( USES_REGS1 )	/* variables in term t		 */
   return Yap_unify(ARG2,out);
 }
 
+/**
+ * Exports a nil-terminated list with all the variables in a term.
+ * @param[t] the term
+ * @param[arity] the arity of the calling predicate (required for exact garbage collection).
+ * @param[USES_REGS] threading
+ */
+Term
+Yap_TermVariables( Term t, UInt arity USES_REGS )	/* variables in term t		 */
+{
+  Term out;
+
+   do {
+    t = Deref(t);
+    if (IsVarTerm(t)) {
+      return MkPairTerm(t, TermNil);
+    }  else if (IsPrimitiveTerm(t)) {
+      return TermNil;
+    } else if (IsPairTerm(t)) {
+      out = vars_in_complex_term(RepPair(t)-1,
+				 RepPair(t)+1, TermNil PASS_REGS);
+    }
+    else {
+      Functor f = FunctorOfTerm(t);
+      out = vars_in_complex_term(RepAppl(t),
+				 RepAppl(t)+
+				 ArityOfFunctor(f), TermNil PASS_REGS);
+    }
+    if (out == 0L) {
+      if (!expand_vts( arity PASS_REGS ))
+	return FALSE;
+    }
+  } while (out == 0L);
+  return out;
+}
+
+typedef struct att_rec {
+  CELL *beg, *end;
+  CELL oval;
+} att_rec_t;
+
 static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Term inp USES_REGS)
 {
-
-  register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
+  int lvl = push_text_stack();
+  att_rec_t *to_visit0, *to_visit = Malloc(1024*sizeof(att_rec_t));
+  att_rec_t *to_visit_max;
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
-  CELL output = AbsPair(H);
+  CELL *InitialH = HR;
+  CELL output = AbsPair(HR);
 
   to_visit0 = to_visit;
- loop:
+  to_visit_max = to_visit0+1024;
+ restart:
+  do {
   while (pt0 < pt0_end) {
     register CELL d0;
     register CELL *ptd0;
@@ -2019,14 +1929,22 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
   attvars_in_term_nvar:
     {
       if (IsPairTerm(d0)) {
-	if (to_visit + 1024 >= (CELL **)AuxSp) {
-	  goto aux_overflow;
-	}
+        if (to_visit + 32 >= to_visit_max) {
+          goto aux_overflow;
+        }
+        {
+          CELL *npt0 = RepPair(d0);
+          if(IsAtomicTerm(Deref(npt0[0]))) {
+            pt0 = npt0;
+            pt0_end = pt0 + 1;
+            continue;
+          }
+        }
 #ifdef RATIONAL_TREES
-	to_visit[0] = pt0;
-	to_visit[1] = pt0_end;
-	to_visit[2] = (CELL *)*pt0;
-	to_visit += 3;
+	to_visit->beg = pt0;
+	to_visit->end = pt0_end;
+	to_visit->oval = *pt0;
+	to_visit ++;
 	*pt0 = TermNil;
 #else
 	if (pt0 < pt0_end) {
@@ -2036,10 +1954,10 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
 	}
 #endif
 	pt0 = RepPair(d0) - 1;
-	pt0_end = RepPair(d0) + 1;
+          pt0_end = pt0+2;
       } else if (IsApplTerm(d0)) {
-	register Functor f;
-	register CELL *ap2;
+        Functor f;
+	 CELL *ap2;
 	/* store the terms to visit */
 	ap2 = RepAppl(d0);
 	f = (Functor)(*ap2);
@@ -2047,14 +1965,14 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
 	  continue;
 	}
 	/* store the terms to visit */
-	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	if (to_visit + 32 >= to_visit_max) {
 	  goto aux_overflow;
 	}
 #ifdef RATIONAL_TREES
-	to_visit[0] = pt0;
-	to_visit[1] = pt0_end;
-	to_visit[2] = (CELL *)*pt0;
-	to_visit += 3;
+	to_visit->beg = pt0;
+	to_visit->end = pt0_end;
+	to_visit->oval = *pt0;
+	to_visit ++;
 	*pt0 = TermNil;
 #else
 	if (pt0 < pt0_end) {
@@ -2063,43 +1981,44 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
 	  to_visit += 2;
 	}
 #endif
-	d0 = ArityOfFunctor(f);
+	arity_t a = ArityOfFunctor(f);
 	pt0 = ap2;
-	pt0_end = ap2 + d0;
+	pt0_end = ap2 + a;
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, attvars_in_term_unk, attvars_in_term_nvar);
     if (IsAttVar(ptd0)) {
       /* do or pt2 are unbound  */
       *ptd0 = TermNil;
-      /* next make sure noone will see this as a variable again */ 
+      /* next make sure noone will see this as a variable again */
       if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
 	/* Trail overflow */
-	if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
-	  goto trail_overflow;
-	}
+        if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
+          goto trail_overflow;
+        }
       }
       TrailTerm(TR++) = (CELL)ptd0;
       /* leave an empty slot to fill in later */
-      if (H+1024 > ASP) {
-	goto global_overflow;
+      if (HR+1024 > ASP) {
+        goto global_overflow;
       }
-      H[1] = AbsPair(H+2);
-      H += 2;
-      H[-2] = (CELL)ptd0;
+      HR[1] = AbsPair(HR+2);
+      HR += 2;
+      HR[-2] = (CELL)ptd0;
       /* store the terms to visit */
-      if (to_visit + 1024 >= (CELL **)AuxSp) {
+      if (to_visit + 32 >= to_visit_max) {
 	goto aux_overflow;
       }
 #ifdef RATIONAL_TREES
-      to_visit[0] = pt0;
-      to_visit[1] = pt0_end;
-      to_visit[2] = (CELL *)*pt0;
-      to_visit += 3;
-      *pt0 = TermNil;
+      
+	to_visit->beg = pt0;
+	to_visit->end = pt0_end;
+	to_visit->oval = *pt0;
+	to_visit ++;
+	*pt0 = TermNil;
 #else
       if (pt0 < pt0_end) {
 	to_visit[0] = pt0;
@@ -2110,32 +2029,33 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
       pt0 = &RepAttVar(ptd0)->Value;
       pt0_end = &RepAttVar(ptd0)->Atts;
     }
+    continue;
   }
   /* Do we still have compound terms to visit */
-  if (to_visit > to_visit0) {
+  if (to_visit == to_visit0)
+    break;
 #ifdef RATIONAL_TREES
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    pt0_end = to_visit[1];
-    *pt0 = (CELL)to_visit[2];
+    to_visit --;
+    pt0 = to_visit->beg;
+    pt0_end = to_visit->end;
+    *pt0 = to_visit->oval;
 #else
     to_visit -= 2;
     pt0 = to_visit[0];
     pt0_end = to_visit[1];
 #endif
-    goto loop;
-  }
+  } while(true);
 
   clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  if (H != InitialH) {
+ pop_text_stack(lvl);
+  if (HR != InitialH) {
     /* close the list */
     Term t2 = Deref(inp);
     if (IsVarTerm(t2)) {
-      RESET_VARIABLE(H-1);
-      Yap_unify((CELL)(H-1),ARG2);
+      RESET_VARIABLE(HR-1);
+      Yap_unify((CELL)(HR-1), t2);
     } else {
-      H[-1] = t2;		/* don't need to trail */
+      HR[-1] = t2;		/* don't need to trail */
     }
     return(output);
   } else {
@@ -2145,51 +2065,47 @@ static Term attvars_in_complex_term(register CELL *pt0, register CELL *pt0_end, 
  trail_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
+    to_visit --;
+    pt0 = to_visit->beg;
+    *pt0 = to_visit->oval;
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_TRAIL_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
   LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
   clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+ pop_text_stack(lvl);
+  HR = InitialH;
   return 0L;
-  
+
  aux_overflow:
-  LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
-#ifdef RATIONAL_TREES
-  while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
-  }
-#endif
-  LOCAL_Error_TYPE = OUT_OF_AUXSPACE_ERROR;
-  clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  return 0L;
-  
+  {
+  size_t d1 = to_visit-to_visit0;
+  size_t d2 = to_visit_max-to_visit0;
+  to_visit0 = Realloc(to_visit0,d2*sizeof(CELL*)+64*1024);
+  to_visit = to_visit0+d1;
+  to_visit_max = to_visit0+(d2+(64*1024))/sizeof(CELL **);
+}
+pt0--;
+goto restart;
+
  global_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
+    to_visit --;
+    pt0 = to_visit->beg;
+    *pt0 = to_visit->oval;
   }
 #endif
   clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  LOCAL_Error_TYPE = OUT_OF_STACK_ERROR;
-  LOCAL_Error_Size = (ASP-H)*sizeof(CELL);
+pop_text_stack(lvl);
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
   return 0L;
-  
+
 }
 
-static Int 
+static Int
 p_term_attvars( USES_REGS1 )	/* variables in term t		 */
 {
   Term out;
@@ -2207,6 +2123,8 @@ p_term_attvars( USES_REGS1 )	/* variables in term t		 */
     }
     else {
       Functor f = FunctorOfTerm(t);
+      if (IsExtensionFunctor(f))
+	return Yap_unify(TermNil, ARG2);
       out = attvars_in_complex_term(RepAppl(t),
 				 RepAppl(t)+
 				 ArityOfFunctor(f), TermNil PASS_REGS);
@@ -2219,7 +2137,7 @@ p_term_attvars( USES_REGS1 )	/* variables in term t		 */
   return Yap_unify(ARG2,out);
 }
 
-static Int 
+static Int
 p_term_variables3( USES_REGS1 )	/* variables in term t		 */
 {
   Term out;
@@ -2259,8 +2177,8 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
 
   register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
-  CELL output = AbsPair(H);
+  CELL *InitialH = HR;
+  CELL output = AbsPair(HR);
 
   to_visit0 = to_visit;
   while (!IsVarTerm(inp) && IsPairTerm(inp)) {
@@ -2337,12 +2255,12 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
 	pt0_end = ap2 + d0;
       } else if (d0 == TermFoundVar) {
 	/* leave an empty slot to fill in later */
-	if (H+1024 > ASP) {
+	if (HR+1024 > ASP) {
 	  goto global_overflow;
 	}
-	H[1] = AbsPair(H+2);
-	H += 2;
-	H[-2] = (CELL)ptd0;
+	HR[1] = AbsPair(HR+2);
+	HR += 2;
+	HR[-2] = (CELL)ptd0;
 	*ptd0 = TermNil;
       }
       continue;
@@ -2367,8 +2285,8 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
 
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  if (H != InitialH) {
-    H[-1] = TermNil;
+  if (HR != InitialH) {
+    HR[-1] = TermNil;
     return output;
   } else {
     return TermNil;
@@ -2382,13 +2300,13 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_TRAIL_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
   LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  aux_overflow:
   LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
 #ifdef RATIONAL_TREES
@@ -2398,12 +2316,12 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_AUXSPACE_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_AUXILIARY_STACK;
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  global_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
@@ -2414,14 +2332,14 @@ static Term vars_within_complex_term(register CELL *pt0, register CELL *pt0_end,
 #endif
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  LOCAL_Error_TYPE = OUT_OF_STACK_ERROR;
-  LOCAL_Error_Size = (ASP-H)*sizeof(CELL);
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
   return 0L;
-  
+
 }
 
-static Int 
+static Int
 p_variables_within_term( USES_REGS1 )	/* variables within term t		 */
 {
   Term out;
@@ -2432,7 +2350,7 @@ p_variables_within_term( USES_REGS1 )	/* variables within term t		 */
       out = vars_within_complex_term(VarOfTerm(t)-1,
 				     VarOfTerm(t), Deref(ARG1) PASS_REGS);
 
-    }  else if (IsPrimitiveTerm(t)) 
+    }  else if (IsPrimitiveTerm(t))
       out = TermNil;
     else if (IsPairTerm(t)) {
       out = vars_within_complex_term(RepPair(t)-1,
@@ -2456,8 +2374,8 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
 {
   register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
-  CELL output = AbsPair(H);
+  CELL *InitialH = HR;
+  CELL output = AbsPair(HR);
 
   to_visit0 = to_visit;
   while (!IsVarTerm(inp) && IsPairTerm(inp)) {
@@ -2540,13 +2458,13 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
     /* do or pt2 are unbound  */
     *ptd0 = TermNil;
     /* leave an empty slot to fill in later */
-    if (H+1024 > ASP) {
+    if (HR+1024 > ASP) {
       goto global_overflow;
     }
-    H[1] = AbsPair(H+2);
-    H += 2;
-    H[-2] = (CELL)ptd0;
-    /* next make sure noone will see this as a variable again */ 
+    HR[1] = AbsPair(HR+2);
+    HR += 2;
+    HR[-2] = (CELL)ptd0;
+    /* next make sure noone will see this as a variable again */
     if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
       /* Trail overflow */
       if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
@@ -2572,8 +2490,8 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
 
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  if (H != InitialH) {
-    H[-1] = TermNil;
+  if (HR != InitialH) {
+    HR[-1] = TermNil;
     return output;
   } else {
     return TermNil;
@@ -2587,13 +2505,13 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_TRAIL_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
   LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  aux_overflow:
   LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
 #ifdef RATIONAL_TREES
@@ -2603,12 +2521,12 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
     *pt0 = (CELL)to_visit[2];
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_AUXSPACE_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_AUXILIARY_STACK;
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
+  HR = InitialH;
   return 0L;
-  
+
  global_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
@@ -2619,14 +2537,14 @@ static Term new_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end,
 #endif
   clean_tr(TR0 PASS_REGS);
   Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  LOCAL_Error_TYPE = OUT_OF_STACK_ERROR;
-  LOCAL_Error_Size = (ASP-H)*sizeof(CELL);
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
   return 0L;
-  
+
 }
 
-static Int 
+static Int
 p_new_variables_in_term( USES_REGS1 )	/* variables within term t		 */
 {
   Term out;
@@ -2637,7 +2555,7 @@ p_new_variables_in_term( USES_REGS1 )	/* variables within term t		 */
       out = new_vars_in_complex_term(VarOfTerm(t)-1,
 				     VarOfTerm(t), Deref(ARG1) PASS_REGS);
 
-    }  else if (IsPrimitiveTerm(t)) 
+    }  else if (IsPrimitiveTerm(t))
       out = TermNil;
     else if (IsPairTerm(t)) {
       out = new_vars_in_complex_term(RepPair(t)-1,
@@ -2657,13 +2575,367 @@ p_new_variables_in_term( USES_REGS1 )	/* variables within term t		 */
   return Yap_unify(ARG3,out);
 }
 
+static Term free_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, tr_fr_ptr TR0 USES_REGS)
+{
+  register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
+  CELL *InitialH = HR;
+  *HR++ = MkAtomTerm(AtomDollar);
+
+  to_visit0 = to_visit;
+ loop:
+  while (pt0 < pt0_end) {
+    register CELL d0;
+    register CELL *ptd0;
+    ++ pt0;
+    ptd0 = pt0;
+    d0 = *ptd0;
+    deref_head(d0, vars_within_term_unk);
+  vars_within_term_nvar:
+    {
+      if (IsPairTerm(d0)) {
+	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	  goto aux_overflow;
+	}
+#ifdef RATIONAL_TREES
+	to_visit[0] = pt0;
+	to_visit[1] = pt0_end;
+	to_visit[2] = (CELL *)*pt0;
+	to_visit += 3;
+	*pt0 = TermNil;
+#else
+	if (pt0 < pt0_end) {
+	  to_visit[0] = pt0;
+	  to_visit[1] = pt0_end;
+	  to_visit += 2;
+	}
+#endif
+	pt0 = RepPair(d0) - 1;
+	pt0_end = RepPair(d0) + 1;
+      } else if (IsApplTerm(d0)) {
+	register Functor f;
+	register CELL *ap2;
+	/* store the terms to visit */
+	ap2 = RepAppl(d0);
+	f = (Functor)(*ap2);
+	if (IsExtensionFunctor(f)) {
+	  continue;
+	}
+	/* store the terms to visit */
+	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	  goto aux_overflow;
+	}
+#ifdef RATIONAL_TREES
+	to_visit[0] = pt0;
+	to_visit[1] = pt0_end;
+	to_visit[2] = (CELL *)*pt0;
+	to_visit += 3;
+	*pt0 = TermNil;
+#else
+	if (pt0 < pt0_end) {
+	  to_visit[0] = pt0;
+	  to_visit[1] = pt0_end;
+	  to_visit += 2;
+	}
+#endif
+	d0 = ArityOfFunctor(f);
+	pt0 = ap2;
+	pt0_end = ap2 + d0;
+      }
+      continue;
+    }
+
+    derefa_body(d0, ptd0, vars_within_term_unk, vars_within_term_nvar);
+    /* do or pt2 are unbound  */
+    *ptd0 = TermNil;
+    /* leave an empty slot to fill in later */
+    if (HR+1024 > ASP) {
+      goto global_overflow;
+    }
+    HR[0] =  (CELL)ptd0;
+    HR ++;
+    /* next make sure noone will see this as a variable again */
+    if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
+      /* Trail overflow */
+      if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
+	goto trail_overflow;
+      }
+    }
+    TrailTerm(TR++) = (CELL)ptd0;
+  }
+  /* Do we still have compound terms to visit */
+  if (to_visit > to_visit0) {
+#ifdef RATIONAL_TREES
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    pt0_end = to_visit[1];
+    *pt0 = (CELL)to_visit[2];
+#else
+    to_visit -= 2;
+    pt0 = to_visit[0];
+    pt0_end = to_visit[1];
+#endif
+    goto loop;
+  }
+
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  if (HR != InitialH+1) {
+    InitialH[0] = (CELL)Yap_MkFunctor(AtomDollar, (HR-InitialH)-1);
+    return AbsAppl(InitialH);
+  } else {
+    return MkAtomTerm(AtomDollar);
+  }
+
+ trail_overflow:
+#ifdef RATIONAL_TREES
+  while (to_visit > to_visit0) {
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    *pt0 = (CELL)to_visit[2];
+  }
+#endif
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
+  LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  HR = InitialH;
+  return 0L;
+
+ aux_overflow:
+  LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
+#ifdef RATIONAL_TREES
+  while (to_visit > to_visit0) {
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    *pt0 = (CELL)to_visit[2];
+  }
+#endif
+  LOCAL_Error_TYPE = RESOURCE_ERROR_AUXILIARY_STACK;
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  HR = InitialH;
+  return 0L;
+
+ global_overflow:
+#ifdef RATIONAL_TREES
+  while (to_visit > to_visit0) {
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    *pt0 = (CELL)to_visit[2];
+  }
+#endif
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
+  return 0L;
+
+}
+
+static Term bind_vars_in_complex_term(register CELL *pt0, register CELL *pt0_end, tr_fr_ptr TR0 USES_REGS)
+{
+  register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
+  CELL *InitialH = HR;
+
+  to_visit0 = to_visit;
+ loop:
+  while (pt0 < pt0_end) {
+    register CELL d0;
+    register CELL *ptd0;
+    ++ pt0;
+    ptd0 = pt0;
+    d0 = *ptd0;
+    deref_head(d0, vars_within_term_unk);
+  vars_within_term_nvar:
+    {
+      if (IsPairTerm(d0)) {
+	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	  goto aux_overflow;
+	}
+#ifdef RATIONAL_TREES
+	to_visit[0] = pt0;
+	to_visit[1] = pt0_end;
+	to_visit[2] = (CELL *)*pt0;
+	to_visit += 3;
+	*pt0 = TermNil;
+#else
+	if (pt0 < pt0_end) {
+	  to_visit[0] = pt0;
+	  to_visit[1] = pt0_end;
+	  to_visit += 2;
+	}
+#endif
+	pt0 = RepPair(d0) - 1;
+	pt0_end = RepPair(d0) + 1;
+      } else if (IsApplTerm(d0)) {
+	register Functor f;
+	register CELL *ap2;
+	/* store the terms to visit */
+	ap2 = RepAppl(d0);
+	f = (Functor)(*ap2);
+	if (IsExtensionFunctor(f)) {
+	  continue;
+	}
+	/* store the terms to visit */
+	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	  goto aux_overflow;
+	}
+#ifdef RATIONAL_TREES
+	to_visit[0] = pt0;
+	to_visit[1] = pt0_end;
+	to_visit[2] = (CELL *)*pt0;
+	to_visit += 3;
+	*pt0 = TermNil;
+#else
+	if (pt0 < pt0_end) {
+	  to_visit[0] = pt0;
+	  to_visit[1] = pt0_end;
+	  to_visit += 2;
+	}
+#endif
+	d0 = ArityOfFunctor(f);
+	pt0 = ap2;
+	pt0_end = ap2 + d0;
+      }
+      continue;
+    }
+
+    derefa_body(d0, ptd0, vars_within_term_unk, vars_within_term_nvar);
+    /* do or pt2 are unbound  */
+    *ptd0 = TermFoundVar;
+    /* next make sure noone will see this as a variable again */
+    if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
+      /* Trail overflow */
+      if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
+	goto trail_overflow;
+      }
+    }
+    TrailTerm(TR++) = (CELL)ptd0;
+  }
+  /* Do we still have compound terms to visit */
+  if (to_visit > to_visit0) {
+#ifdef RATIONAL_TREES
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    pt0_end = to_visit[1];
+    *pt0 = (CELL)to_visit[2];
+#else
+    to_visit -= 2;
+    pt0 = to_visit[0];
+    pt0_end = to_visit[1];
+#endif
+    goto loop;
+  }
+
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  return TermNil;
+
+ trail_overflow:
+#ifdef RATIONAL_TREES
+  while (to_visit > to_visit0) {
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    *pt0 = (CELL)to_visit[2];
+  }
+#endif
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
+  LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  HR = InitialH;
+  return 0L;
+
+ aux_overflow:
+  LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
+#ifdef RATIONAL_TREES
+  while (to_visit > to_visit0) {
+    to_visit -= 3;
+    pt0 = to_visit[0];
+    *pt0 = (CELL)to_visit[2];
+  }
+#endif
+  LOCAL_Error_TYPE = RESOURCE_ERROR_AUXILIARY_STACK;
+  clean_tr(TR0 PASS_REGS);
+  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  HR = InitialH;
+  return 0L;
+
+}
+
+static Int
+p_free_variables_in_term( USES_REGS1 )	/* variables within term t		 */
+{
+  Term out;
+  Term t, t0;
+  Term found_module = 0L;
+
+  do {
+    tr_fr_ptr TR0 = TR;
+
+    t = t0 = Deref(ARG1);
+    while (!IsVarTerm(t) && IsApplTerm(t)) {
+      Functor f = FunctorOfTerm(t);
+      if (f == FunctorHat) {
+	out = bind_vars_in_complex_term(RepAppl(t),
+			     RepAppl(t)+1, TR0 PASS_REGS);
+	if (out == 0L) {
+	  goto trail_overflow;
+	}
+      } else if (f == FunctorModule) {
+	found_module = ArgOfTerm(1, t);
+      } else if (f == FunctorCall) {
+	t = ArgOfTerm(1, t);
+	continue;
+      } else if (f == FunctorExecuteInMod) {
+	found_module = ArgOfTerm(2, t);
+	t = ArgOfTerm(1, t);
+	continue;
+      } else {
+	break;
+      }
+      t = ArgOfTerm(2,t);
+    }
+    if (IsVarTerm(t)) {
+      out = free_vars_in_complex_term(VarOfTerm(t)-1,
+				      VarOfTerm(t), TR0 PASS_REGS);
+
+    }  else if (IsPrimitiveTerm(t))
+      out = TermNil;
+    else if (IsPairTerm(t)) {
+      out = free_vars_in_complex_term(RepPair(t)-1,
+				      RepPair(t)+1, TR0 PASS_REGS);
+    }
+    else {
+      Functor f = FunctorOfTerm(t);
+      out = free_vars_in_complex_term(RepAppl(t),
+			     RepAppl(t)+
+				      ArityOfFunctor(f), TR0 PASS_REGS);
+    }
+    if (out == 0L) {
+    trail_overflow:
+      if (!expand_vts( 3 PASS_REGS ))
+	return FALSE;
+    }
+  } while (out == 0L);
+  if (found_module && t!=t0) {
+    Term ts[2];
+    ts[0] = found_module;
+    ts[1] = t;
+    t = Yap_MkApplTerm(FunctorModule, 2, ts);
+  }
+  return
+    Yap_unify(ARG2, t) &&
+    Yap_unify(ARG3,out);
+}
+
 static Term non_singletons_in_complex_term(register CELL *pt0, register CELL *pt0_end USES_REGS)
 {
 
   register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
-  CELL output = AbsPair(H);
+  CELL *InitialH = HR;
+  CELL output = AbsPair(HR);
 
   to_visit0 = to_visit;
  loop:
@@ -2730,19 +3002,19 @@ static Term non_singletons_in_complex_term(register CELL *pt0, register CELL *pt
 	CELL *pt2 = pt0;
 	while(IsVarTerm(*pt2))
 	  pt2 = (CELL *)(*pt2);
-	H[1] = AbsPair(H+2);
-	H += 2;
-	H[-2] = (CELL)pt2;
-	*pt2 = TermReFoundVar;
+	HR[1] = AbsPair(HR+2);
+	HR += 2;
+	HR[-2] = (CELL)pt2;
+	*pt2 = TermRefoundVar;
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, vars_in_term_unk, vars_in_term_nvar);
     /* do or pt2 are unbound  */
     *ptd0 = TermFoundVar;
-    /* next make sure we can recover the variable again */ 
+    /* next make sure we can recover the variable again */
     TrailTerm(TR++) = (CELL)ptd0;
   }
   /* Do we still have compound terms to visit */
@@ -2761,10 +3033,10 @@ static Term non_singletons_in_complex_term(register CELL *pt0, register CELL *pt
   }
 
   clean_tr(TR0 PASS_REGS);
-  if (H != InitialH) {
+  if (HR != InitialH) {
     /* close the list */
-    RESET_VARIABLE(H-1);
-    Yap_unify((CELL)(H-1),ARG2);
+    RESET_VARIABLE(HR-1);
+    Yap_unify((CELL)(HR-1),ARG2);
     return output;
   } else {
     return ARG2;
@@ -2779,19 +3051,19 @@ static Term non_singletons_in_complex_term(register CELL *pt0, register CELL *pt
   }
 #endif
   clean_tr(TR0 PASS_REGS);
-  if (H != InitialH) {
+  if (HR != InitialH) {
     /* close the list */
-    RESET_VARIABLE(H-1);
+    RESET_VARIABLE(HR-1);
   }
   return 0L;
 }
- 
-static Int 
+
+static Int
 p_non_singletons_in_term( USES_REGS1 )	/* non_singletons in term t		 */
 {
   Term t;
   Term out;
-	
+
   while (TRUE) {
     t = Deref(ARG1);
     if (IsVarTerm(t)) {
@@ -2810,11 +3082,11 @@ p_non_singletons_in_term( USES_REGS1 )	/* non_singletons in term t		 */
       return Yap_unify(ARG3,out);
     } else {
       if (!Yap_ExpandPreAllocCodeSpace(0, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, ARG1, "overflow in singletons");
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, ARG1, "overflow in singletons");
 	return FALSE;
       }
     }
-  }  
+  }
 }
 
 static Int ground_complex_term(register CELL *pt0, register CELL *pt0_end USES_REGS)
@@ -2886,7 +3158,7 @@ static Int ground_complex_term(register CELL *pt0, register CELL *pt0_end USES_R
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, vars_in_term_unk, vars_in_term_nvar);
 #ifdef RATIONAL_TREES
@@ -2926,8 +3198,8 @@ static Int ground_complex_term(register CELL *pt0, register CELL *pt0_end USES_R
 #endif
   return -1;
 }
- 
-int Yap_IsGroundTerm(Term t)
+
+bool Yap_IsGroundTerm(Term t)
 {
   CACHE_REGS
   while (TRUE) {
@@ -2940,31 +3212,31 @@ int Yap_IsGroundTerm(Term t)
     } else if (IsPairTerm(t)) {
       if ((out =ground_complex_term(RepPair(t)-1,
 				    RepPair(t)+1 PASS_REGS)) >= 0) {
-	return out;
+	return out != 0;
       }
     } else {
       Functor fun = FunctorOfTerm(t);
-      
+
       if (IsExtensionFunctor(fun))
 	return TRUE;
       else if ((out = ground_complex_term(RepAppl(t),
 					     RepAppl(t)+
 					     ArityOfFunctor(fun) PASS_REGS)) >= 0) {
-	     return out;
+	     return out != 0;
       }
     }
     if (out < 0) {
-      *H++ = t;
+      *HR++ = t;
       if (!Yap_ExpandPreAllocCodeSpace(0, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, ARG1, "overflow in ground");
-	return FALSE;
-      }      
-      t = *--H;
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, ARG1, "overflow in ground");
+	return false;
+      }
+      t = *--HR;
     }
   }
 }
 
-static Int 
+static Int
 p_ground( USES_REGS1 )			/* ground(+T)		 */
 {
   return Yap_IsGroundTerm(Deref(ARG1));
@@ -2976,6 +3248,9 @@ SizeOfExtension(Term t)
   Functor f = FunctorOfTerm(t);
   if (f== FunctorDouble) {
     return 2 + sizeof(Float)/sizeof(CELL);
+  }
+  if (f== FunctorString) {
+    return 3 + RepAppl(t)[1];
   }
   if (f== FunctorLongInt) {
     return 2 + sizeof(Float)/sizeof(CELL);
@@ -3064,7 +3339,7 @@ static Int sz_ground_complex_term(register CELL *pt0, register CELL *pt0_end, in
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, vars_in_term_unk, vars_in_term_nvar);
     if (!ground)
@@ -3125,10 +3400,10 @@ Yap_SizeGroundTerm(Term t, int ground)
 } else {
   int sz = 0;
   Functor fun = FunctorOfTerm(t);
-      
+
   if (IsExtensionFunctor(fun))
     return 1+ SizeOfExtension(t);
-  
+
    sz = sz_ground_complex_term(RepAppl(t),
 			    RepAppl(t)+
 			    ArityOfFunctor(fun),
@@ -3136,7 +3411,7 @@ Yap_SizeGroundTerm(Term t, int ground)
    if (sz <= 0)
      return sz;
    return 1+ArityOfFunctor(fun)+sz;
-  }  
+  }
 }
 
 static Int var_in_complex_term(register CELL *pt0,
@@ -3212,7 +3487,7 @@ static Int var_in_complex_term(register CELL *pt0,
       }
       continue;
     }
-    
+
 
     deref_body(d0, ptd0, var_in_term_unk, var_in_term_nvar);
     if ((CELL)ptd0 == v) { /* we found it */
@@ -3228,7 +3503,7 @@ static Int var_in_complex_term(register CELL *pt0,
     }
     /* do or pt2 are unbound  */
     *ptd0 = TermNil;
-    /* next make sure noone will see this as a variable again */ 
+    /* next make sure noone will see this as a variable again */
     TrailTerm(TR++) = (CELL)ptd0;
   }
   /* Do we still have compound terms to visit */
@@ -3267,8 +3542,8 @@ static Int var_in_complex_term(register CELL *pt0,
 #endif
   return -1;
 }
- 
-static Int 
+
+static Int
 var_in_term(Term v, Term t USES_REGS)	/* variables in term t		 */
 {
 
@@ -3329,8 +3604,8 @@ MurmurHashNeutral2 ( const void * key, int len, unsigned int seed )
 		k |= data[2] << 16;
 		k |= data[3] << 24;
 
-		k *= m; 
-		k ^= k >> r; 
+		k *= m;
+		k ^= k >> r;
 		k *= m;
 
 		h *= m;
@@ -3339,7 +3614,7 @@ MurmurHashNeutral2 ( const void * key, int len, unsigned int seed )
 		data += 4;
 		len -= 4;
 	}
-	
+
 	switch(len)
 	{
 	case 3: h ^= data[2] << 16;
@@ -3353,26 +3628,13 @@ MurmurHashNeutral2 ( const void * key, int len, unsigned int seed )
 	h ^= h >> 15;
 
 	return h;
-} 
+}
 
 static CELL *
-AddAtomToHash(CELL *st, Atom at)
+addAtomToHash(CELL *st, Atom at)
 {
   unsigned int len;
 
-  if (IsWideAtom(at)) {
-    wchar_t *c = RepAtom(at)->WStrOfAE;
-    int ulen = wcslen(c);
-    len = ulen*sizeof(wchar_t);
-    if (len % CellSize == 0) {
-      len /= CellSize;
-    } else {
-      len /= CellSize;
-      len++;
-    }
-    st[len-1] = 0L;
-    wcsncpy((wchar_t *)st, c, ulen);
-  } else {
     char *c = RepAtom(at)->StrOfAE;
     int ulen = strlen(c);
     /* fix hashing over empty atom */
@@ -3387,7 +3649,6 @@ AddAtomToHash(CELL *st, Atom at)
     }
     st[len-1] = 0L;
     strncpy((char *)st, c, ulen);
-  }
   return st+len;
 }
 
@@ -3424,14 +3685,14 @@ hash_complex_term(register CELL *pt0,
       if (IsAtomOrIntTerm(d0)) {
 	if (d0 != TermFoundVar) {
 	  if (IsAtomTerm(d0)) {
-	    st = AddAtomToHash(st, AtomOfTerm(d0));
+	    st = addAtomToHash(st, AtomOfTerm(d0));
 	  } else {
 	    *st++ = IntOfTerm(d0);
 	  }
 	}
 	continue;
       } else if (IsPairTerm(d0)) {
-	st = AddAtomToHash(st, AtomDot);
+	st = addAtomToHash(st, AtomDot);
 	if (depth == 1)
 	  continue;
 	if (to_visit + 256 >= (visited_t *)AuxSp) {
@@ -3458,18 +3719,22 @@ hash_complex_term(register CELL *pt0,
 	  CELL fc = (CELL)f;
 
 	  switch(fc) {
-	    
+
 	  case (CELL)FunctorDBRef:
 	    *st++ = fc;
 	    break;
 	  case (CELL)FunctorLongInt:
 	    *st++ = LongIntOfTerm(d0);
 	    break;
+	  case (CELL)FunctorString:
+	    memmove(st, RepAppl(d0), (3+RepAppl(d0)[1])*sizeof(CELL));
+	    st += 3+RepAppl(d0)[1];
+	    break;
 #ifdef USE_GMP
 	  case (CELL)FunctorBigInt:
 	    {
 	      CELL *pt = RepAppl(d0);
-	      Int sz = 
+	      Int sz =
 		sizeof(MP_INT)+1+
 		(((MP_INT *)(pt+2))->_mp_alloc*sizeof(mp_limb_t));
 
@@ -3477,7 +3742,7 @@ hash_complex_term(register CELL *pt0,
 		goto global_overflow;
 	      }
 	      /* then the actual number */
-	      memcpy((void *)(st+1), (void *)(pt+1), sz);
+	      memmove((void *)(st+1), (void *)(pt+1), sz);
 	      st = st+sz/CellSize;
 	    }
 	    break;
@@ -3486,7 +3751,7 @@ hash_complex_term(register CELL *pt0,
 	    {
 	      CELL *pt = RepAppl(d0);
 	      *st++ = pt[1];
-#if  SIZEOF_DOUBLE == 2*SIZEOF_LONG_INT
+#if  SIZEOF_DOUBLE == 2*SIZEOF_INT_P
 	      *st++ = pt[2];
 #endif
 	      break;
@@ -3494,7 +3759,7 @@ hash_complex_term(register CELL *pt0,
 	  }
 	  continue;
 	}
-	st = AddAtomToHash(st, NameOfFunctor(f));
+	st = addAtomToHash(st, NameOfFunctor(f));
 	if (depth == 1)
 	  continue;
 	if (to_visit + 1024 >= (visited_t *)AuxSp) {
@@ -3513,7 +3778,7 @@ hash_complex_term(register CELL *pt0,
       }
       continue;
     }
-    
+
 
     deref_body(d0, ptd0, hash_complex_unk, hash_complex_nvar);
     if (!variant)
@@ -3550,7 +3815,7 @@ hash_complex_term(register CELL *pt0,
   }
   return (CELL *) -2;
 }
- 
+
 Int
 Yap_TermHash(Term t, Int size, Int depth, int variant)
 {
@@ -3559,23 +3824,23 @@ Yap_TermHash(Term t, Int size, Int depth, int variant)
   Term t1 = Deref(t);
 
   while (TRUE) {
-    CELL *ar = hash_complex_term(&t1-1, &t1, depth, H, FALSE PASS_REGS);
+    CELL *ar = hash_complex_term(&t1-1, &t1, depth, HR, FALSE PASS_REGS);
     if (ar == (CELL *)-1) {
       if (!Yap_ExpandPreAllocCodeSpace(0, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, ARG1, "overflow in term_hash");
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, ARG1, "overflow in term_hash");
 	return FALSE;
-      } 
+      }
       t1 = Deref(ARG1);
     } else if(ar == (CELL *)-2) {
-      if (!Yap_gcl((ASP-H)*sizeof(CELL), 0, ENV, gc_P(P,CP))) {
-	Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in term_hash");
+      if (!Yap_gcl((ASP-HR)*sizeof(CELL), 0, ENV, gc_P(P,CP))) {
+	Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in term_hash");
 	return FALSE;
       }
       t1 = Deref(ARG1);
     } else if (ar == NULL) {
       return FALSE;
     } else {
-      i1 = MurmurHashNeutral2((const void *)H, CellSize*(ar-H),0x1a3be34a);
+      i1 = MurmurHashNeutral2((const void *)HR, CellSize*(ar-HR),0x1a3be34a);
       break;
     }
   }
@@ -3616,23 +3881,23 @@ p_term_hash( USES_REGS1 )
   }
   size = IntegerOfTerm(t3);
   while (TRUE) {
-    CELL *ar = hash_complex_term(&t1-1, &t1, depth, H, FALSE PASS_REGS);
+    CELL *ar = hash_complex_term(&t1-1, &t1, depth, HR, FALSE PASS_REGS);
     if (ar == (CELL *)-1) {
       if (!Yap_ExpandPreAllocCodeSpace(0, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, ARG1, "overflow in term_hash");
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, ARG1, "overflow in term_hash");
 	return FALSE;
-      } 
+      }
       t1 = Deref(ARG1);
     } else if(ar == (CELL *)-2) {
-      if (!Yap_gcl((ASP-H)*sizeof(CELL), 4, ENV, gc_P(P,CP))) {
-	Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in term_hash");
+      if (!Yap_gcl((ASP-HR)*sizeof(CELL), 4, ENV, gc_P(P,CP))) {
+	Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in term_hash");
 	return FALSE;
       }
       t1 = Deref(ARG1);
     } else if (ar == NULL) {
       return FALSE;
     } else {
-      i1 = MurmurHashNeutral2((const void *)H, CellSize*(ar-H),0x1a3be34a);
+      i1 = MurmurHashNeutral2((const void *)HR, CellSize*(ar-HR),0x1a3be34a);
       break;
     }
   }
@@ -3674,23 +3939,23 @@ p_instantiated_term_hash( USES_REGS1 )
   }
   size = IntegerOfTerm(t3);
   while (TRUE) {
-    CELL *ar = hash_complex_term(&t1-1, &t1, depth, H, TRUE PASS_REGS);
+    CELL *ar = hash_complex_term(&t1-1, &t1, depth, HR, TRUE PASS_REGS);
     if (ar == (CELL *)-1) {
       if (!Yap_ExpandPreAllocCodeSpace(0, NULL, TRUE)) {
-	Yap_Error(OUT_OF_AUXSPACE_ERROR, ARG1, "overflow in term_hash");
+	Yap_Error(RESOURCE_ERROR_AUXILIARY_STACK, ARG1, "overflow in term_hash");
 	return FALSE;
-      } 
+      }
       t1 = Deref(ARG1);
     } else if(ar == (CELL *)-2) {
-      if (!Yap_gcl((ASP-H)*sizeof(CELL), 4, ENV, gc_P(P,CP))) {
-	Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in term_hash");
+      if (!Yap_gcl((ASP-HR)*sizeof(CELL), 4, ENV, gc_P(P,CP))) {
+	Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in term_hash");
 	return FALSE;
       }
       t1 = Deref(ARG1);
     } else if (ar == NULL) {
       return FALSE;
     } else {
-      i1 = MurmurHashNeutral2((const void *)H, CellSize*(ar-H),0x1a3be34a);
+      i1 = MurmurHashNeutral2((const void *)HR, CellSize*(ar-HR),0x1a3be34a);
       break;
     }
   }
@@ -3705,8 +3970,8 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
   tr_fr_ptr OLDTR = TR;
   register CELL **to_visit = (CELL **)ASP;
   /* make sure that unification always forces trailing */
-  HBREG = H;
- 
+  HBREG = HR;
+
 
  loop:
   while (pt0 < pt0_end) {
@@ -3747,7 +4012,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
 	/* now link the two structures so that no one else will */
 	/* come here */
 	to_visit -= 4;
-	if ((CELL *)to_visit < H+1024)
+	if ((CELL *)to_visit < HR+1024)
 	  goto out_of_stack;
 	to_visit[0] = pt0;
 	to_visit[1] = pt0_end;
@@ -3758,7 +4023,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
 	/* store the terms to visit */
 	if (pt0 < pt0_end) {
 	  to_visit -= 3;
-	  if ((CELL *)to_visit < H+1024)
+	  if ((CELL *)to_visit < HR+1024)
 	    goto out_of_stack;
 	  to_visit[0] = pt0;
 	  to_visit[1] = pt0_end;
@@ -3792,7 +4057,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
 	/* now link the two structures so that no one else will */
 	/* come here */
 	to_visit -= 4;
-	if ((CELL *)to_visit < H+1024)
+	if ((CELL *)to_visit < HR+1024)
 	  goto out_of_stack;
 	to_visit[0] = pt0;
 	to_visit[1] = pt0_end;
@@ -3803,7 +4068,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
 	  /* store the terms to visit */
 	  if (pt0 < pt0_end) {
 	    to_visit -= 3;
-	    if ((CELL *)to_visit < H+1024)
+	    if ((CELL *)to_visit < HR+1024)
 	      goto out_of_stack;
 	    to_visit[0] = pt0;
 	    to_visit[1] = pt0_end;
@@ -3836,7 +4101,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
     goto loop;
   }
 
-  H = HBREG;
+  HR = HBREG;
   /* untrail all bindings made by variant */
   while (TR != (tr_fr_ptr)OLDTR) {
     CELL *pt1 = (CELL *) TrailTerm(--TR);
@@ -3846,7 +4111,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
   return TRUE;
 
  out_of_stack:
-  H = HBREG;
+  HR = HBREG;
   /* untrail all bindings made by variant */
 #ifdef RATIONAL_TREES
   while (to_visit < (CELL **)ASP) {
@@ -3867,7 +4132,7 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
 
  fail:
   /* failure */
-  H = HBREG;
+  HR = HBREG;
 #ifdef RATIONAL_TREES
   while (to_visit < (CELL **)ASP) {
     pt0 = to_visit[0];
@@ -3886,19 +4151,19 @@ static int variant_complex(register CELL *pt0, register CELL *pt0_end, register
   return FALSE;
 }
 
-static int
+static bool
 is_variant(Term t1, Term t2, int parity USES_REGS)
-{  
+{
   int out;
 
   if (t1 == t2)
-    return (TRUE);
+    return true;
   if (IsVarTerm(t1)) {
     if (IsVarTerm(t2))
-      return(TRUE);
-    return(FALSE);
+      return true;
+    return false;
   } else if (IsVarTerm(t2))
-    return(FALSE);
+    return false;
   if (IsAtomOrIntTerm(t1)) {
     return(t1 == t2);
   }
@@ -3908,12 +4173,12 @@ is_variant(Term t1, Term t2, int parity USES_REGS)
 			    RepPair(t1)+1,
 			    RepPair(t2)-1 PASS_REGS);
       if (out < 0) goto error;
-      return out;
+      return out != 0;
     }
-    else return (FALSE);
+    else return false;
   }
   if (!IsApplTerm(t2)) {
-    return FALSE;
+    return false;
   } else {
     Functor f1 = FunctorOfTerm(t1);
 
@@ -3925,27 +4190,27 @@ is_variant(Term t1, Term t2, int parity USES_REGS)
 			  RepAppl(t1)+ArityOfFunctor(f1),
 			  RepAppl(t2) PASS_REGS);
     if (out < 0) goto error;
-    return out;
+    return out != 0;
   }
  error:
   if (out == -1) {
-    if (!Yap_gcl((ASP-H)*sizeof(CELL), parity, ENV, gc_P(P,CP))) {
-      Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in variant");
+    if (!Yap_gcl((ASP-HR)*sizeof(CELL), parity, ENV, gc_P(P,CP))) {
+      Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in variant");
       return FALSE;
     }
     return is_variant(t1, t2, parity PASS_REGS);
   }
-  return FALSE;
+  return false;
 }
 
-int
-Yap_Variant(Term t1, Term t2) 
+bool
+Yap_Variant(Term t1, Term t2)
 {
   CACHE_REGS
   return is_variant(t1, t2, 0 PASS_REGS);
 }
 
-static Int 
+static Int
 p_variant( USES_REGS1 ) /* variant terms t1 and t2	 */
 {
   return is_variant(Deref(ARG1), Deref(ARG2), 2 PASS_REGS);
@@ -3960,7 +4225,7 @@ static int subsumes_complex(register CELL *pt0, register CELL *pt0_end, register
   UInt write_mode = TRUE;
 
 
-  HBREG = H;
+  HBREG = HR;
  loop:
   while (pt0 < pt0_end) {
     register CELL d0, d1;
@@ -4007,7 +4272,7 @@ static int subsumes_complex(register CELL *pt0, register CELL *pt0_end, register
 	/* generate a new binding */
 	CELL *pt0 = VarOfTerm(d0);
 	Term new = MkVarTerm();
-	  
+
 	Bind_Global(pt0, new);
 	if (d0 != d1) { /* avoid loops */
 	  Bind_Global(VarOfTerm(new), d1);
@@ -4122,7 +4387,7 @@ static int subsumes_complex(register CELL *pt0, register CELL *pt0_end, register
     goto loop;
   }
 
-  H = HBREG;
+  HR = HBREG;
   /* get rid of intermediate variables  */
   new_tr = TR;
   while (TR != OLDTR) {
@@ -4142,7 +4407,7 @@ static int subsumes_complex(register CELL *pt0, register CELL *pt0_end, register
   return TRUE;
 
  fail:
-  H = HBREG;
+  HR = HBREG;
 #ifdef RATIONAL_TREES
   while (to_visit < (CELL **)ASP) {
     pt0 = to_visit[0];
@@ -4161,7 +4426,7 @@ static int subsumes_complex(register CELL *pt0, register CELL *pt0_end, register
   return FALSE;
 }
 
-static Int 
+static Int
 p_subsumes( USES_REGS1 ) /* subsumes terms t1 and t2	 */
 {
   Term t1 = Deref(ARG1);
@@ -4170,7 +4435,7 @@ p_subsumes( USES_REGS1 ) /* subsumes terms t1 and t2	 */
   if (t1 == t2)
     return (TRUE);
   if (IsVarTerm(t1)) {
-    Bind(VarOfTerm(t1), t2);
+    YapBind(VarOfTerm(t1), t2);
     if (Yap_rational_tree_loop(VarOfTerm(t1)-1,VarOfTerm(t1),(CELL **)AuxSp,(CELL **)AuxBase))
       return FALSE;
     return TRUE;
@@ -4210,7 +4475,7 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
   tr_fr_ptr OLDTR = TR;
   int out;
   CELL *bindings = NULL, *tbindings = NULL;
-  HB = H;
+  HB = HR;
 
  loop:
   while (pt0 < pt0_end) {
@@ -4226,7 +4491,7 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
     } else if (IsVarTerm(d0)) {
       CELL *match, *omatch = NULL;
 
-      match = VarOfTerm(d0); 
+      match = VarOfTerm(d0);
       if (match >= HB) {
 	while (match >= HB) {
 	  /* chained to a sequence */
@@ -4241,12 +4506,12 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
 	if (match >= HB)
 	  continue;
 	/* could not find a match, add to end of chain */
- 	RESET_VARIABLE(H); /* key */
- 	H[1] = d1; /* comparison value */
-	H[2] = (CELL)npt; /* new value */
-	H[3] = (CELL)match; /* end of chain points back to first cell */
-	omatch[3] = (CELL)H;
-	H+=4;
+ 	RESET_VARIABLE(HR); /* key */
+ 	HR[1] = d1; /* comparison value */
+	HR[2] = (CELL)npt; /* new value */
+	HR[3] = (CELL)match; /* end of chain points back to first cell */
+	omatch[3] = (CELL)HR;
+	HR+=4;
 	RESET_VARIABLE(npt);
 	npt++;
 	continue;
@@ -4254,12 +4519,12 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
       if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
 	goto trail_overflow;
       }
-      RESET_VARIABLE(H);
-      H[1] = d1;
-      H[2] = (CELL)npt;
-      H[3] = d0;
-      Bind(VarOfTerm(d0), (CELL)H);
-      H+=4;
+      RESET_VARIABLE(HR);
+      HR[1] = d1;
+      HR[2] = (CELL)npt;
+      HR[3] = d0;
+      YapBind(VarOfTerm(d0), (CELL)HR);
+      HR+=4;
       RESET_VARIABLE(npt);
       npt++;
       continue;
@@ -4277,17 +4542,17 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
 	continue;
       }
       if (bindings) {
-	*tbindings = (CELL)H;
+	*tbindings = (CELL)HR;
       } else {
-	bindings = H;
+	bindings = HR;
       }
-      H[0] = d0;
-      H[1] = d1;
-      H[2] = AbsPair(H+4);
-      H[3] = (CELL)NULL;
-      tbindings = H+3;
-      H+=4;
-      *npt++ = AbsPair(H);
+      HR[0] = d0;
+      HR[1] = d1;
+      HR[2] = AbsPair(HR+4);
+      HR[3] = (CELL)NULL;
+      tbindings = HR+3;
+      HR+=4;
+      *npt++ = AbsPair(HR);
 #ifdef RATIONAL_TREES
       /* now link the two structures so that no one else will */
       /* come here */
@@ -4310,9 +4575,9 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
       pt0 = RepPair(d0) - 1;
       pt0_end = RepPair(d0) + 1;
       pt1 = RepPair(d1) - 1;
-      npt = H;
-      H += 2;
-      if (H > (CELL *)to_visit -1024)
+      npt = HR;
+      HR += 2;
+      if (HR > (CELL *)to_visit -1024)
 	goto stack_overflow;
       continue;
     } else if (IsApplTerm(d0) && IsApplTerm(d1)) {
@@ -4340,17 +4605,17 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
 	  continue;
 	}
 	if (bindings) {
-	  *tbindings = (CELL)H;
+	  *tbindings = (CELL)HR;
 	} else {
-	  bindings = H;
+	  bindings = HR;
 	}
-	H[0] = d0;
-	H[1] = d1;
-	H[2] = AbsAppl(H+4);
-	H[3] = (CELL)NULL;
-	tbindings = H+3;
-	H+=4;
-	*npt++ = AbsAppl(H);
+	HR[0] = d0;
+	HR[1] = d1;
+	HR[2] = AbsAppl(HR+4);
+	HR[3] = (CELL)NULL;
+	tbindings = HR+3;
+	HR+=4;
+	*npt++ = AbsAppl(HR);
 #ifdef RATIONAL_TREES
 	/* now link the two structures so that no one else will */
 	/* come here */
@@ -4374,10 +4639,10 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
 	pt0 = ap2;
 	pt0_end = ap2 + d0;
 	pt1 = ap3;
-	npt = H;
+	npt = HR;
 	*npt++ = (CELL)f;
-	H += d0;
-	if (H > (CELL *)to_visit -1024)
+	HR += d0;
+	if (HR > (CELL *)to_visit -1024)
 	  goto stack_overflow;
 	continue;
       }
@@ -4427,25 +4692,25 @@ static int term_subsumer_complex(register CELL *pt0, register CELL *pt0_end, reg
 
 }
 
-static Int 
+static Int
 p_term_subsumer( USES_REGS1 ) /* term_subsumer terms t1 and t2	 */
 {
-  int out = 0; 
+  int out = 0;
 
   while (out != 1) {
     Term t1 = Deref(ARG1);
     Term t2 = Deref(ARG2);
-    CELL *oldH = H;
+    CELL *oldH = HR;
 
     if (t1 == t2)
       return Yap_unify(ARG3,t1);
     if (IsPairTerm(t1) && IsPairTerm(t2)) {
-      Term tf = AbsAppl(H);
-      H += 2;
-      HB = H;
+      Term tf = AbsAppl(HR);
+      HR += 2;
+      HB = HR;
       if ((out = term_subsumer_complex(RepPair(t1)-1,
 				       RepPair(t1)+1,
-				       RepPair(t2)-1, H-2 PASS_REGS)) > 0) {
+				       RepPair(t2)-1, HR-2 PASS_REGS)) > 0) {
 	HB = B->cp_h;
 	return Yap_unify(ARG3,tf);
       }
@@ -4458,14 +4723,14 @@ p_term_subsumer( USES_REGS1 ) /* term_subsumer terms t1 and t2	 */
 	    return Yap_unify(ARG3,t1);
 	  }
 	} else {
-	  Term tf = AbsAppl(H);
+	  Term tf = AbsAppl(HR);
 	  UInt ar = ArityOfFunctor(f1);
-	  H[0] = (CELL)f1;
-	  H += 1+ar;
-	  HB = H;
+	  HR[0] = (CELL)f1;
+	  HR += 1+ar;
+	  HB = HR;
 	  if ((out = term_subsumer_complex(RepAppl(t1),
 					   RepAppl(t1)+ArityOfFunctor(f1),
-					   RepAppl(t2), H-ar PASS_REGS)) > 0) {
+					   RepAppl(t2), HR-ar PASS_REGS)) > 0) {
 	    HB = B->cp_h;
 	    return Yap_unify(ARG3,tf);
 	  }
@@ -4476,18 +4741,18 @@ p_term_subsumer( USES_REGS1 ) /* term_subsumer terms t1 and t2	 */
     if (out == 0) {
       return Yap_unify(ARG3, MkVarTerm());
     } else {
-      H = oldH;
+      HR = oldH;
       if (out == -1) {
-	if (!Yap_gcl((ASP-H)*sizeof(CELL), 0, ENV, gc_P(P,CP))) {
-	  Yap_Error(OUT_OF_STACK_ERROR, TermNil, "in term_subsumer");
+	if (!Yap_gcl((ASP-HR)*sizeof(CELL), 0, ENV, gc_P(P,CP))) {
+	  Yap_Error(RESOURCE_ERROR_STACK, TermNil, "in term_subsumer");
 	  return FALSE;
 	}
       } else {
 	/* Trail overflow */
 	if (!Yap_growtrail(0, FALSE)) {
-	  Yap_Error(OUT_OF_TRAIL_ERROR, TermNil, "in term_subsumer");
+	  Yap_Error(RESOURCE_ERROR_TRAIL, TermNil, "in term_subsumer");
 	  return FALSE;
-	} 
+	}
       }
     }
   }
@@ -4528,7 +4793,7 @@ camacho_dum( USES_REGS1 )
 
 #endif /* DEBUG */
 
-int
+bool
 Yap_IsListTerm(Term t)
 {
   Term *tailp;
@@ -4542,7 +4807,7 @@ p_is_list( USES_REGS1 )
   return Yap_IsListTerm(Deref(ARG1));
 }
 
-int
+bool
 Yap_IsListOrPartialListTerm(Term t)
 {
   Term *tailp, tail;
@@ -4562,7 +4827,7 @@ numbervar(Int id USES_REGS)
 {
   Term ts[1];
   ts[0] = MkIntegerTerm(id);
-  return Yap_MkApplTerm(LOCAL_FunctorVar, 1, ts);
+  return Yap_MkApplTerm(FunctorDollarVar, 1, ts);
 }
 
 static Term
@@ -4570,26 +4835,32 @@ numbervar_singleton(USES_REGS1)
 {
   Term ts[1];
   ts[0] = MkIntegerTerm(-1);
-  return Yap_MkApplTerm(LOCAL_FunctorVar, 1, ts);
+  return Yap_MkApplTerm(FunctorDollarVar, 1, ts);
 }
 
 static void
-renumbervar(Term t, Int id)
+renumbervar(Term t, Int id USES_REGS)
 {
   Term *ts = RepAppl(t);
   ts[1] = MkIntegerTerm(id);
 }
 
+extern int vsc;
+
+int vsc;
 
 static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end, Int numbv, int singles USES_REGS)
 {
 
-  register CELL **to_visit0, **to_visit = (CELL **)Yap_PreAllocCodeSpace();
+  int lvl = push_text_stack();
+  att_rec_t *to_visit0, *to_visit = Malloc(1024*sizeof(att_rec_t));
+  att_rec_t *to_visit_max;
   register tr_fr_ptr TR0 = TR;
-  CELL *InitialH = H;
+  CELL *InitialH = HR;
 
   to_visit0 = to_visit;
- loop:
+   to_visit_max = to_visit0+1024;
+loop:
   while (pt0 < pt0_end) {
     register CELL d0;
     register CELL *ptd0;
@@ -4600,14 +4871,14 @@ static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end
   vars_in_term_nvar:
     {
       if (IsPairTerm(d0)) {
-	if (to_visit + 1024 >= (CELL **)AuxSp) {
+	if (to_visit + 32 >= to_visit_max) {
 	  goto aux_overflow;
 	}
 #ifdef RATIONAL_TREES
-	to_visit[0] = pt0;
-	to_visit[1] = pt0_end;
-	to_visit[2] = (CELL *)*pt0;
-	to_visit += 3;
+	to_visit->beg = pt0;
+	to_visit->end = pt0_end;
+	to_visit->oval = *pt0;
+	to_visit ++;
 	*pt0 = TermNil;
 #else
 	if (pt0 < pt0_end) {
@@ -4619,34 +4890,29 @@ static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end
 	pt0 = RepPair(d0) - 1;
 	pt0_end = RepPair(d0) + 1;
       } else if (IsApplTerm(d0)) {
-	register Functor f;
-	register CELL *ap2;
+	 Functor f;
+	 CELL *ap2;
 	/* store the terms to visit */
 	ap2 = RepAppl(d0);
 	f = (Functor)(*ap2);
 	if (IsExtensionFunctor(f)) {
 	  continue;
 	}
-	if (singles && ap2 >= InitialH && ap2 < H) {
-	  renumbervar(d0, numbv++);
+	if (singles && ap2 >= InitialH && ap2 < HR) {
+	  renumbervar(d0, numbv++ PASS_REGS);
 	  continue;
 	}
 	/* store the terms to visit */
-	if (to_visit + 1024 >= (CELL **)AuxSp) {
-	  goto aux_overflow;
-	}
+      if (to_visit + 32 >= to_visit_max) {
+	goto aux_overflow;
+      }
 #ifdef RATIONAL_TREES
-	to_visit[0] = pt0;
-	to_visit[1] = pt0_end;
-	to_visit[2] = (CELL *)*pt0;
-	to_visit += 3;
-	*pt0 = TermNil;
 #else
-	if (pt0 < pt0_end) {
-	  to_visit[0] = pt0;
-	  to_visit[1] = pt0_end;
-	  to_visit += 2;
-	}
+	to_visit->beg = pt0;
+	to_visit->end = pt0_end;
+	to_visit->oval = *pt0;
+	to_visit ++;
+	*pt0 = TermNil;
 #endif
 	d0 = ArityOfFunctor(f);
 	pt0 = ap2;
@@ -4654,19 +4920,19 @@ static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end
       }
       continue;
     }
-    
+
 
     derefa_body(d0, ptd0, vars_in_term_unk, vars_in_term_nvar);
     /* do or pt2 are unbound  */
-    if (singles) 
+    if (singles)
       *ptd0 = numbervar_singleton( PASS_REGS1 );
     else
       *ptd0 = numbervar(numbv++ PASS_REGS);
     /* leave an empty slot to fill in later */
-    if (H+1024 > ASP) {
+    if (HR+1024 > ASP) {
       goto global_overflow;
     }
-    /* next make sure noone will see this as a variable again */ 
+    /* next make sure noone will see this as a variable again */
     if (TR > (tr_fr_ptr)LOCAL_TrailTop - 256) {
       /* Trail overflow */
       if (!Yap_growtrail((TR-TR0)*sizeof(tr_fr_ptr *), TRUE)) {
@@ -4682,10 +4948,10 @@ static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end
   /* Do we still have compound terms to visit */
   if (to_visit > to_visit0) {
 #ifdef RATIONAL_TREES
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    pt0_end = to_visit[1];
-    *pt0 = (CELL)to_visit[2];
+    to_visit --;
+    pt0 = to_visit->beg;
+    pt0_end = to_visit->end;
+    *pt0 = to_visit->oval;
 #else
     to_visit -= 2;
     pt0 = to_visit[0];
@@ -4694,64 +4960,63 @@ static Int numbervars_in_complex_term(register CELL *pt0, register CELL *pt0_end
     goto loop;
   }
 
-  prune(B);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
+  prune(B PASS_REGS);
+  pop_text_stack(lvl);
   return numbv;
 
  trail_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
+     to_visit --;
+    pt0 = to_visit->beg;
+    pt0_end = to_visit->end;
+    *pt0 = to_visit->oval;
   }
 #endif
-  LOCAL_Error_TYPE = OUT_OF_TRAIL_ERROR;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_TRAIL;
   LOCAL_Error_Size = (TR-TR0)*sizeof(tr_fr_ptr *);
   clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  return -1;
-  
+  HR = InitialH;
+  pop_text_stack(lvl);
+  return numbv-1;
+
  aux_overflow:
-  LOCAL_Error_Size = (to_visit-to_visit0)*sizeof(CELL **);
-#ifdef RATIONAL_TREES
-  while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
-  }
-#endif
-  LOCAL_Error_TYPE = OUT_OF_AUXSPACE_ERROR;
-  clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  return -1;
-  
+  {
+  size_t d1 = to_visit-to_visit0;
+  size_t d2 = to_visit_max-to_visit0;
+  to_visit0 = Realloc(to_visit0,d2*sizeof(CELL*)+64*1024);
+  to_visit = to_visit0+d1;
+  to_visit_max = to_visit0+(d2+(64*1024))/sizeof(CELL **);
+}
+pt0--;
+goto loop;
+
  global_overflow:
 #ifdef RATIONAL_TREES
   while (to_visit > to_visit0) {
-    to_visit -= 3;
-    pt0 = to_visit[0];
-    *pt0 = (CELL)to_visit[2];
+    to_visit --;
+    pt0 = to_visit->beg;
+    pt0_end = to_visit->end;
+    *pt0 = to_visit->oval;
   }
 #endif
   clean_tr(TR0 PASS_REGS);
-  Yap_ReleasePreAllocCodeSpace((ADDR)to_visit0);
-  H = InitialH;
-  LOCAL_Error_TYPE = OUT_OF_STACK_ERROR;
-  LOCAL_Error_Size = (ASP-H)*sizeof(CELL);
-  return -1;
-  
+  HR = InitialH;
+  LOCAL_Error_TYPE = RESOURCE_ERROR_STACK;
+  LOCAL_Error_Size = (ASP-HR)*sizeof(CELL);
+  pop_text_stack(lvl);
+  return numbv-1;
+
 }
 
-Int 
-Yap_NumberVars( Term inp, Int numbv, int handle_singles )	/* numbervariables in term t	 */
+Int
+Yap_NumberVars( Term inp, Int numbv, bool handle_singles )	/*
+ * numbervariables in term t	 */
 {
   CACHE_REGS
   Int out;
   Term t;
-  
+
  restart:
   t = Deref(inp);
   if (IsVarTerm(t)) {
@@ -4776,7 +5041,7 @@ Yap_NumberVars( Term inp, Int numbv, int handle_singles )	/* numbervariables in 
 			       RepAppl(t)+
 				     ArityOfFunctor(f), numbv, handle_singles PASS_REGS);
   }
-  if (out < 0) {
+  if (out < numbv) {
     if (!expand_vts( 3 PASS_REGS ))
       return FALSE;
     goto restart;
@@ -4827,12 +5092,12 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
     {
       if (IsPairTerm(d0)) {
 	CELL *ap2 = RepPair(d0);
-	if (ap2 >= HB && ap2 < H) {
+	if (ap2 >= HB && ap2 < HR) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
-	*ptf = AbsPair(H);
+	}
+	*ptf = AbsPair(HR);
 	ptf++;
 #ifdef RATIONAL_TREES
 	if (to_visit+1 >= (struct cp_frame *)AuxSp) {
@@ -4844,7 +5109,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsPair(H);
+	*pt0 = AbsPair(HR);
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -4861,9 +5126,9 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	ground = share;
 	pt0 = ap2 - 1;
 	pt0_end = ap2 + 1;
-	ptf = H;
-	H += 2;
-	if (H > ASP - 2048) {
+	ptf = HR;
+	HR += 2;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else if (IsApplTerm(d0)) {
@@ -4871,26 +5136,26 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	register CELL *ap2;
 	/* store the terms to visit */
 	ap2 = RepAppl(d0);
-	if (ap2 >= HB && ap2 <= H) {
+	if (ap2 >= HB && ap2 <= HR) {
 	  /* If this is newer than the current term, just reuse */
 	  *ptf++ = d0;
 	  continue;
-	} 
+	}
 	f = (Functor)(*ap2);
 
 	if (IsExtensionFunctor(f)) {
 	  *ptf++ = d0;  /* you can just unnumber other extensions. */
 	  continue;
 	}
-	if (f == FunctorVar) {
+	if (f == FunctorDollarVar) {
 	  Int id = IntegerOfTerm(ap2[1]);
 	  ground = FALSE;
 	  if (id < -1) {
-	    Yap_Error(OUT_OF_STACK_ERROR, TermNil, "unnumber vars cannot cope with VAR(-%d)", id);
+	    Yap_Error(RESOURCE_ERROR_STACK, TermNil, "unnumber vars cannot cope with VAR(-%d)", id);
 	    return 0L;
 	  }
 	  if (id <= max) {
-	    if (ASP-(max+1) <= H) {
+	    if (ASP-(max+1) <= HR) {
 	      goto overflow;
 	    }
 	    /* we found this before? */
@@ -4904,7 +5169,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	    continue;
 	  }
 	  /* alloc more space */
-	  if (ASP-(id+1) <= H) {
+	  if (ASP-(id+1) <= HR) {
 	    goto overflow;
 	  }
 	  while (id > max) {
@@ -4917,7 +5182,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	  ptf++;
 	  continue;
 	}
-	*ptf = AbsAppl(H);
+	*ptf = AbsAppl(HR);
 	ptf++;
 	/* store the terms to visit */
 #ifdef RATIONAL_TREES
@@ -4930,7 +5195,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	to_visit->oldv = *pt0;
 	to_visit->ground = ground;
 	/* fool the system into thinking we had a variable there */
-	*pt0 = AbsAppl(H);
+	*pt0 = AbsAppl(HR);
 	to_visit ++;
 #else
 	if (pt0 < pt0_end) {
@@ -4949,10 +5214,10 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 	pt0 = ap2;
 	pt0_end = ap2 + d0;
 	/* store the functor for the new term */
-	H[0] = (CELL)f;
-	ptf = H+1;
-	H += 1+d0;
-	if (H > ASP - 2048) {
+	HR[0] = (CELL)f;
+	ptf = HR+1;
+	HR += 1+d0;
+	if (HR > ASP - 2048) {
 	  goto overflow;
 	}
       } else {
@@ -4977,9 +5242,9 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 
       *newp = old;
       if (IsApplTerm(new))
-	H = RepAppl(new);
+	HR = RepAppl(new);
       else
-	H = RepPair(new);
+	HR = RepPair(new);
     }
     pt0 = to_visit->start_cp;
     pt0_end = to_visit->end_cp;
@@ -4998,7 +5263,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 
  overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -5017,7 +5282,7 @@ unnumber_complex_term(CELL *pt0, CELL *pt0_end, CELL *ptf, CELL *HLow, int share
 
  heap_overflow:
   /* oops, we're in trouble */
-  H = HLow;
+  HR = HLow;
   /* we've done it */
   /* restore our nice, friendly, term to its original state */
   HB = HB0;
@@ -5052,18 +5317,18 @@ UnnumberTerm(Term inp, UInt arity, int share USES_REGS) {
 
   restart_list:
     ap = RepPair(t);
-    Hi = H;
-    tf = AbsPair(H);
-    H += 2;
+    Hi = HR;
+    tf = AbsPair(HR);
+    HR += 2;
     {
       int res;
       if ((res = unnumber_complex_term(ap-1, ap+1, Hi, Hi, share PASS_REGS)) < 0) {
-	H = Hi;
+	HR = Hi;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_list;
       } else if (res) {
-	H = Hi;
+	HR = Hi;
 	return t;
       }
     }
@@ -5076,13 +5341,13 @@ UnnumberTerm(Term inp, UInt arity, int share USES_REGS) {
 
   restart_appl:
     f = FunctorOfTerm(t);
-    HB0 = H;
+    HB0 = HR;
     ap = RepAppl(t);
-    tf = AbsAppl(H);
-    H[0] = (CELL)f;
-    H += 1+ArityOfFunctor(f);
-    if (H > ASP-128) {
-      H = HB0;
+    tf = AbsAppl(HR);
+    HR[0] = (CELL)f;
+    HR += 1+ArityOfFunctor(f);
+    if (HR > ASP-128) {
+      HR = HB0;
       if ((t = handle_cp_overflow(-1, TR0, arity, t))== 0L)
 	return FALSE;
       goto restart_appl;
@@ -5090,19 +5355,19 @@ UnnumberTerm(Term inp, UInt arity, int share USES_REGS) {
       int res;
 
       if ((res = unnumber_complex_term(ap, ap+ArityOfFunctor(f), HB0+1, HB0, share PASS_REGS)) < 0) {
-	H = HB0;
+	HR = HB0;
 	if ((t = handle_cp_overflow(res, TR0, arity, t))== 0L)
 	  return FALSE;
 	goto restart_appl;
       } else if (res && FunctorOfTerm(t) != FunctorMutable) {
-	H = HB0;
+	HR = HB0;
 	return t;
       }
     }
     return tf;
   }
 }
- 
+
 Term
 Yap_UnNumberTerm(Term inp, int share) {
   CACHE_REGS
@@ -5135,7 +5400,7 @@ Yap_SkipList(Term *l, Term **tailp)
       }
       lam++;
       length++;
-      l = RepPair(*l)+1; 
+      l = RepPair(*l)+1;
       do_derefa(v,l,derefa2_unk,derefa2_nonvar);
     } while ( *l != *s && IsPairTerm(*l) );
   }
@@ -5144,12 +5409,118 @@ Yap_SkipList(Term *l, Term **tailp)
   return length;
 }
 
-static Int 
+
+static Int
 p_skip_list( USES_REGS1 ) {
   Term *tail;
   Int len = Yap_SkipList(XREGS+2, &tail);
+
   return Yap_unify(MkIntegerTerm(len), ARG1) &&
     Yap_unify(*tail, ARG3);
+}
+
+static Int
+p_skip_list4( USES_REGS1 ) {
+  Term *tail;
+  Int len, len1 = -1;
+  Term t2 = Deref(ARG2), t;
+
+  if (!IsVarTerm(t2)) {
+    if (!IsIntegerTerm(t2)) {
+      Yap_Error(TYPE_ERROR_INTEGER, t2, "length/2");
+      return FALSE;
+    }
+    if ((len1 = IntegerOfTerm(t2)) < 0) {
+      Yap_Error(DOMAIN_ERROR_NOT_LESS_THAN_ZERO, t2, "length/2");
+      return FALSE;
+    }
+  }
+  /* we need len here */
+  len = Yap_SkipList(XREGS+1, &tail);
+  t = *tail;
+  /* don't set M0 if full list, just check M */
+  if (t == TermNil) {
+    if (len1 >= 0) { /* ARG2 was bound */
+      return
+	len1 == len &&
+	Yap_unify(t, ARG4);
+    } else {
+      return Yap_unify_constant(ARG4, TermNil) &&
+	Yap_unify_constant(ARG2, MkIntegerTerm(len));
+    }
+  }
+  return Yap_unify(MkIntegerTerm(len), ARG3) &&
+    Yap_unify(t, ARG4);
+}
+
+static Int
+p_free_arguments( USES_REGS1 )
+{
+  Term t = Deref(ARG1);
+  if (IsVarTerm(t))
+    return FALSE;
+  if (IsAtomTerm(t) || IsIntTerm(t))
+    return TRUE;
+  if (IsPairTerm(t)) {
+    Term th = HeadOfTerm(t);
+    Term tl = TailOfTerm(t);
+    return IsVarTerm(th) && IsVarTerm(tl) && th != tl;
+  } else {
+    Functor f = FunctorOfTerm(t);
+    UInt i, ar;
+    Int ret = TRUE;
+
+    if (IsExtensionFunctor(f))
+      return TRUE;
+    ar = ArityOfFunctor(f);
+    for (i = 1 ; i <= ar; i++) {
+      Term ta = ArgOfTerm(i, t);
+      Int j;
+
+      ret = IsVarTerm(ta);
+      if (!ret) break;
+      /* stupid quadractic algorithm, but needs no testing for overflows */
+      for (j = 1 ; j < i; j++) {
+	ret = ArgOfTerm(j, t) != ta;
+	if (!ret) break;
+      }
+      if (!ret) break;
+    }
+    return ret;
+  }
+}
+
+static Int
+p_freshen_variables( USES_REGS1 )
+{
+  Term t = Deref(ARG1);
+  Functor f = FunctorOfTerm(t);
+  UInt arity = ArityOfFunctor(f), i;
+  Term tn = Yap_MkNewApplTerm(f, arity);
+  CELL *src = RepAppl(t)+1;
+  CELL *targ = RepAppl(tn)+1;
+  for (i=0; i< arity; i++) {
+    RESET_VARIABLE(targ);
+    *VarOfTerm(*src) = (CELL)targ;
+    targ++;
+    src++;
+  }
+  return TRUE;
+}
+
+static Int
+p_reset_variables( USES_REGS1 )
+{
+  Term t = Deref(ARG1);
+  Functor f = FunctorOfTerm(t);
+  UInt arity = ArityOfFunctor(f), i;
+  CELL *src = RepAppl(t)+1;
+
+  for (i=0; i< arity; i++) {
+    RESET_VARIABLE(VarOfTerm(*src));
+    src++;
+  }
+  return TRUE;
 }
 
 void Yap_InitUtilCPreds(void)
@@ -5157,23 +5528,123 @@ void Yap_InitUtilCPreds(void)
   CACHE_REGS
   Term cm = CurrentModule;
   Yap_InitCPred("copy_term", 2, p_copy_term, 0);
+/** @pred  copy_term(? _TI_,- _TF_) is iso
+
+
+Term  _TF_ is a variant of the original term  _TI_, such that for
+each variable  _V_ in the term  _TI_ there is a new variable  _V'_
+in term  _TF_. Notice that:
+
++ suspended goals and attributes for attributed variables in _TI_ are also duplicated;
++ ground terms are shared between the new and the old term.
+
+If you do not want any sharing to occur please use
+duplicate_term/2.
+
+
+*/
   Yap_InitCPred("duplicate_term", 2, p_duplicate_term, 0);
+/** @pred  duplicate_term(? _TI_,- _TF_)
+
+
+Term  _TF_ is a variant of the original term  _TI_, such that
+for each variable  _V_ in the term  _TI_ there is a new variable
+ _V'_ in term  _TF_, and the two terms do not share any
+structure. All suspended goals and attributes for attributed variables
+in  _TI_ are also duplicated.
+
+Also refer to copy_term/2.
+
+
+*/
   Yap_InitCPred("copy_term_nat", 2, p_copy_term_no_delays, 0);
+/** @pred copy_term_nat(? _TI_,- _TF_)
+
+
+As copy_term/2.  Attributes however, are <em>not</em> copied but replaced
+by fresh variables.
+
+
+
+
+ */
   Yap_InitCPred("ground", 1, p_ground, SafePredFlag);
-  Yap_InitCPred("$variables_in_term", 3, p_variables_in_term, HiddenPredFlag);
-  Yap_InitCPred("$non_singletons_in_term", 3, p_non_singletons_in_term, HiddenPredFlag);
+/** @pred  ground( _T_) is iso
+
+
+Succeeds if there are no free variables in the term  _T_.
+
+
+*/
+  Yap_InitCPred("$variables_in_term", 3, p_variables_in_term, 0);
+  Yap_InitCPred("$free_variables_in_term", 3, p_free_variables_in_term, 0);
+  Yap_InitCPred("$non_singletons_in_term", 3, p_non_singletons_in_term, 0);
   Yap_InitCPred("term_variables", 2, p_term_variables, 0);
+/** @pred  term_variables(? _Term_, - _Variables_) is iso
+
+
+
+Unify  _Variables_ with the list of all variables of term
+ _Term_.  The variables occur in the order of their first
+appearance when traversing the term depth-first, left-to-right.
+
+
+*/
   Yap_InitCPred("term_variables", 3, p_term_variables3, 0);
   Yap_InitCPred("term_attvars", 2, p_term_attvars, 0);
+/** @pred term_attvars(+ _Term_,- _AttVars_)
+
+
+ _AttVars_ is a list of all attributed variables in  _Term_ and
+its attributes. I.e., term_attvars/2 works recursively through
+attributes.  This predicate is Cycle-safe.
+
+
+*/
   Yap_InitCPred("is_list", 1, p_is_list, SafePredFlag|TestPredFlag);
   Yap_InitCPred("$is_list_or_partial_list", 1, p_is_list_or_partial_list, SafePredFlag|TestPredFlag);
-  Yap_InitCPred("rational_term_to_tree", 2, p_break_rational, 0);
-  Yap_InitCPred("tree_to_rational_term", 2, p_restore_rational, 0);
+  Yap_InitCPred("rational_term_to_tree", 4, p_break_rational, 0);
+/** @pred  rational_term_to_tree(? _TI_,- _TF_, ?SubTerms, ?MoreSubterms)
+
+
+The term _TF_ is a forest representation (without cycles and repeated
+terms) for the Prolog term _TI_. The term _TF_ is the main term.  The
+difference list _SubTerms_-_MoreSubterms_ stores terms of the form
+_V=T_, where _V_ is a new variable occuring in _TF_, and _T_ is a copy
+of a sub-term from _TI_.
+
+
+*/
+  Yap_InitCPred("term_factorized", 3, p_break_rational3, 0);
+/** @pred  term_factorized(? _TI_,- _TF_, ?SubTerms)
+
+
+Similar to rational_term_to_tree/4, but _SubTerms_ is a proper list.
+
+
+*/
   Yap_InitCPred("=@=", 2, p_variant, 0);
   Yap_InitCPred("numbervars", 3, p_numbervars, 0);
+/** @pred  numbervars( _T_,+ _N1_,- _Nn_)
+
+
+Instantiates each variable in term  _T_ to a term of the form:
+`$VAR( _I_)`, with  _I_ increasing from  _N1_ to  _Nn_.
+
+
+*/
   Yap_InitCPred("unnumbervars", 2, p_unnumbervars, 0);
+/** @pred  unnumbervars( _T_,+ _NT_)
+
+
+Replace every `$VAR( _I_)` by a free variable.
+
+
+*/
   /* use this carefully */
   Yap_InitCPred("$skip_list", 3, p_skip_list, SafePredFlag|TestPredFlag);
+  Yap_InitCPred("$skip_list", 4, p_skip_list4, SafePredFlag|TestPredFlag);
+  Yap_InitCPred("$free_arguments", 1, p_free_arguments, TestPredFlag);
   CurrentModule = TERMS_MODULE;
   Yap_InitCPred("variable_in_term", 2, p_var_in_term, 0);
   Yap_InitCPred("term_hash", 4, p_term_hash, 0);
@@ -5186,10 +5657,11 @@ void Yap_InitUtilCPreds(void)
   Yap_InitCPred("export_term", 3, p_export_term, 0);
   Yap_InitCPred("kill_exported_term", 1, p_kill_exported_term, SafePredFlag);
   Yap_InitCPred("import_term", 2, p_import_term, 0);
+  Yap_InitCPred("freshen_variables", 1, p_freshen_variables, 0);
+  Yap_InitCPred("reset_variables", 1, p_reset_variables, 0);
   CurrentModule = cm;
 #ifdef DEBUG
-  Yap_InitCPred("$force_trail_expansion", 1, p_force_trail_expansion, SafePredFlag|HiddenPredFlag);
+  Yap_InitCPred("$force_trail_expansion", 1, p_force_trail_expansion, SafePredFlag);
   Yap_InitCPred("dum", 1, camacho_dum, SafePredFlag);
 #endif
 }
-

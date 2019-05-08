@@ -1,12 +1,10 @@
-#ifdef CUT_C
-
 #include "Yap.h"
 #include "cut_c.h"
 #include <stdio.h>
 
-void cut_c_initialize(void){
+void cut_c_initialize(int wid){
   CACHE_REGS
-  Yap_REGS.CUT_C_TOP=(cut_c_str_ptr)LOCAL_LocalBase;
+    Yap_REGS.CUT_C_TOP=(cut_c_str_ptr)REMOTE_LocalBase(wid);
 }
 
 /*Removes a choice_point from the stack*/
@@ -33,5 +31,3 @@ void cut_c_push(cut_c_str_ptr new_top){
   Yap_REGS.CUT_C_TOP=new_top;
   return;
 }
-
-#endif /*CUT_C*/

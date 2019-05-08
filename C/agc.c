@@ -32,8 +32,9 @@ static char     SccsId[] = "@(#)agc.c	1.3 3/15/90";
 #define errout GLOBAL_stderr
 #endif
 
-STATIC_PROTO(void  RestoreEntries, (PropEntry *, int USES_REGS));
-STATIC_PROTO(void  CleanCode, (PredEntry * USES_REGS));
+static void  RestoreEntries(PropEntry *, int USES_REGS);
+static void  CleanCode(PredEntry * USES_REGS);
+static void  RestoreDBTerm(DBTerm *dbr, bool src, int attachments USES_REGS);
 
 #define AtomMarkedBit 1
 
@@ -180,6 +181,7 @@ AtomAdjust(Atom a)
 #define YAdjust(P) (P)
 #define HoldEntryAdjust(P) (P)
 #define CodeCharPAdjust(P) (P)
+#define CodeConstCharPAdjust(P) (P)
 #define CodeVoidPAdjust(P) (P)
 #define HaltHookAdjust(P) (P)
 
@@ -189,28 +191,37 @@ AtomAdjust(Atom a)
 
 #define RestoreSWIHash()
 
+static void
+AdjustTermFlag(flag_term *tarr, UInt i)
+{
+  CACHE_REGS
+  if (IsVarTerm(tarr[i].at)) {
+    RestoreDBTerm( tarr[i].DBT, false, 0 PASS_REGS );
+  } else if (IsAtomTerm( tarr[i].at )  )
+    tarr[i].at = AtomTermAdjust(tarr[i].at);
+}
+
+static void RestoreFlags( UInt NFlags )
+{
+  CACHE_REGS
+  size_t i;
+  flag_term *tarr = GLOBAL_Flags;
+
+  if (worker_id == 0)
+    for (i=0; i<GLOBAL_flagCount; i++) {
+      AdjustTermFlag( tarr, i);
+    }
+  tarr = LOCAL_Flags;
+  for (i=0; i<LOCAL_flagCount; i++) {
+    AdjustTermFlag( tarr, i);
+  }
+}
+
 #include "rheap.h"
 
 static void
 RestoreHashPreds( USES_REGS1 )
 {
-  UInt i;
-
-  for (i = 0; i < PredHashTableSize; i++) {
-    PredEntry *p = PredHash[i];
-
-    if (p)
-      p = PredEntryAdjust(p);
-    while (p) {
-      Prop nextp;
-      
-      if (p->NextOfPE)
-	p->NextOfPE = PropAdjust(p->NextOfPE);
-      nextp = p->NextOfPE;
-      CleanCode(p PASS_REGS);
-      p = RepPredProp(nextp);
-    }
-  }
 }
 
 
@@ -220,7 +231,7 @@ static void init_reg_copies(USES_REGS1)
   LOCAL_OldLCL0 = LCL0;
   LOCAL_OldTR = TR;
   LOCAL_OldGlobalBase = (CELL *)LOCAL_GlobalBase;
-  LOCAL_OldH = H;
+  LOCAL_OldH = HR;
   LOCAL_OldH0 = H0;
   LOCAL_OldTrailBase = LOCAL_TrailBase;
   LOCAL_OldTrailTop = LOCAL_TrailTop;
@@ -243,8 +254,6 @@ RestoreAtomList(Atom atm USES_REGS)
     at = RepAtom(atm);
   } while (!EndOfPAEntr(at));
 }
-
-
 
 static void
 mark_trail(USES_REGS1)
@@ -319,25 +328,27 @@ mark_global_cell(CELL *pt)
     /* skip bitmaps */
     switch(reg) {
     case (CELL)FunctorDouble:
-#if SIZEOF_DOUBLE == 2*SIZEOF_LONG_INT
+#if SIZEOF_DOUBLE == 2*SIZEOF_INT_P
       return pt + 4;
 #else
       return pt + 3;
 #endif
+    case (CELL)FunctorString:
+      return pt + 3 + pt[1];
     case (CELL)FunctorBigInt:
       {
 	Int sz = 3 +
 	  (sizeof(MP_INT)+
 	   (((MP_INT *)(pt+2))->_mp_alloc*sizeof(mp_limb_t)))/sizeof(CELL);
-	Opaque_CallOnGCMark f;
-	Opaque_CallOnGCRelocate f2;
+	YAP_Opaque_CallOnGCMark f;
+	YAP_Opaque_CallOnGCRelocate f2;
 	Term t = AbsAppl(pt);
 
 	if ( (f = Yap_blob_gc_mark_handler(t)) ) {
 	  CELL ar[256];
 	  Int i,n = (f)(Yap_BlobTag(t), Yap_BlobInfo(t), ar, 256);
 	  if (n < 0) {
-	    Yap_Error(OUT_OF_HEAP_ERROR,TermNil,"not enough space for slot internal variables in agc");
+	    Yap_Error(RESOURCE_ERROR_HEAP,TermNil,"not enough space for slot internal variables in agc");
 	      }
 	  for (i = 0; i< n; i++) {
 	    CELL *pt = ar+i;
@@ -349,7 +360,7 @@ mark_global_cell(CELL *pt)
 	  if ( (f2 = Yap_blob_gc_relocate_handler(t)) < 0 ) {
 	    int out = (f2)(Yap_BlobTag(t), Yap_BlobInfo(t), ar, n);
 	    if (out < 0)
-	      Yap_Error(OUT_OF_HEAP_ERROR,TermNil,"bad restore of slot internal variables in agc");
+	      Yap_Error(RESOURCE_ERROR_HEAP,TermNil,"bad restore of slot internal variables in agc");
 	  }
 	}
 
@@ -376,7 +387,7 @@ mark_global(USES_REGS1)
    * the code 
    */
   pt = H0;
-  while (pt < H) {
+  while (pt < HR) {
     pt = mark_global_cell(pt);
   }
 }
@@ -405,7 +416,7 @@ clean_atom_list(AtomHashEntry *HashPtr)
     } else {
       NOfAtoms--;
       if (IsBlob(atm)) {
-	BlobPropEntry *b = RepBlobProp(at->PropsOfAE);
+	YAP_BlobPropEntry *b = RepBlobProp(at->PropsOfAE);
 	if (b->NextOfPE != NIL) {
 	  patm = &(at->NextOfAE);
 	  atm = at->NextOfAE;
@@ -414,18 +425,13 @@ clean_atom_list(AtomHashEntry *HashPtr)
 	NOfAtoms++;
 	NOfBlobs--;
 	Yap_FreeCodeSpace((char *)b);
-	GLOBAL_agc_collected += sizeof(BlobPropEntry);
+	GLOBAL_agc_collected += sizeof(YAP_BlobPropEntry);
 	GLOBAL_agc_collected += sizeof(AtomEntry)+sizeof(size_t)+at->rep.blob->length;
-      } else if (IsWideAtom(atm)) {
-#ifdef DEBUG_RESTORE3
-	fprintf(stderr, "Purged %p:%S\n", at, at->WStrOfAE);
-#endif
-	GLOBAL_agc_collected += sizeof(AtomEntry)+wcslen(at->WStrOfAE);
-      } else {
+      }  else {
 #ifdef DEBUG_RESTORE3
 	fprintf(stderr, "Purged %p:%s patm=%p %p\n", at, at->StrOfAE, patm, at->NextOfAE);
 #endif
-	GLOBAL_agc_collected += sizeof(AtomEntry)+strlen(at->StrOfAE);
+	GLOBAL_agc_collected += sizeof(AtomEntry)+strlen((const char *)at->StrOfAE);
       }
       *patm = atm = at->NextOfAE;
       Yap_FreeCodeSpace((char *)at);
@@ -448,15 +454,10 @@ clean_atoms(void)
     clean_atom_list(HashPtr);
     HashPtr++;
   }
-  HashPtr = WideHashChain;
-  for (i = 0; i < WideAtomHashTableSize; ++i) {
-    clean_atom_list(HashPtr);
-    HashPtr++;
-  }
   clean_atom_list(&INVISIBLECHAIN);
   {
     AtomHashEntry list;
-    list.Entry = SWI_Blobs;
+    list.Entry =                                                                                                                                                                                                                                                                                                                                                                                                                                                            Blobs;
     clean_atom_list(&list);
   }
 }
@@ -464,24 +465,25 @@ clean_atoms(void)
 static void
 atom_gc(USES_REGS1)
 {
-  int		gc_verbose = Yap_is_gc_verbose();
-  int           gc_trace = 0;
+  bool		gc_verbose = Yap_is_gc_verbose();
+  bool          gc_trace = false;
   
 
   UInt		time_start, agc_time;
 #if  defined(YAPOR) || defined(THREADS)
   return;
 #endif
+  
   if (Yap_GetValue(AtomGcTrace) != TermNil)
-    gc_trace = 1;
+    gc_trace = true;
 
   GLOBAL_agc_calls++;
   GLOBAL_agc_collected = 0;
   
   if (gc_trace) {
-    fprintf(GLOBAL_stderr, "%% agc:\n");
+    fprintf(stderr, "%% agc:\n");
   } else if (gc_verbose) {
-    fprintf(GLOBAL_stderr, "%%   Start of atom garbage collection %d:\n", GLOBAL_agc_calls);
+    fprintf(stderr, "%%   Start of atom garbage collection %d:\n", GLOBAL_agc_calls);
   }
   time_start = Yap_cputime();
   /* get the number of active registers */
@@ -497,11 +499,11 @@ atom_gc(USES_REGS1)
   GLOBAL_tot_agc_recovered += GLOBAL_agc_collected;
   if (gc_verbose) {
 #ifdef _WIN32
-    fprintf(GLOBAL_stderr, "%%   Collected %I64d bytes.\n", GLOBAL_agc_collected);
+    fprintf(stderr, "%%   Collected %I64d bytes.\n", GLOBAL_agc_collected);
 #else
-    fprintf(GLOBAL_stderr, "%%   Collected %lld bytes.\n", GLOBAL_agc_collected);
+    fprintf(stderr, "%%   Collected %lld bytes.\n", GLOBAL_agc_collected);
 #endif
-    fprintf(GLOBAL_stderr, "%%   GC %d took %g sec, total of %g sec doing GC so far.\n", GLOBAL_agc_calls, (double)agc_time/1000, (double)GLOBAL_tot_agc_time/1000);
+    fprintf(stderr, "%%   GC %d took %g sec, total of %g sec doing GC so far.\n", GLOBAL_agc_calls, (double)agc_time/1000, (double)GLOBAL_tot_agc_time/1000);
   }
 }
 
@@ -533,31 +535,10 @@ p_inform_agc(USES_REGS1)
     Yap_unify(ts, ARG3);
 }
 
-static Int
-p_agc_threshold(USES_REGS1)
-{
-  Term t = Deref(ARG1);
-  if (IsVarTerm(t)) {
-    return Yap_unify(ARG1, MkIntegerTerm(GLOBAL_AGcThreshold));
-  } else if (!IsIntegerTerm(t)) {
-    Yap_Error(TYPE_ERROR_INTEGER,t,"prolog_flag/2 agc_margin");
-    return FALSE;
-  } else {
-    Int i = IntegerOfTerm(t);
-    if (i<0) {
-      Yap_Error(DOMAIN_ERROR_NOT_LESS_THAN_ZERO,t,"prolog_flag/2 agc_margin");
-      return FALSE;
-    } else {
-      GLOBAL_AGcThreshold = i;
-      return TRUE;
-    }
-  }
-}
 
 void 
 Yap_init_agc(void)
 {
-  Yap_InitCPred("$atom_gc", 0, p_atom_gc, HiddenPredFlag);
-  Yap_InitCPred("$inform_agc", 3, p_inform_agc, HiddenPredFlag);
-  Yap_InitCPred("$agc_threshold", 1, p_agc_threshold, HiddenPredFlag|SafePredFlag);
+  Yap_InitCPred("$atom_gc", 0, p_atom_gc, 0);
+  Yap_InitCPred("$inform_agc", 3, p_inform_agc, 0);
 }

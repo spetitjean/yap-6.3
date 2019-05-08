@@ -19,7 +19,7 @@
 #include "yapio.h"
 #include "Foreign.h"
 
-#if LOAD_DLL
+#if _WIN32
 
 #include <windows.h>
 
@@ -27,15 +27,30 @@
  *   YAP_FindExecutable(argv[0]) should be called on yap initialization to
  *   locate the executable of Yap
 */
-void
-Yap_FindExecutable(char *name)
+char *
+Yap_FindExecutable(void)
 {
+  enum { BUFFERSIZE = 1024 };
+  char *buf = malloc(BUFFERSIZE);
+
+  if (!GetModuleFileName(NULL, buf, BUFFERSIZE-1))
+    return NULL;
+
+  return buf;
 }
 
 void *
 Yap_LoadForeignFile(char *file, int flags)
 {
-  return (void *)LoadLibrary(file);
+  char *buf = malloc(1024);
+  void *ptr= (void *)LoadLibrary(file);
+ if (!ptr) {
+   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		 NULL, GetLastError(),
+		 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 1023,
+		 NULL);
+		 }
+ return ptr;
 }
 
 int
@@ -60,23 +75,34 @@ Yap_CloseForeignFile(void *handle)
 */
 static Int
 LoadForeign(StringList ofiles, StringList libs,
-	       char *proc_name,	YapInitProc *init_proc)
+	       const char *proc_name,	YapInitProc *init_proc)
 {
   CACHE_REGS
   while (ofiles) {
     HINSTANCE handle;
 
-    if (Yap_TrueFileName(AtomName(ofiles->name), LOCAL_FileNameBuf, TRUE) &&
+    if (*init_proc == NULL &&
+      (*init_proc = (YapInitProc)GetProcAddress((HMODULE)handle, proc_name)))
+       {
+         YapInitProc f = *init_proc;
+        f();
+        return true;
+      }
+
+    const char *file = AtomName(ofiles->name);
+    if (Yap_findFile(file, NULL, NULL, LOCAL_FileNameBuf, true, YAP_OBJ, true, true) &&
 	(handle=LoadLibrary(LOCAL_FileNameBuf)) != 0)
       {
-	LOCAL_ErrorSay[0]=~'\0';
+       LOCAL_ErrorMessage = NULL;
 	if (*init_proc == NULL)
 	  *init_proc = (YapInitProc)GetProcAddress((HMODULE)handle, proc_name);
       } else {
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		      NULL, GetLastError(), 
-		      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), LOCAL_ErrorSay, 256,
-		      NULL);
+      char *buf = malloc(1024);
+   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		 NULL, GetLastError(),
+		 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 1023,
+		 NULL);
+	//fprintf(stderr,"WinError: %s\n", LOCAL_ErrorSay);
       }
     ofiles = ofiles->next;
   }
@@ -84,7 +110,7 @@ LoadForeign(StringList ofiles, StringList libs,
      other routines */
   while (libs) {
     HINSTANCE handle;
-    char * s = AtomName(libs->name);
+    const char * s = AtomName(libs->name);
 
     if (s[0] == '-') {
       strcat(LOCAL_FileNameBuf,s+2);
@@ -106,7 +132,7 @@ LoadForeign(StringList ofiles, StringList libs,
   }
 
   if(*init_proc == NULL) {
-    strcpy(LOCAL_ErrorSay,"Could not locate initialization routine");
+    LOCAL_ErrorMessage = "Could not locate initialization routine";
     return LOAD_FAILLED;
   }
 
@@ -120,7 +146,7 @@ Yap_LoadForeign(StringList ofiles, StringList libs,
   return LoadForeign(ofiles, libs, proc_name, init_proc);
 }
 
-void 
+void
 Yap_ShutdownLoadForeign(void)
 {
 }
@@ -133,4 +159,3 @@ Yap_ReLoadForeign(StringList ofiles, StringList libs,
 }
 
 #endif
-

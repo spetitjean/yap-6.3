@@ -15,14 +15,72 @@
 *									 *
 *************************************************************************/
 
+/**
+ * @file   avl.yap
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>
+ * @date   Tue Nov 17 00:59:28 2015
+ * 
+ * @brief  Support for constructing AVL trees
+ * 
+ * 
+*/
+
+
+
 :- module(avl, [
 	avl_new/1,
 	avl_insert/4,
 	avl_lookup/3
           ]).
 
+/**
+* @defgroup avl AVL Trees
+* @ingroup library
+@{
+Supports constructing AVL trees, available through the directive:
+
+~~~~~~~
+:- use_module(library(avl)).
+~~~~~~~
+
+It includes the following predicates:
+
+  - avl_insert/4
+  - avl_lookup/3
+  - avl_new/1
+
+AVL trees are balanced search binary trees. They are named after their
+inventors, Adelson-Velskii and Landis, and they were the first
+dynamically balanced trees to be proposed. The YAP AVL tree manipulation
+predicates library uses code originally written by Martin van Emdem and
+published in the Logic Programming Newsletter, Autumn 1981.  A bug in
+this code was fixed by Philip Vasey, in the Logic Programming
+Newsletter, Summer 1982. The library currently only includes routines to
+insert and lookup elements in the tree. Please try red-black trees if
+you need deletion.
+
+ 
+*/
+
+
+/** @pred avl_new(+ _T_) 
+
+
+Create a new tree.
+
+ 
+*/
 avl_new([]).
 
+/** @pred avl_insert(+ _Key_,? _Value_,+ _T0_,- _TF_) 
+
+
+Add an element with key  _Key_ and  _Value_ to the AVL tree
+ _T0_ creating a new AVL tree  _TF_. Duplicated elements are
+allowed.
+
+ 
+*/
 avl_insert(Key, Value, T0, TF) :-
 	insert(T0, Key, Value, TF, _).
 
@@ -70,6 +128,13 @@ table2(< ,- ,> ).
 table2(> ,< ,- ).
 table2(- ,- ,- ).
 
+/** @pred avl_lookup(+ _Key_,- _Value_,+ _T_) 
+
+
+Lookup an element with key  _Key_ in the AVL tree
+ _T_, returning the value  _Value_.
+
+*/
 
 avl_lookup(Key, Value, avl(L,Key0,KVal,_,R)) :-
 	compare(Cmp, Key, Key0),
@@ -81,3 +146,7 @@ avl_lookup(<, Value, L, _, Key, _) :-
 avl_lookup(>, Value, _, R, Key, _) :-
 	avl_lookup(Key, Value, R).
 
+
+/**
+@}
+*/

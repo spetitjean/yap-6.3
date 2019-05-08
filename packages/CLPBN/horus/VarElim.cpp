@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <iostream>
+#include <sstream>
 
 #include "VarElim.h"
 #include "ElimGraph.h"
@@ -6,32 +8,26 @@
 #include "Util.h"
 
 
-VarElim::~VarElim (void)
-{
-  delete factorList_.back();
-}
-
-
+namespace Horus {
 
 Params
 VarElim::solveQuery (VarIds queryVids)
 {
   if (Globals::verbosity > 1) {
-    cout << "Solving query on " ;
+    std::cout << "Solving query on " ;
     for (size_t i = 0; i < queryVids.size(); i++) {
-      if (i != 0) cout << ", " ;
-      cout << fg.getVarNode (queryVids[i])->label();
+      if (i != 0) std::cout << ", " ;
+      std::cout << fg.getVarNode (queryVids[i])->label();
     }
-    cout << endl;
+    std::cout << std::endl;
   }
+  totalFactorSize_   = 0;
+  largestFactorSize_ = 0;
   factorList_.clear();
-  varFactors_.clear();
-  elimOrder_.clear();
+  varMap_.clear();
   createFactorList();
   absorveEvidence();
-  findEliminationOrder (queryVids);
-  processFactorList (queryVids);
-  Params params = factorList_.back()->params();
+  Params params = processFactorList (queryVids);
   if (Globals::logDomain) {
     Util::exp (params);
   }
@@ -41,73 +37,73 @@ VarElim::solveQuery (VarIds queryVids)
 
 
 void
-VarElim::printSolverFlags (void) const
+VarElim::printSolverFlags() const
 {
-  stringstream ss;
+  std::stringstream ss;
   ss << "variable elimination [" ;
   ss << "elim_heuristic=" ;
-  ElimHeuristic eh = ElimGraph::elimHeuristic;
-  switch (eh) {
-    case SEQUENTIAL:        ss << "sequential";        break;
-    case MIN_NEIGHBORS:     ss << "min_neighbors";     break;
-    case MIN_WEIGHT:        ss << "min_weight";        break;
-    case MIN_FILL:          ss << "min_fill";          break;
-    case WEIGHTED_MIN_FILL: ss << "weighted_min_fill"; break;
+  typedef ElimGraph::ElimHeuristic ElimHeuristic;
+  switch (ElimGraph::elimHeuristic()) {
+    case ElimHeuristic::sequentialEh:      ss << "sequential";        break;
+    case ElimHeuristic::minNeighborsEh:    ss << "min_neighbors";     break;
+    case ElimHeuristic::minWeightEh:       ss << "min_weight";        break;
+    case ElimHeuristic::minFillEh:         ss << "min_fill";          break;
+    case ElimHeuristic::weightedMinFillEh: ss << "weighted_min_fill"; break;
   }
   ss << ",log_domain=" << Util::toString (Globals::logDomain);
   ss << "]" ;
-  cout << ss.str() << endl;
+  std::cout << ss.str() << std::endl;
 }
 
 
 
 void
-VarElim::createFactorList (void)
+VarElim::createFactorList()
 {
   const FacNodes& facNodes = fg.facNodes();
   factorList_.reserve (facNodes.size() * 2);
   for (size_t i = 0; i < facNodes.size(); i++) {
     factorList_.push_back (new Factor (facNodes[i]->factor()));
-    const VarNodes& neighs = facNodes[i]->neighbors();
-    for (size_t j = 0; j < neighs.size(); j++) {
-      unordered_map<VarId, vector<size_t>>::iterator it 
-          = varFactors_.find (neighs[j]->varId());
-      if (it == varFactors_.end()) {
-        it = varFactors_.insert (make_pair (
-            neighs[j]->varId(), vector<size_t>())).first;
+    const VarIds& args = facNodes[i]->factor().arguments();
+    for (size_t j = 0; j < args.size(); j++) {
+      std::unordered_map<VarId, std::vector<size_t>>::iterator it;
+      it = varMap_.find (args[j]);
+      if (it != varMap_.end()) {
+        it->second.push_back (i);
+      } else {
+        varMap_[args[j]] = { i };
       }
-      it->second.push_back (i);
     }
   }
-}	
+}
 
 
 
 void
-VarElim::absorveEvidence (void)
+VarElim::absorveEvidence()
 {
   if (Globals::verbosity > 2) {
     Util::printDashedLine();
-    cout << "(initial factor list)" << endl;
+    std::cout << "(initial factor list)" << std::endl;
     printActiveFactors();
   }
   const VarNodes& varNodes = fg.varNodes();
   for (size_t i = 0; i < varNodes.size(); i++) {
     if (varNodes[i]->hasEvidence()) {
       if (Globals::verbosity > 1) {
-        cout << "-> aborving evidence on ";
-        cout << varNodes[i]->label() << " = " ;
-        cout << varNodes[i]->getEvidence() << endl;
+        std::cout << "-> aborving evidence on ";
+        std::cout << varNodes[i]->label() << " = " ;
+        std::cout << varNodes[i]->getEvidence() << std::endl;
       }
-      const vector<size_t>& idxs =
-          varFactors_.find (varNodes[i]->varId())->second;
-      for (size_t j = 0; j < idxs.size(); j++) {
-        Factor* factor = factorList_[idxs[j]];
-        if (factor->nrArguments() == 1) {
-          factorList_[idxs[j]] = 0;
-        } else {
-          factorList_[idxs[j]]->absorveEvidence (
+      const std::vector<size_t>& indices = varMap_[varNodes[i]->varId()];
+      for (size_t j = 0; j < indices.size(); j++) {
+        size_t idx = indices[j];
+        if (factorList_[idx]->nrArguments() > 1) {
+          factorList_[idx]->absorveEvidence (
               varNodes[i]->varId(), varNodes[i]->getEvidence());
+        } else {
+          delete factorList_[idx];
+          factorList_[idx] = 0;
         }
       }
     }
@@ -116,72 +112,60 @@ VarElim::absorveEvidence (void)
 
 
 
-void
-VarElim::findEliminationOrder (const VarIds& vids)
+Params
+VarElim::processFactorList (const VarIds& queryVids)
 {
-  elimOrder_ = ElimGraph::getEliminationOrder (factorList_, vids);
-}
-
-
-
-void
-VarElim::processFactorList (const VarIds& vids)
-{
-  totalFactorSize_   = 0;
-  largestFactorSize_ = 0;
-  for (size_t i = 0; i < elimOrder_.size(); i++) {
+  VarIds elimOrder = ElimGraph::getEliminationOrder (
+      factorList_, queryVids);
+  for (size_t i = 0; i < elimOrder.size(); i++) {
     if (Globals::verbosity >= 2) {
       if (Globals::verbosity >= 3) {
         Util::printDashedLine();
         printActiveFactors();
       }
-      cout << "-> summing out " ;
-      cout << fg.getVarNode (elimOrder_[i])->label() << endl;
+      std::cout << "-> summing out " ;
+      std::cout << fg.getVarNode (elimOrder[i])->label() << std::endl;
     }
-    eliminate (elimOrder_[i]);
+    eliminate (elimOrder[i]);
   }
 
-  Factor* finalFactor = new Factor();
+  Factor result;
   for (size_t i = 0; i < factorList_.size(); i++) {
     if (factorList_[i]) {
-      finalFactor->multiply (*factorList_[i]);
+      result.multiply (*factorList_[i]);
       delete factorList_[i];
       factorList_[i] = 0;
     }
   }
 
   VarIds unobservedVids;
-  for (size_t i = 0; i < vids.size(); i++) {
-    if (fg.getVarNode (vids[i])->hasEvidence() == false) {
-      unobservedVids.push_back (vids[i]);
+  for (size_t i = 0; i < queryVids.size(); i++) {
+    if (fg.getVarNode (queryVids[i])->hasEvidence() == false) {
+      unobservedVids.push_back (queryVids[i]);
     }
   }
 
-  finalFactor->reorderArguments (unobservedVids);
-  finalFactor->normalize();
-  factorList_.push_back (finalFactor);
+  result.reorderArguments (unobservedVids);
+  result.normalize();
   if (Globals::verbosity > 0) {
-    cout << "total factor size:   " << totalFactorSize_ << endl;
-    cout << "largest factor size: " << largestFactorSize_ << endl;
-    cout << endl;
+    std::cout << "total factor size:   " << totalFactorSize_   << std::endl;
+    std::cout << "largest factor size: " << largestFactorSize_ << std::endl;
+    std::cout << std::endl;
   }
+  return result.params();
 }
 
 
 
 void
-VarElim::eliminate (VarId elimVar)
+VarElim::eliminate (VarId vid)
 {
-  Factor* result = 0;
-  vector<size_t>& idxs = varFactors_.find (elimVar)->second;
-  for (size_t i = 0; i < idxs.size(); i++) {
-    size_t idx = idxs[i];
+  Factor* result = new Factor();
+  const std::vector<size_t>& indices = varMap_[vid];
+  for (size_t i = 0; i < indices.size(); i++) {
+    size_t idx = indices[i];
     if (factorList_[idx]) {
-      if (result == 0) {
-        result = new Factor (*factorList_[idx]);
-      } else {
-        result->multiply (*factorList_[idx]);
-      }
+      result->multiply (*factorList_[idx]);
       delete factorList_[idx];
       factorList_[idx] = 0;
     }
@@ -190,28 +174,32 @@ VarElim::eliminate (VarId elimVar)
   if (result->size() > largestFactorSize_) {
     largestFactorSize_ = result->size();
   }
-  if (result != 0 && result->nrArguments() != 1) {
-    result->sumOut (elimVar);
-    factorList_.push_back (result);
-    const VarIds& resultVarIds = result->arguments();
-    for (size_t i = 0; i < resultVarIds.size(); i++) {
-      vector<size_t>& idxs =
-          varFactors_.find (resultVarIds[i])->second;
-      idxs.push_back (factorList_.size() - 1);
+  if (result->nrArguments() > 1) {
+    result->sumOut (vid);
+    const VarIds& args = result->arguments();
+    for (size_t i = 0; i < args.size(); i++) {
+      std::vector<size_t>& indices2 = varMap_[args[i]];
+      indices2.push_back (factorList_.size());
     }
+    factorList_.push_back (result);
+  } else {
+    delete result;
   }
 }
 
 
 
 void
-VarElim::printActiveFactors (void)
+VarElim::printActiveFactors()
 {
   for (size_t i = 0; i < factorList_.size(); i++) {
-    if (factorList_[i] != 0) {
-      cout << factorList_[i]->getLabel() << " " ;
-      cout << factorList_[i]->params() << endl;
+    if (factorList_[i]) {
+      std::cout << factorList_[i]->getLabel() << " " ;
+      std::cout << factorList_[i]->params();
+      std::cout << std::endl;
     }
   }
 }
+
+}  // namespace Horus
 

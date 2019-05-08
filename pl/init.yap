@@ -2,7 +2,7 @@
 *									 *
 *	 YAP Prolog 							 *
 *									 *
-*	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
+**	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
 *									 *
 * Copyright L.Damas, V.S.Costa and Universidade do Porto 1985-1997	 *
 *									 *
@@ -14,256 +14,207 @@
 * comments:	initializing the full prolog system			 *
 *									 *
 *************************************************************************/
-
-% This is yap's init file
-% should be consulted first step after booting
-
-% These are pseudo declarations
-% so that the user will get a redefining system predicate
-fail :- fail.
-
-false :- fail.
-
-otherwise.
-
-!.
-
-(:- G) :- '$execute'(G), !.
-
-(?- G) :- '$execute'(G).
-
-'$$!'(CP) :- '$cut_by'(CP).
-
-[] :- true.
-
-:- set_value('$doindex',true).
-
-% just create a choice-point
-% the 6th argument marks the time-stamp.
-'$do_log_upd_clause'(_,_,_,_,_,_).
-'$do_log_upd_clause'(A,B,C,D,E,_) :-
-	'$continue_log_update_clause'(A,B,C,D,E).
-'$do_log_upd_clause'(_,_,_,_,_,_).
-
-
-'$do_log_upd_clause_erase'(_,_,_,_,_,_).
-'$do_log_upd_clause_erase'(A,B,C,D,E,_) :-
-	'$continue_log_update_clause_erase'(A,B,C,D,E).
-'$do_log_upd_clause_erase'(_,_,_,_,_,_).
-
-'$do_log_upd_clause0'(_,_,_,_,_,_).
-'$do_log_upd_clause0'(A,B,C,D,_,_) :-
-	'$continue_log_update_clause'(A,B,C,D).
-'$do_log_upd_clause0'(_,_,_,_,_,_).
-
-
-'$do_static_clause'(_,_,_,_,_).
-'$do_static_clause'(A,B,C,D,E) :-
-	'$continue_static_clause'(A,B,C,D,E).
-'$do_static_clause'(_,_,_,_,_).
-
-:- '$handle_throw'(_,_,_), !.
-
-:- bootstrap('errors.yap').
-:- bootstrap('lists.yap').
-:- bootstrap('consult.yap').
-
-:- [	 'utils.yap',
-	 'control.yap',
-	 'arith.yap',
-	 'directives.yap',
-	 'flags.yap'].
-
-:- compile_expressions.
-
-:- [
-    % lists is often used.
-   	 'yio.yap',
-	 'debug.yap',
-	 'checker.yap',
-	 'depth_bound.yap',
-	 'grammar.yap',
-	 'ground.yap',
-	 'listing.yap',
-	 'preds.yap',
-	 % modules must be after preds, otherwise we will have trouble
-	 % with meta-predicate expansion being invoked
-	 'modules.yap',
-	 % must follow grammar
-	 'eval.yap',
-	 'signals.yap',
-	 'profile.yap',
-	 'callcount.yap',
-	 'load_foreign.yap',
-%	 'save.yap',
-	 'setof.yap',
-	 'sort.yap',
-	 'statistics.yap',
-	 'strict_iso.yap',
-	 'tabling.yap',
-	 'threads.yap',
-	 'eam.yap',
-	 'chtypes.yap',
-	 'yapor.yap',
-         'qly.yap',
-         'udi.yap'].
-
-:- dynamic prolog:'$user_defined_flag'/4.
-
-:- dynamic prolog:'$parent_module'/2.
-
-:- multifile prolog:debug_action_hook/1.
-
-:- source.
-
-:- no_source.
-
-
-:-	 ['protect.yap'].
-
-version(yap,[6,3]).
-
-system_mode(verbose,on)  :- set_value('$verbose',on).
-system_mode(verbose,off) :- set_value('$verbose',off).
-
-:- op(1150,fx,(mode)).
-
-:- dynamic 'extensions_to_present_answer'/1.
-
-:- 	['arrays.yap'].
-
-:- use_module('messages.yap').
-:- use_module('hacks.yap').
-:- use_module('attributes.yap').
-:- use_module('corout.yap').
-:- use_module('dialect.yap').
-:- use_module('history.pl').
-:- use_module('dbload.yap').
-:- use_module('swi.yap').
-:- use_module('../LGPL/predopts.pl').
-:- use_module('../LGPL/menu.pl').
-
-
-'$system_module'('$attributes').
-'$system_module'('$coroutining').
-'$system_module'('$hacks').
-'$system_module'('$history').
-'$system_module'('$messages').
-'$system_module'('$predopts').
-'$system_module'('$swi').
-'$system_module'('$win_menu').
-
-
-yap_hacks:cut_by(CP) :- '$$cut_by'(CP).
-
-:- '$change_type_of_char'(36,7). % Make $ a symbol character
-
-:- multifile user:library_directory/1.
-
-:- dynamic user:library_directory/1.
-
-:- multifile user:commons_directory/1.
-
-:- dynamic user:commons_directory/1.
-
-:- recorda('$dialect',yap,_).
-
-%
-% cleanup ensure loaded and recover some data-base space.
-%
-:- ( recorded('$loaded','$loaded'(_,_,_),R), erase(R), fail ; true ).
-
-:- dynamic autoloader:autoload/0.
-
-:- set_value('$user_module',user), '$protect'.
-
-:- style_check([]).
-
-%
-% moved this to init_gc in gc.c to separate the alpha
-%
-% :- yap_flag(gc,on).
-
-% :- yap_flag(gc_trace,verbose).
-
-:- system_mode(verbose,on).
-
-:- multifile prolog:message/3.
-
-:- dynamic prolog:message/3.
-
-:- multifile
-	prolog:comment_hook/3.
-
-:- module(user).
-
-:- multifile goal_expansion/3.
-
-:- dynamic goal_expansion/3.
-
-:- multifile user:prolog_file_type/2.
-
-:- dynamic user:prolog_file_type/2.
-
-user:prolog_file_type(yap, prolog).
-user:prolog_file_type(pl, prolog).
-user:prolog_file_type(A, prolog) :-
-	current_prolog_flag(associate, A), 
-	A\==pl,
-	A \== yap.
-%user:prolog_file_type(qlf, prolog).
-%user:prolog_file_type(qlf, qlf).
-user:prolog_file_type(A, executable) :-
-	current_prolog_flag(shared_object_extension, A).
-
-
-:- multifile goal_expansion/2.
-
-:- dynamic goal_expansion/2.
-
-:- multifile term_expansion/2.
-
-:- dynamic term_expansion/2.
-
-:- multifile system:term_expansion/2.
-
-:- dynamic system:term_expansion/2.
-
-:- multifile file_search_path/2.
-
-:- dynamic file_search_path/2.
-
-:- multifile generate_message_hook/3.
-
-:- dynamic generate_message_hook/3.
-
-:- multifile swi:swi_predicate_table/4.
-
-:- multifile user:message_hook/3.
-
-:- dynamic user:message_hook/3.
-
-:- multifile user:portray_message/2.
-
-:- dynamic user:portray_message/2.
-
-:- multifile user:exception/3.
-
-:- dynamic user:exception/3.
-
-file_search_path(library, Dir) :-
-	library_directory(Dir).
-file_search_path(commons, Dir) :-
-	commons_directory(Dir0).
-file_search_path(swi, Home) :-
-	current_prolog_flag(home, Home).
-file_search_path(yap, Home) :-
-        current_prolog_flag(home, Home).
-file_search_path(system, Dir) :-
-	prolog_flag(host_type, Dir).
-file_search_path(foreign, yap('lib/Yap')).
-
-:- yap_flag(unknown,error). 
-
-:- stream_property(user_input, tty(true)) -> set_prolog_flag(readline, true) ; true.
-
+/**
+ * @file init.yap
+ *
+ * @brief how to boot and run the top-level.
+ *
+*/
+
+/**
+ * @ingroup YAPControl
+ * @{
+ *
+*/
+
+'$init_globals' :-
+	% set_prolog_flag(break_level, 0),
+	% '$set_read_error_handler'(error), let the user do that
+	nb_setval('$chr_toplevel_show_store',false).
+
+'$init_consult' :-
+    set_value('$open_expands_filename',true),
+    nb_setval('$assert_all',off),
+    nb_setval('$if_level',0),
+    nb_setval('$endif',off),
+    nb_setval('$initialization_goals',off),
+    nb_setval('$included_file',[]),
+    nb_setval('$loop_streams',[]),
+    (
+	'$undefined'('$init_preds',prolog)
+    ->
+    true
+    ;
+    '$init_preds'
+	).
+
+'$init_win_graphics' :-
+    '$undefined'(window_title(_,_), system), !.
+'$init_win_graphics' :-
+    load_files([library(win_menu)], [silent(true),if(not_loaded)]),
+    fail.
+'$init_win_graphics'.
+
+'$init_or_threads' :-
+	'$c_yapor_workers'(W), !,
+	'$start_orp_threads'(W).
+'$init_or_threads'.
+
+'$start_orp_threads'(1) :- !.
+'$start_orp_threads'(W) :-
+	thread_create('$c_worker',_,[detached(true)]),
+	W1 is W-1,
+	'$start_orp_threads'(W1).
+
+'$version' :-
+      current_prolog_flag(verbose, normal), !,
+      current_prolog_flag(version_git,VersionGit),
+      current_prolog_flag(compiled_at,AT),
+      current_prolog_flag(version_data, yap(Mj, Mi,  Patch, _) ),
+      sub_atom( VersionGit, 0, 8, _, VERSIONGIT ),
+      current_prolog_flag(version_data, yap(Mj, Mi,  Patch, _) ),
+      current_prolog_flag(resource_database, Saved ),
+      format(user_error, '% YAP ~d.~d.~d-~a (compiled  ~a)~n', [Mj,Mi, Patch, VERSIONGIT,  AT]),
+      format(user_error, '% database loaded from ~a~n', [Saved]).
+'$version'.
+
+/**
+  * Initialise a Prolog engine.
+  *
+  * Must be called after restoring.
+  */
+'$init_prolog' :-
+    % do catch as early as possible
+	'$version',
+	yap_flag(file_name_variables, _OldF, true),
+    '$init_consult',
+    %set_prolog_flag(file_name_variables, OldF),
+    '$init_globals',
+    set_prolog_flag(fileerrors, true),
+    set_value('$gc',on),
+    ('$exit_undefp' -> true ; true),
+    prompt1(' ?- '),
+    set_prolog_flag(debug, false),
+    % simple trick to find out if this is we are booting from Prolog.
+    % boot from a saved state
+    '$init_from_saved_state_and_args', %start_low_level_trace,
+
+    '$db_clean_queues'(0),
+				% this must be executed from C-code.
+				%	'$startup_saved_state',
+    set_input(user_input),
+    set_output(user_output),
+    '$init_or_threads',
+    '$run_at_thread_start'.
+
+
+% then we can execute the programs.
+'$startup_goals' :-
+    module(user),
+    fail.
+'$startup_goals' :-
+    recorded('$startup_goal',G,_),
+    catch(once(user:G),Error,user:'$Error'(Error)),
+    fail.
+'$startup_goals' :-
+	get_value('$init_goal',GA),
+	GA \= [],
+	set_value('$init_goal',[]),
+	'$run_atom_goal'(GA),
+	fail.
+'$startup_goals' :-
+    recorded('$restore_flag', goal(Module:GA), R),
+    erase(R),
+    catch(once(Module:GA),Error,user:'$Error'(Error)),
+    fail.
+'$startup_goals' :-
+	get_value('$myddas_goal',GA), GA \= [],
+	set_value('$myddas_goal',[]),
+	get_value('$myddas_user',User), User \= [],
+	set_value('$myddas_user',[]),
+	get_value('$myddas_db',Db), Db \= [],
+	set_value('$myddas_db',[]),
+	get_value('$myddas_host',HostT),
+	( HostT \= [] ->
+	  Host = HostT,
+	  set_value('$myddas_host',[])
+	;
+	  Host = localhost
+	),
+	get_value('$myddas_pass',PassT),
+	( PassT \= [] ->
+	  Pass = PassT,
+	  set_value('$myddas_pass',[])
+	;
+	  Pass = ''
+	),
+	use_module(library(myddas)),
+	call(db_open(mysql,myddas,Host/Db,User,Pass)),
+	'$myddas_import_all',
+	fail.
+'$startup_goals'.
+
+ %
+ % MYDDAS: Import all the tables from one database
+ %
+
+ '$myddas_import_all':-
+	 call(db_my_show_tables(myddas,table(Table))),
+	 call(db_import(myddas,Table,Table)),
+	 fail.
+ '$myddas_import_all'.
+
+% use if we come from a save_program and we have SWI's shlib
+'$init_from_saved_state_and_args' :-
+	current_prolog_flag(hwnd, _HWND),
+	load_files(library(win_menu), [silent(true)]),
+	fail.
+'$init_from_saved_state_and_args' :-
+	recorded('$reload_foreign_libraries',_G,R),
+	erase(R),
+	shlib:reload_foreign_libraries,
+	fail.
+% this should be done before -l kicks in.
+'$init_from_saved_state_and_args' :-
+	current_prolog_flag(fast_boot, false),
+	  ( exists('~/.yaprc') -> load_files('~/.yaprc', []) ; true ),
+	  ( exists('~/.prologrc') -> load_files('~/.prologrc', []) ; true ),
+	  ( exists('~/prolog.ini') -> load_files('~/prolog.ini', []) ; true ),
+	  fail.
+% use if we come from a save_program and we have a goal to execute
+'$init_from_saved_state_and_args' :-
+	get_value('$consult_on_boot',X), X \= [],
+	set_value('$consult_on_boot',[]),
+	'$do_startup_reconsult'(X),
+	fail.
+'$init_from_saved_state_and_args' :-
+	recorded('$restore_flag', init_file(M:B), R),
+	erase(R),
+	'$do_startup_reconsult'(M:B),
+	fail.
+'$init_from_saved_state_and_args' :-
+	recorded('$restore_flag', unknown(M:B), R),
+	erase(R),
+	yap_flag(M:unknown,B),
+	fail.
+'$init_from_saved_state_and_args' :-
+	'$startup_goals',
+	fail.
+'$init_from_saved_state_and_args' :-
+	recorded('$restore_goal',G,R),
+	erase(R),
+	prompt(_,'| '),
+	catch(once(user:G),Error,user:'$Error'(Error)),
+	fail.
+
+'$init_path_extensions' :-
+	get_value('$extend_file_search_path',P), !,
+	P \= [],
+	set_value('$extend_file_search_path',[]),
+	'$extend_file_search_path'(P).
+'$init_path_extensions'.
+
+/**
+ *
+ * @}
+ */

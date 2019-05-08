@@ -9,11 +9,25 @@
 **************************************************************************
 *									 *
 * File:		udi.yap							 *
-* Last rev:	8/2/88							 *
+* Last rev:	17/12/2012						 *
 * mods:									 *
 * comments:	support user defined indexing				 *
 *									 *
 *************************************************************************/
+/**
+  * @file   udi.yap
+  * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+  * @date   Thu Oct 19 12:19:04 2017
+  * 
+  * @brief  User Defined Extensions
+  *
+  * @addtogroup UDI User Defined Extensions
+  * @ingroup extensions
+  * 
+  * 
+*/
+
+:- system_module( '$_udi', [udi/1], []).
 
 :- meta_predicate udi(:).
 
@@ -22,5 +36,4 @@
 ******************/
 
 udi(Pred) :-
-   '$udi_init'(rtree, Pred).
-
+   '$udi_init'(Pred).

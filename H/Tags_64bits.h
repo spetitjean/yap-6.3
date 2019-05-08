@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 /*************************************************************************
 *									 *
 *	 YAP Prolog 	%W% %G% 					 *
@@ -20,6 +14,8 @@
 * comments:	Original Tag Scheme for machines with 32 bits adresses   *
 * version:      $Id: Tags_64bits.h,v 1.3 2008-05-15 13:41:46 vsc Exp $	 *
 *************************************************************************/
+
+#if SIZEOF_INT_P==8
 
 #define TAG_64BITS 1
 
@@ -40,18 +36,18 @@ property list
 
 */
 
-#define SHIFT_HIGH_TAG  62
+#define SHIFT_HIGH_TAG  61
 
 #define MKTAG(HI,LO)   ((((UInt) (HI))<<SHIFT_HIGH_TAG)|(LO))
 
-#define	TagBits	    /* 0x30000007L */ MKTAG(0x1,7)
+#define	TagBits	    /* 0x70000007L */ MKTAG(0x7,7)
 #define LowTagBits  /* 0x00000007L */ MKTAG(0x0,7)
-#define HighTagBits /* 0x70000000L */ MKTAG(0x1,0)
-#define	AdrHiBit    /* 0x08000000L */ (((UInt)1) << (SHIFT_HIGH_TAG-1))
-#define MaskPrim    /* 0x0ffffff8L */ ((((UInt)1) << (SHIFT_HIGH_TAG))-8)
+#define HighTagBits /* 0x70000000L */ MKTAG(0x7,0)
+#define	AdrHiBit    /* 0x08000000L */ (((UInt)1) << (SHIFT_HIGH_TAG-3))
+#define MaskPrim    /* 0x0ffffff8L */ (((((UInt)1) << (SHIFT_HIGH_TAG-3))-1)<<3)
 #define	NumberTag   /* 0x30000001L */ MKTAG(0x1,1)
 #define	AtomTag	    /* 0x10000001L */ MKTAG(0x0,1)
-#define MAX_ABS_INT /* 0xfe00000LL */ (((Int)1) << (63-(2+4)))
+#define MAX_ABS_INT /* 0xfe00000LL */ ((((Int)1) << (63-(3+3)))<<3)
 
 /* bits that should not be used by anyone but us */
 #define YAP_PROTECTED_MASK 0xe000000000000000L
@@ -73,9 +69,9 @@ property list
 #define CHKTAG(t,Tag) 	((Unsigned(t)&TagBits)==Tag)
 
 #include "inline-only.h"
-inline EXTERN int IsVarTerm (Term) INLINE_ONLY;
+INLINE_ONLY int IsVarTerm (Term);
 
-inline EXTERN int
+INLINE_ONLY int
 IsVarTerm (Term t)
 {
   return (int) ((!((t) & 0x1)));
@@ -83,9 +79,9 @@ IsVarTerm (Term t)
 
 
 
-inline EXTERN int IsNonVarTerm (Term) INLINE_ONLY;
+INLINE_ONLY int IsNonVarTerm (Term);
 
-inline EXTERN int
+INLINE_ONLY int
 IsNonVarTerm (Term t)
 {
   return (int) (((t) & 0x1));
@@ -93,9 +89,9 @@ IsNonVarTerm (Term t)
 
 
 
-inline EXTERN Term *RepPair (Term) INLINE_ONLY;
+INLINE_ONLY Term *RepPair (Term);
 
-inline EXTERN Term *
+INLINE_ONLY Term *
 RepPair (Term t)
 {
   return (Term *) (((t) - PairBits));
@@ -103,9 +99,9 @@ RepPair (Term t)
 
 
 
-inline EXTERN Term AbsPair (Term *) INLINE_ONLY;
+INLINE_ONLY Term AbsPair (Term *);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AbsPair (Term * p)
 {
   return (Term) (((CELL) (p) + PairBits));
@@ -113,9 +109,9 @@ AbsPair (Term * p)
 
 
 
-inline EXTERN Int IsPairTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsPairTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsPairTerm (Term t)
 {
   return (Int) (((t) & 0x2));
@@ -123,9 +119,9 @@ IsPairTerm (Term t)
 
 
 
-inline EXTERN Term *RepAppl (Term) INLINE_ONLY;
+INLINE_ONLY Term *RepAppl (Term);
 
-inline EXTERN Term *
+INLINE_ONLY Term *
 RepAppl (Term t)
 {
   return (Term *) (((t) - ApplBits));
@@ -133,9 +129,9 @@ RepAppl (Term t)
 
 
 
-inline EXTERN Term AbsAppl (Term *) INLINE_ONLY;
+INLINE_ONLY Term AbsAppl (Term *);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AbsAppl (Term * p)
 {
   return (Term) (((CELL) (p) + ApplBits));
@@ -143,9 +139,9 @@ AbsAppl (Term * p)
 
 
 
-inline EXTERN Int IsApplTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsApplTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsApplTerm (Term t)
 {
   return (Int) ((((t) & 0x4)));
@@ -153,9 +149,9 @@ IsApplTerm (Term t)
 
 
 
-inline EXTERN Int IsAtomOrIntTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsAtomOrIntTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsAtomOrIntTerm (Term t)
 {
   return (Int) ((((t) & LowTagBits) == 0x1));
@@ -164,9 +160,9 @@ IsAtomOrIntTerm (Term t)
 
 
 
-inline EXTERN Term AdjustPtr (Term t, Term off) INLINE_ONLY;
+INLINE_ONLY Term AdjustPtr (Term t, Term off);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AdjustPtr (Term t, Term off)
 {
   return (Term) (((t) + off));
@@ -174,9 +170,9 @@ AdjustPtr (Term t, Term off)
 
 
 
-inline EXTERN Term AdjustIDBPtr (Term t, Term off) INLINE_ONLY;
+INLINE_ONLY Term AdjustIDBPtr (Term t, Term off);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AdjustIDBPtr (Term t, Term off)
 {
   return (Term) ((t) + off);
@@ -185,10 +181,14 @@ AdjustIDBPtr (Term t, Term off)
 
 
 
-inline EXTERN Int IntOfTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IntOfTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IntOfTerm (Term t)
 {
   return (Int) ((Int) (Unsigned (t) << 3) >> 6);
 }
+
+#endif /* 64 Bits */
+
+

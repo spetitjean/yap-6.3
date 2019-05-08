@@ -223,18 +223,491 @@
 %
 % angelika.kimmig@cs.kuleuven.be
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/**
+
+@defgroup ProbLog1 The Leuven ProbLog1 System
+@ingroup packages
+
+@brief This document is intended as a user guide for the users of ProbLog. ProbLog is a probabilistic Prolog, a probabilistic logic programming language, which is integrated in YAP-Prolog.
+
+## Installing ProbLog
+
+### Requirements
+
+For installing and running ProbLog, the following are required:
+
++ a reasonable up-to-date computer, running Linux or Mac OS
++ YAP Prolog 5.1.3 (for Mac OS the more recent version 5.1.4 is needed) or YAP-6
+
+### Download
+To install ProbLog1, it is first necessary to download SimpleCUDD or CUDD. YAP Prolog also needs to be downloaded if it is not already installed on the machine
+
+For downloading SimpleCUDD, go to:
++ http://www.cs.kuleuven.be/$sim$theo/tools/SimpleCUDD.tar.gz
+
+You can also use the CUDD interface package in YAP. You will need to
+
+1. If a Fedora user, CUDD is just available.
+
+2. If a Mac user, there is a ports package.
+
+3. Otherwise, you can obtain the version at . This version compiles under WIN32.
+
+Last, when you configure YAP you need to add the options --with-cidd --enable-bddlib. Binary distributed versions already have the interface.
+
+## Running ProbLog
+
+
+To use ProbLog, the ProbLog module has to be loaded at the top of your Prolog programs. This is done with the following statement:
+~~~~
+:- use_module(library(problog)).
+~~~~
+
+
+Similarly, to compile the ProbLog learning module, use:
+~~~~
+:- use_module(library(problog_learning)).
+~~~~
+or
+~~~~
+:- use_module(library(problog_learning_lbdd)).
+~~~~
+
+## Encoding Probabilistic Facts
+A probabilistic fact is encoded in ProbLog by preceding a predicate with a probability value. For example:
+~~~~
+0.5::heads(_).
+~~~~
+encodes the fact that there's 50% chance of getting heads when tossing an unbiassed coin.
+
+### Encoding Parameter Learning Facts
+
+Instead of probabilities every fact has a t( ) prefix. The t stands for tunable and indicate that ProbLog should learn the probability. The number between the parentheses indicates the ground truth probability. It is ignored by the learning algorithm and if you do not know the ground truth, you can write t(_). The ground truth is used after learning to estimate the distance of the learned model parameters to the ground truth model parameters. For example:
+~~~~
+t(0.5)::heads(_).
+~~~~
+
+*/
+
+/** @defgroup ProbLogPredicates ProbLog Predicates
+@ingroup ProbLog1
+
+This chapter describes the predicates defined by ProbLog for evaluating the probability of queries.
+
+In the description of the arguments of functors the following notation will be used:
+
++ a preceding plus sign will denote an argument as an "input argument" - it cannot be a free variable at the time of the call
++ a preceding minus sign will denote an "output argument"
++ an argument with no preceding symbol can be used in both ways
+
+
+/**
+ * @pred problog_max(+G, -Prob, -FactsUsed)
+ *
+This predicate returns the most likely explanation of proving the goal G and the facts used in achieving this explanation.
+*/
+
+/**
+ * @pred problog_exact(+G, -Prob, -Status)
+ *
+This predicate returns the exact total probability of achieving the goal G and the status of the query.
+*/
+
+/**
+ * @pred problog_kbest(+G, +K, -Prob, -Status)
+ *
+This predicate returns the sum of the probabilities of the best K proofs of achieving the goal G and the status of the query.
+*/
+
+/**
+ * @pred problog_montecarlo(+G, +Interval_width, -Prob)
+ *
+This predicate approximates the probability of achieving the goal G by using a Monte Carlo approach, with 95% confidence in the given interval width.
+*/
+
+/**
+ * @pred problog_delta(+G , +Interval_width, -Bound_low, -Bound_up, -Status)
+ *
+This predicate returns the lower and upper bound of the probability of achieving the goal G by using an iterative
+deepening approach with the given interval width.
+*/
+/**
+ * @pred problog_threshold(+G , +Prob, -Bound_low, -Bound_up, -Status)
+ *
+This predicate returns the lower and upper bound of the probability of achieving the goal G obtained by cutting the sld tree at the given probability for each branch.
+*/
+
+/**
+ * @pred problog_low(+G, +Prob, -Bound_low, -Status)
+ *
+This predicate returns the lower bound of the probability of achieving the goal G obtained by cutting the sld tree at the given probability for each branch.
+*/
+
+
+/**
+@defgroup ProbLogParameterLearning ProbLog Parameter Learning Predicates
+@ingroup ProbLog1
+@{
+*/
+
+/**
+ * @pred example(+N, +Q, +Prob)
+ *
+This predicate specifies an example. Every example has as input a unique identifier (N), a query (Q) and a probability (Prob) associated with it.
+
+Instead of queries, you can also give proofs as training example. They are encoded as the conjunction of the probabilistic facts used in the proof.
+*/
+
+/**
+ * @pred test_example(+N, +Q, +Prob)
+ *
+This predicate specifies a test example. Every test example has as input a unique identifier (N), a query (Q) and a probability (Prob) associated with it.
+
+Test examples are ignored during learning but are used afterwards to check the performance of the model. The ID namespace is shared between the test examples and the training examples and you may only reuse an ID if the queries are identical.
+*/
+
+/**
+ * @pred do_learning(+N).
+ *
+Starts the learning algorithm with N iterations.
+
+*/
+
+/**
+ * @pred do_learning(+N, +Epsilon).
+ *
+The output is created in the output subfolder of the current folder where YAP was started. There you will find the file log.dat which contains MSE on training and test set for every iteration, the timings, and some metrics on the gradient in CSV format. The files factprobs_N.pl contain the fact probabilities after the Nth iteration and the files predictions_N.pl contain the estimated probabilities for each training and test example - per default these file are generated every 5th iteration only.
+1
+Starts the learning algorithm. The learning will stop after N iterations or if the difference of the Mean Squared Error (MSE) between two iterations gets smaller than Epsilon - depending on what happens first.
+
+*/
+
+%% @}
+
+
+/** @defgroup ProbLogMiscellaneous ProbLog Miscellaneous Predicates
+@ingroup ProbLog1
+@{
+
+
+Both the learning and the inference module have various parameters, or flags, that can be adjusted by the user.
+The following predicates are defined by ProbLog to access and set these flags.
+
+*/
+
+/**
+ * @pred problog_flags
+ *
+This predicate lists all the flags name, value, domain and description.
+*/
+
+
+/**  @pred problog_flag(+Name, -Value)
+
+This predicate gives the value of the flag with the specified name. The supported flags are:
+
++ use_db_trie
+
+    Flag telling whether to use the builtin trie to trie transformation.
+The possible values for this flag are true or false.
+
++ db_trie_opt_lvl
+
+    Sets the optimization level for the trie to trie transformation
+The possible values for this flag are any integer
+
++ compare_opt_lvl
+
+    Flag telling whether to use comparison mode for the optimization level.
+The possible values for this flag are true or false.
+
++ db_min_prefix
+
+    Sets the minimum size of the prefix for dbtrie to optimize.
+The possible values for this flag are any integer
+
++ use_naive_trie
+
+    Flag telling whether to use the naive algorithm to generate bdd scripts.
+The possible values for this flag are true or false.
+
++ use_old_trie
+
+    Flag telling whether to use the old not nested trie to trie transformation.
+The possible values for this flag are true or false.
+
++ use_dec_trie
+
+    Flag telling whether to use the decomposition method.
+The possible values for this flag are true or false.
+
++ subset_check
+
+    Flag telling whether to perform subset check in nested tries.
+The possible values for this flag are true or false.
+
++ deref_terms
+
+    Flag telling whether to dereference BDD terms after their last use.
+The possible values for this flag are true or false.
+
++ trie_preprocess
+
+    Flag telling whether to perform a preprocess step to nested tries.
+The possible values for this flag are true or false.
+
++ refine_anclst
+
+    Flag telling whether to refine the ancestor list with their children.
+The possible values for this flag are true or false.
+
++ anclst_represent
+
+    Flag that sets the representation of the ancestor list.
+The possible values for this flag are list or integer
+
++ max_depth
+
+    Sets the maximum proof depth.
+The possible values for this flag are any integer.
+
++ retain_tables
+
+    Flag telling whether to retain tables after the query.
+The possible values for this flag are true or false.
+
++ mc_batchsize
+
+    Flag related to Monte Carlo Sampling that sets the number of samples before update.
+The possible values for this flag are any integer greater than zero.
+
++ min_mc_samples
+
+    Flag related to Monte Carlo Sampling that sets the minimum number of samples before convergence. The possible values for this flag are any integer greater than or equal to zero.
+
++ max_mc_samples
+
+    Flag related to Monte Carlo Sampling that sets the maximum number of samples waiting to converge.
+The possible values for this flag are any integer greater than or equal to zero.
+
++ randomizer
+
+    Flag related to Monte Carlo Sampling telling whether the random numbers are repeatable or not.
+The possible values for this flag are repeatable or nonrepeatable.
+
++ search_method
+
+    Flag related to DNF Monte Carlo Sampling that sets the search method for picking the proof.
+The possible values for this flag are linear or binary.
+
++ represent_world
+
+    Flag related to Monte Carlo Sampling that sets the structure that represents sampled world.
+The possible values for this flag are list, record, array or hash_table
+
++ first_threshold
+
+    Flag related to inference that sets the starting threshold of iterative deepening.
+The possible values for this flag are a number in the interval (0,1).
+
++ last_threshold
+
+    Flag related to inference that sets the stopping threshold of iterative deepening.
+The possible values for this flag are a number in the interval (0,1).
+
++ id_stepsize
+
+    Flag related to inference that sets the threshold shrinking factor of iterative deepening.
+The possible values for this flag are a number in the interval [0,1].
+
++ prunecheck
+
+    Flag related to inference telling whether to stop derivations including all facts of known proofs.
+The possible values for this flag are on or off.
+
++ maxsteps
+
+    Flag related to inference that sets the max. number of prob. steps per derivation.
+The possible values for this flag are any integer greater than zero.
+
++ mc_logfile
+
+    Flag related to MCMC that sets the logfile for montecarlo.
+The possible values for this flag are any valid filename.
+
++ bdd_time
+
+    Flag related to BDD that sets the BDD computation timeout in seconds.
+The possible values for this flag are any integer greater than zero.
+
++ bdd_par_file
+
+    Flag related to BDD that sets the file for BDD variable parameters.
+The possible values for this flag are any valid filename.
+
++ bdd_result
+
+    Flag related to BDD that sets the file to store result calculated from BDD.
+The possible values for this flag are any valid filename.
+
++ bdd_file
+
+    Flag related to BDD that sets the file for the BDD script.
+The possible values for this flag are any valid filename.
+
++ save_bdd
+
+    Flag related to BDD telling whether to save BDD files for (last) lower bound.
+The possible values for this flag are true or false.
+
++ dynamic_reorder
+
+    Flag related to BDD telling whether to use dynamic re-ordering for BDD.
+The possible values for this flag are true or false.
+
++ bdd_static_order
+
+    Flag related to BDD telling whether to use static order.
+The possible values for this flag are true or false.
+
++ static_order_file
+
+    Flag related to BDD that sets the file for BDD static order.
+The possible values for this flag are any valid filename.
+
++ verbose
+
+    Flag telling whether to output intermediate information.
+The possible values for this flag are true or false.
+
++ show_proofs
+
+    Flag telling whether to output proofs.
+The possible values for this flag are true or false.
+
++ triedump
+
+    Flag telling whether to generate the file: trie_file containing the trie structure.
+The possible values for this flag are true or false.
+
++ dir
+
+    Flag telling the location of the output files directory.
+The possible values for this flag are any valid directory name.
+
+*/
+
+/** @pred set_problog_flag(+Name, +Value)
+
+the predicate sets the value of the given flag. The supported flags are the ones listed in above
+*/
+
+/** @pred learning_flags
+
+the predicate sets the value of the given flag. The supported flags are the ones listed in above
+*/
+
+/** @pred learning_flag(+Name, -Value)
+
+This predicate gives the value of the learning flag with the specified name. The supported flags are:
+
++ output_directory
+
+    Flag setting the directory where to store results.
+The possible values for this flag are any valid path name.
+
++ query_directory
+
+    Flag setting the directory where to store BDD files.
+The possible values for this flag are any valid path name.
+
++ verbosity_level
+
+    Flag telling how much output shall be given.
+The possible values for this flag are an integer between 0 and 5 (0=nothing, 5=all).
+
++ reuse_initialized_bdds
+
+    Flag telling whether to reuse BDDs from previous runs.
+The possible values for this flag are true or false.
+
++ rebuild_bdds
+
+    Flag telling whether to rebuild BDDs every nth iteration.
+The possible values for this flag are any integer greater or equal to zero (0=never).
+
++ check_duplicate_bdds
+
+    Flag telling whether to store intermediate results in hash table.
+The possible values for this flag are true or false.
+
++ init_method
+
+    Flag setting the ProbLog predicate to search proofs.
+The possible values for this flag are of the form: (+Query,-P,+BDDFile,+ProbFile,+Call). For example: A,B,C,D,problog_kbest_save(A,100,B,E,C,D)
+
++ probability_initializer
+
+    Flag setting the ProbLog predicate to initialize probabilities.
+The possible values for this flag are of the form: (+FactID,-P,+Call). For example: A,B,random_probability(A,B)
+
++ log_frequency
+
+    Flag telling whether to log results every nth iteration.
+The possible values for this flag are any integer greater than zero.
+
++ alpha
+
+    Flag setting the weight of negative examples.
+The possible values for this flag are number or "auto" (auto=n_p/n_n).
+
++ slope
+
+    Flag setting the slope of the sigmoid function.
+The possible values for this flag are any real number greater than zero.
+
++ learning_rate
+
+    Flag setting the default Learning rate (if line_search=false)
+The possible values for this flag are any number greater than zero or "examples``
+
++ line_search
+
+    Flag telling whether to use line search to estimate the learning rate.
+The possible values for this flag are true or false.
+
++ line_search_tau
+
+    Flag setting the Tau value for line search.
+The possible values for this flag are a number in the interval (0,1).
+
++ line_search_tolerance
+
+    Flag setting the tolerance value for line search.
+The possible values for this flag are any number greater than zero.
+
++ line_search_interval
+
+    Flag setting the interval for line search.
+
+*/
+
+%% @}
+
 :- module(problog, [problog_koptimal/3,
-						  problog_koptimal/4,
+ 		    problog_koptimal/4,
 						  problog_delta/5,
                     problog_threshold/5,
                     problog_low/4,
                     problog_kbest/4,
+                    problog_kbest_lbdd/4,
                     problog_kbest_save/6,
                     problog_max/3,
                     problog_kbest_explanations/3,
                     problog_exact/3,
-		    problog_fl_bdd/2,
-		    problog_kbest_bdd/4,
+                    problog_exact_lbdd/3,
+		    problog_kbest_lbdd/4,
                     problog_all_explanations/2,
                     problog_all_explanations_unsorted/2,
                     problog_exact_save/5,
@@ -416,7 +889,7 @@
 :- dynamic current_prob/1.
 :- dynamic possible_proof/2.
 :- dynamic impossible_proof/1.
-	
+
 :- table conditional_prob/4.
 
 % ProbLog files declare prob. facts as P::G
@@ -425,9 +898,15 @@
 
 :- multifile(user:term_expansion/1).
 
-% directory where problogbdd executable is located
-% automatically set during loading -- assumes it is in same place as this file (problog.yap)
-:- getcwd(PD), set_problog_path(PD).
+% directory where simplecudd executable is located
+% automatically set during loading -- assumes it is in /usr/local/bin or same place where YAP has
+% been installed.)
+:- getcwd(PD0),
+	atom_concat(PD0, '../../bin', PD),
+	set_problog_path(PD).
+
+:- PD = '/usr/local/bin',
+	set_problog_path(PD).
 
 
 
@@ -472,7 +951,7 @@
 %%%%%%%%%%%%
 
 :- initialization((
-%	problog_define_flag(bdd_path,        problog_flag_validate_directory, 'problogbdd directory', '.',bdd),
+%	problog_define_flag(bdd_path,        problog_flag_validate_directory, 'simplecudd directory', '.',bdd),
 	problog_define_flag(bdd_time,        problog_flag_validate_posint, 'BDD computation timeout in seconds', 60, bdd),
 	problog_define_flag(save_bdd,        problog_flag_validate_boolean, 'save BDD files for (last) lower bound', false, bdd),
 	problog_define_flag(dynamic_reorder, problog_flag_validate_boolean, 'use dynamic re-ordering for BDD', true, bdd),
@@ -538,7 +1017,8 @@ problog_dir(PD):- problog_path(PD).
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 init_global_params :-
-  grow_atom_table(1000000), % this will reserve us some memory, there are cases where you might need more
+% vsc: removed this, it is major league weird...
+%	grow_atom_table(1000000), % this will reserve us some memory, there are cases where you might need more
 
   %%%%%%%%%%%%
   % working directory: all the temporary and output files will be located there
@@ -559,7 +1039,7 @@ init_global_params :-
 % montecarlo: write log to this file
 %%%%%%%%%%%%
   problog_define_flag(mc_logfile,      problog_flag_validate_file, 'logfile for montecarlo', 'log.txt', mcmc, flags:working_file_handler),
-  check_existance('problogbdd').
+  check_existance('simplecudd').
 
 % parameter initialization to be called after returning to user's directory:
 :- initialization(init_global_params).
@@ -587,7 +1067,8 @@ reset_control :-
 	problog_control(off,mc),
 	problog_control(off,limit),
 %   problog_control(off,exact),
-	problog_control(off,remember).
+	problog_control(off,remember),
+    nb_setval(problog_steps, 1).
 
 :- initialization(reset_control).
 
@@ -624,18 +1105,20 @@ generate_atoms(N, A):-
 % converts annotated disjunctions
 term_expansion_intern((Head<--Body), Module, C):-
 	term_expansion_intern_ad((Head<--Body), Module,inference, C).
-
 % converts ?:: prefix to ? :: infix, as handled by other clause
 term_expansion_intern((Annotation::Fact), Module, ExpandedClause) :-
 	Annotation == ( '?' ),
 	term_expansion_intern(((?) :: Fact :- true), Module, ExpandedClause).
-
+term_expansion_intern((Annotation::Head; Alternatives), Module, C):-
+    is_alternatives( Alternatives ),
+    !,
+	term_expansion_intern_ad(((Annotation::Head; Alternatives)<--true), Module,inference, C).
 
 % handles decision clauses
 term_expansion_intern((Annotation :: Head :- Body), Module, problog:ExpandedClause) :-
 	(
 	 Annotation == ('?') ->
-     % It's a decision with a body
+				% It's a decision with a body
 	 (decision_fact(_,Head) ->
 	  throw(error('New decision unifies with already defined decision!', (Head))) ; true
 	 ),
@@ -710,7 +1193,7 @@ term_expansion_intern(Head :: Goal,Module,problog:ProbFact) :-
 	length(Args,Arity),
 	atomic_concat([problogcontinuous_,Name],ProblogName),
 	probclause_id(ID),
-	
+
 	% is it a tunable fact?
 	(
 	 (number(Mu),number(Sigma))
@@ -737,7 +1220,7 @@ term_expansion_intern(Head :: Goal,Module,problog:ProbFact) :-
 
 
 
-	
+
 
 % handles probabilistic facts
 term_expansion_intern(P :: Goal,Module,problog:ProbFact) :-
@@ -805,7 +1288,7 @@ sample_initial_value_for_tunable_fact(Goal,LogP) :-
 	  ->
 	   P=P1;
 	   P=0.5
-	  )	  
+	  )
 	 );
 	 (
 	  number(Initializer)
@@ -813,7 +1296,7 @@ sample_initial_value_for_tunable_fact(Goal,LogP) :-
 	  P=Initializer
          ;
 	  atom(Initializer)
-         -> 
+         ->
           call(user:Initializer,Goal,P)
          ;
 	  throw(unkown_probability_initializer(Initializer))
@@ -822,6 +1305,14 @@ sample_initial_value_for_tunable_fact(Goal,LogP) :-
 
 	LogP is log(P).
 
+is_alternatives( Var ) :-
+	var( Var ),
+	!,
+	fail.
+is_alternatives( _Prob::_Alt ).
+is_alternatives( ( A1 ; As ) ) :-
+	is_alternatives( A1 ),
+	is_alternatives( As ).
 
 
 %
@@ -947,7 +1438,7 @@ problog_retractall(Goal) :-
 	retractall(problog:ProbLogGoal).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -996,7 +1487,7 @@ non_ground_fact_grounding_id(Goal,ID) :-
 	  assertz(grounding_is_known(Goal,ID))
 	  )
 	).
-non_ground_fact_grounding_id(Goal,_) :-	
+non_ground_fact_grounding_id(Goal,_) :-
 	format(user_error,'The current program uses non-ground facts.~n', []),
 	format(user_error,'If you query those, you may only query fully-grounded versions of the fact.~n',[]),
 	format(user_error,'Within the current proof, you queried for ~q which is not ground.~2n', [Goal]),
@@ -1031,15 +1522,15 @@ prove_problog_fact(ClauseID,GroundID,Prob) :-
   (problog_control(check,find_decisions) ->
     signal_decision(ClauseID,GroundID)
   ;
-    (Prob = ('?') ->
+    (Prob == ('?') ->
       add_to_proof(GroundID,0) % 0 is log(1)!
     ;
       % Checks needed for LeDTProbLog
-      (Prob = always ->
+      (Prob == always ->
         % Always true, do not add to trie
         true
       ;
-        (Prob = never ->
+        (Prob == never ->
           % Always false, do not add to trie
           fail
         ;
@@ -1300,7 +1791,7 @@ export_facts(Filename) :-
 
 is_mvs_aux_fact(A) :-
 	functor(A,B,_),
-	atomic_concat(mvs_fact_,_,B).
+	atom_concat(mvs_fact_,_,B).
 
 % code for printing the compiled ADs
 print_ad_intern(Handle,(Head<--Body),_ID,Facts) :-
@@ -1384,13 +1875,13 @@ add_to_proof(ID, LogProb) :-
 	b_getval(problog_probability, CurrentLogProb),
 	nb_getval(problog_threshold, CurrentThreshold),
 	b_getval(problog_current_proof, IDs),
-	
+
 	% check whether negation of this fact is already used in proof
 	\+ open_end_memberchk(not(ID),IDs),
-	
+
 	(  % check whether this fact is already used in proof
 	   open_end_memberchk(ID, IDs)
-	->	
+	->
 	   true;
 	   (
 	    open_end_add(ID, IDs, NIDs),
@@ -1426,7 +1917,7 @@ add_to_proof_negated(ID, LogProb) :-
 
 	% check whether unnegated fact is already used in proof
 	\+ open_end_memberchk(ID, IDs),
-	
+
 	( % check wether negation of this fact is already used in proof
 	 open_end_memberchk(not(ID), IDs)
 	->
@@ -1559,7 +2050,7 @@ init_problog(Threshold) :-
 	reset_control,
 	LT is log(Threshold),
 	b_setval(problog_probability, 0.0),
-	b_setval(problog_current_proof, []),
+	nb_setval(problog_current_proof, []),
 	nb_setval(problog_threshold, LT),
 	problog_flag(maxsteps,MaxS),
 	init_tabling,
@@ -1582,6 +2073,9 @@ init_problog(Threshold) :-
 	timer_reset(bdd_gen_time_dec),
 	timer_reset(sld_time),
 	timer_reset(build_tree_low).
+
+ :- initialization( ( init_problog(0.0),
+                      reset_control ) ).
 
 % idea: proofs that are refinements of known proof can be pruned as they don't add probability mass
 % note that current ptree implementation doesn't provide the check as there's no efficient method known so far...
@@ -1828,7 +2322,7 @@ eval_dnf(OriTrie1, Prob, Status) :-
 
       delete_ptree(DBTrie),
       timer_stop(script_gen_time_builtin,Script_Gen_Time_Builtin),
-  
+
       problog_var_set(bdd_script_time(Builtin), Script_Gen_Time_Builtin),
 
       timer_start(bdd_gen_time_builtin),
@@ -1937,7 +2431,7 @@ execute_bdd_tool(BDDFile, BDDParFile, Prob, Status):-
   ;
     Param = ParamD
   ),
-  convert_filename_to_problog_path('problogbdd', ProblogBDD),
+  convert_filename_to_problog_path('simplecudd', ProblogBDD),
   convert_filename_to_working_path(ResultFileFlag, ResultFile),
   atomic_concat([ProblogBDD, Param,' -l ', BDDFile, ' -i ', BDDParFile, ' -m p -t ', BDDTime, ' > ', ResultFile], Command),
   shell(Command, Return),
@@ -1992,7 +2486,7 @@ add_solution :-
 	 Cont_IDs == []
 	->
 	 Continuous=[];
-	 ( 
+	 (
 	   proof_id(ProofID),
 	   collect_all_intervals(Cont_IDs,ProofID,AllIntervals),
 	   (
@@ -2119,7 +2613,11 @@ compute_bounds(LP, UP, Status) :-
 % same as problog_threshold/5, but lower bound only (no stopped derivations stored)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+problog_low(Goal/Cond, Threshold, _, _) :-
+    !,
+    problog_low((Cond,Goal), Threshold, P1, Status),
+    problog_low( Cond, Threshold, P2, Status),
+    P is P1/P2.
 problog_low(Goal, Threshold, _, _) :-
 	init_problog_low(Threshold),
 	problog_control(off, up),
@@ -2146,8 +2644,6 @@ init_problog_low(Threshold) :-
 	init_ptree(Trie_Completed_Proofs),
 	nb_setval(problog_completed_proofs, Trie_Completed_Proofs),
 	init_problog(Threshold).
-
-:- include(problog_lbdd).
 
 % generalizing problog_max to return all explanations, sorted by non-increasing probability
 problog_all_explanations(Goal,Expl) :-
@@ -2441,7 +2937,7 @@ problog_kbest_explanations(Goal, K, Explanations) :-
 	problog_control(off,up),
 	problog_kbest_id(Goal, K),
 	retract(current_kbest(_,ListFound,_NumFound)),
-	to_external_format_with_reverse(ListFound,Explanations).	
+	to_external_format_with_reverse(ListFound,Explanations).
 
 problog_real_kbest(Goal, K, Prob, Status) :-
 	problog_flag(first_threshold,InitT),
@@ -2904,14 +3400,14 @@ initialise_optimal_proof([Proof-MaxAdded|Rest],Theta) :-
 	OptAdded is Popt - Pcurr,
 	(MaxAdded > OptAdded ->
 		calculate_added_prob(Proof, P,ok),
-		
+
 		%update the maximal added probability
 		retractall(possible_proof(Proof,_)),
 		AddedP is P - Pcurr,
 		(AddedP > Theta ->
 			%the proof can still add something
 			assert(possible_proof(Proof,AddedP)),
-		
+
 			%Check whether to change the optimal proof
 			(P > Popt ->
 				retractall(optimal_proof(_,_)),
@@ -3006,7 +3502,7 @@ calculate_added_prob([UsedFact|UsedProof],[],Conditions,P,S) :-
 	convert_filename_to_working_path('save_params', ParFile),
 	negate(UsedFact,NegatedFact),
 	conditional_prob(SONodeDumpFile,ParFile,[NegatedFact|Conditions],Pcond,Scond),
-	( Srec = ok -> 
+	( Srec = ok ->
 		( Scond = ok ->
 			S = ok,
 			get_fact_probability(UsedFact,Pfact),
@@ -3031,7 +3527,7 @@ bubblesort(List,Sorted):-
  swap(List,List1),!,
  bubblesort(List1,Sorted).
 bubblesort(Sorted,Sorted).
- 
+
 swap([X,Y|Rest], [Y,X|Rest]):- bigger(X,Y).
 swap([Z|Rest],[Z|Rest1]):- swap(Rest,Rest1).
 
@@ -3063,7 +3559,7 @@ bigger(X,Y) :-
 	X > IDY.
 bigger(X,Y) :-
 	X > Y.
-	
+
 round_added_prob(P,RoundedP) :-
 	P < 1,
 	Pnew is P*10,
@@ -3085,7 +3581,7 @@ remove_used_facts([Fact|Rest],Used,New) :-
 		Used = [Fact|RecUsed],
 		New = RecNew
 	;
-		
+
 		Used = RecUsed,
 		New = [Fact|RecNew]
 	).
@@ -3135,7 +3631,7 @@ change_par_file(ParFile,[not(ID)|Rest],ChangedParFile) :-
 	open(ChangedParFile,'append',S),
 	tell(S),
 	format('@x~w\n0\n',[ID]),
-	told. 
+	told.
 
 % Copies a file
 copy_file(From,To) :-
@@ -3196,7 +3692,6 @@ problog_infer_forest_supported :- problog_bdd_forest_supported.
 
 eval_bdd_forest(N,Probs,Status) :-
 	bdd_files(BDDFile,BDDParFile),
-	writeln(BDDFile),
 	problog_flag(bdd_time,BDDTime),
     (problog_flag(dynamic_reorder, true) ->
       ParamD = ''
@@ -3210,7 +3705,7 @@ eval_bdd_forest(N,Probs,Status) :-
     ;
       Param = ParamD
     ),
-    convert_filename_to_problog_path('problogbdd', ProblogBDD),
+    convert_filename_to_problog_path('simplecudd', ProblogBDD),
     problog_flag(bdd_result,ResultFileFlag),
     convert_filename_to_working_path(ResultFileFlag, ResultFile),
     atomic_concat([ProblogBDD, Param,' -l ', BDDFile, ' -i ', BDDParFile, ' -m p -t ', BDDTime, ' > ', ResultFile], Command),
@@ -3655,7 +4150,7 @@ required(Feature) :-
 	Val == required.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 format_if_verbose(H,T,L) :-
@@ -3676,6 +4171,10 @@ signal_decision(ClauseID,GroundID) :-
 		true
 	).
 
+				%
+				% ProbLog in-memory inference
+				%
+:- include(problog_lbdd).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Term Expansion for user predicates
@@ -3686,4 +4185,6 @@ user:term_expansion(Term,ExpandedTerm) :-
 	Term \== end_of_file,
 	prolog_load_context(module,Mod),
 	problog:term_expansion_intern(Term,Mod,ExpandedTerm).
+
+%% @}
 

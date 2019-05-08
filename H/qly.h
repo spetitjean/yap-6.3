@@ -1,3 +1,4 @@
+
 /*************************************************************************
 *									 *
 *	 YAP Prolog 							 *
@@ -16,41 +17,50 @@
 *									 *
 *************************************************************************/
 
-#define EXPORT_ATOM_TABLE_SIZE (16*4096)
-#define EXPORT_FUNCTOR_TABLE_SIZE (16*4096)
+/**
+  *
+  * @file qly.h
+   *
+
+ * @defgroup SaveRestoreSupport C-support for saved states.
+ * @ingroup QLY
+ * @{
+ *
+ */
+
+#define EXPORT_ATOM_TABLE_SIZE (16 * 4096)
+#define EXPORT_FUNCTOR_TABLE_SIZE (16 * 4096)
 #define EXPORT_OPCODE_TABLE_SIZE (4096)
 #define EXPORT_PRED_ENTRY_TABLE_SIZE (128)
 #define EXPORT_DBREF_TABLE_SIZE (128)
 
 typedef struct export_atom_hash_entry_struct {
   Atom val;
-  struct  export_atom_hash_entry_struct *next;
 } export_atom_hash_entry_t;
 
 typedef struct import_atom_hash_entry_struct {
   Atom oval;
   Atom val;
-  struct  import_atom_hash_entry_struct *next;
+  struct import_atom_hash_entry_struct *next;
 } import_atom_hash_entry_t;
 
 typedef struct export_functor_hash_entry_struct {
   Functor val;
   Atom name;
   UInt arity;
-  struct  export_functor_hash_entry_struct *next;
 } export_functor_hash_entry_t;
 
 typedef struct import_functor_hash_entry_struct {
   Functor val;
   Functor oval;
-  struct  import_functor_hash_entry_struct *next;
+  struct import_functor_hash_entry_struct *next;
 } import_functor_hash_entry_t;
 
 typedef struct import_opcode_hash_entry_struct {
   OPCODE val;
   int id;
   OPCODE oval;
-  struct  import_opcode_hash_entry_struct *next;
+  struct import_opcode_hash_entry_struct *next;
 } import_opcode_hash_entry_t;
 
 typedef struct export_pred_entry_hash_entry_struct {
@@ -58,30 +68,28 @@ typedef struct export_pred_entry_hash_entry_struct {
   union {
     Functor f;
     Atom a;
-  } u;
+  } u_af;
   Atom module;
   UInt arity;
-  struct  export_pred_entry_hash_entry_struct *next;
 } export_pred_entry_hash_entry_t;
 
 typedef struct import_pred_entry_hash_entry_struct {
   PredEntry *val;
   PredEntry *oval;
-  struct  import_pred_entry_hash_entry_struct *next;
+  struct import_pred_entry_hash_entry_struct *next;
 } import_pred_entry_hash_entry_t;
 
 typedef struct export_dbref_hash_entry_struct {
   DBRef val;
   UInt sz;
   UInt refs;
-  struct  export_dbref_hash_entry_struct *next;
 } export_dbref_hash_entry_t;
 
 typedef struct import_dbref_hash_entry_struct {
   DBRef val;
   DBRef oval;
   int count;
-  struct  import_dbref_hash_entry_struct *next;
+  struct import_dbref_hash_entry_struct *next;
 } import_dbref_hash_entry_t;
 
 typedef enum {
@@ -99,22 +107,37 @@ typedef enum {
   QLY_END_OPS = 11,
   QLY_START_PREDICATE = 12,
   QLY_END_PREDICATES = 13,
-  QLY_ATOM_WIDE = 14,
   QLY_FAILCODE = 15,
   QLY_ATOM = 16,
-  QLY_ATOM_BLOB = 17
+  QLY_ATOM_BLOB = 14
 } qlf_tag_t;
 
-#define STATIC_PRED_FLAGS (SourcePredFlag|DynamicPredFlag|LogUpdatePredFlag|CompiledPredFlag|MultiFileFlag|TabledPredFlag|MegaClausePredFlag|CountPredFlag|ProfiledPredFlag|ThreadLocalPredFlag|AtomDBPredFlag|ModuleTransparentPredFlag|NumberDBPredFlag|MetaPredFlag|SyncPredFlag|BackCPredFlag)
+#define STATIC_PRED_FLAGS						\
+  (SourcePredFlag | DynamicPredFlag | LogUpdatePredFlag | CompiledPredFlag | \
+   MultiFileFlag | TabledPredFlag | MegaClausePredFlag | CountPredFlag | \
+   ProfiledPredFlag | ThreadLocalPredFlag | AtomDBPredFlag |		\
+   ModuleTransparentPredFlag | NumberDBPredFlag | MetaPredFlag |	\
+   SyncPredFlag | BackCPredFlag)
+#define EXTRA_PRED_FLAGS                                                       \
+  (QuasiQuotationPredFlag | NoTracePredFlag | NoSpyPredFlag)
 
-#define SYSTEM_PRED_FLAGS (BackCPredFlag|UserCPredFlag|CArgsPredFlag|AsmPredFlag|CPredFlag|BinaryPredFlag)
+#define SYSTEM_PRED_FLAGS                                                      \
+  (BackCPredFlag | UserCPredFlag | CArgsPredFlag | AsmPredFlag | CPredFlag |   \
+   BinaryPredFlag)
 
-#define NEXTOP(V,TYPE)    ((yamop *)(&((V)->u.TYPE.next)))
+#define CHECK(F)                                                               \
+  {                                                                            \
+    size_t r = (F);                                                            \
+    if (!r)                                                                    \
+      return r;                                                                \
+  }
+#define RCHECK(F)                                                              \
+  if (!(F)) {                                                                  \
+    QLYR_ERROR(MISMATCH);                                                      \
+    return;                                                                    \
+  }
 
-#define CHECK(F) { size_t r = (F); if (!r) return r; }
-#define RCHECK(F)  if(!(F)) { QLYR_ERROR(MISMATCH); return; }
+#define AllocTempSpace() (HR)
+#define EnoughTempSpace(sz) ((ASP - HR) * sizeof(CELL) > sz)
 
-#define AllocTempSpace() (H)
-#define EnoughTempSpace(sz) ((ASP-H)*sizeof(CELL) > sz)
-
-
+/// @} @}

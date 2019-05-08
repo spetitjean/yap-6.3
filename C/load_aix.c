@@ -26,9 +26,10 @@
  *   FindExecutable(argv[0]) should be called on yap initialization to
  *   locate the executable of Yap
 */
-void
-Yap_FindExecutable(char *name)
+char *
+Yap_FindExecutable(void)
 {
+  return NULL;
 }
 
 
@@ -68,7 +69,7 @@ LoadForeign(StringList ofiles, StringList libs,
     strcpy(LOCAL_ErrorSay," Load Failed: in AIX you must load a single object file");
     return LOAD_FAILLED;
   }
-  if (!Yap_TrueFileName(AtomName(ofiles->name), LOCAL_FileNameBuf, TRUE)) {
+  if (!Yap_AbsoluteFileInBuffer(AtomName(ofiles->name), LOCAL_FileNameBuf, YAP_FILENAME_MAX, true)) {
     strcpy(LOCAL_ErrorSay, " Trying to open unexisting file in LoadForeign ");
     return LOAD_FAILLED;
   }

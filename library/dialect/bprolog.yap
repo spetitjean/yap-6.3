@@ -81,10 +81,10 @@ getclauses1(File, Prog, _Opts) :-
 
 '$bpe_process_pred'([], _F, N, Mode, _Delay, _Tabled, []) -->
 	{ '$init_mode'(N, Mode) }.
-'$bpe_process_pred'(Call.Prog0, F,N,Modes,Delay,Tabled, Cls0)  -->
+'$bpe_process_pred'([Call|Prog0], F,N, Modes, Delay, Tabled, Cls0)  -->
 	{ '$get_pred'(Call, F, N, Modes, Delay, Tabled, Cls0, ClsI) }, !,
-	'$bpe_process_pred'(Prog0, F,N,Modes,Delay,Tabled, ClsI).
-'$bpe_process_pred'(Call.Prog0, F,N,Modes,Delay,Tabled, Cls0) -->
+	'$bpe_process_pred'(Prog0, F, N, Modes, Delay, Tabled, ClsI).
+'$bpe_process_pred'([Call|Prog0], F, N, Modes, Delay, Tabled, Cls0) -->
 	[ Call ],
 	'$bpe_process_pred'(Prog0, F,N,Modes,Delay,Tabled, Cls0).
 
@@ -97,21 +97,22 @@ getclauses1(File, Prog, _Opts) :-
 '$get_pred'((P :- Q), F, N, _Modes, _Delay, _Tabled) -->
          { functor(P, F, N), ! },
 	 [(P:-Q)].
-'$get_pred'((:- mode Q), F, N, _Modes, _Delay, _Tabled) -->
+'$get_pred'((:- mode Q), F, N, Modes, _Delay, _Tabled) -->
          { functor(Q, F, N), !, Q =.. [_|Modes0],
-	   '$bpe_cvt_modes'(Modes0,Modes,[])
+	   '$bpe_cvt_modes'(Modes0, Modes, [])
          },
 	 [].
 %'$get_pred'((:- table _), F, N, Modes, Delay, Tabled) -->
 %         { functor(Q, F, N), !, Q =.. [_|Modes] },
 %	 [].
-'$get_pred'((:- _), _F, _N, _Modes, _Delay, _Tabled) --> !, { fail }.
+'$get_pred'((:- Q), '$damon_load', 0, _Modes, _Delay, _Tabled) --> 
+	[ ('$damon_load' :- '$query'( Q ) )].
 '$get_pred'((P), F, N, _Modes, _Delay, _Tabled) -->
          { functor(P, F, N), ! },
 	 [(P)].
 
 
-'$bpe_cvt_modes'(Mode.Modes0) --> [NewMode],
+'$bpe_cvt_modes'([Mode|Modes0]) --> [NewMode],
 	{ '$bpe_cvt_mode'(Mode, NewMode) },
 	'$bpe_cvt_modes'(Modes0).
 '$bpe_cvt_modes'([]) --> [].
@@ -127,20 +128,40 @@ preprocess_cl(Cl, Cl, _, _, _, _).
 
 phase_1_process(Prog, Prog).
 
-compileProgToFile(_,_File,[]).
-compileProgToFile(_,File,pred(F,N,_,_,Tabled,Clauses).Prog2) :-
+compileProgToFile(_, _File, []).
+compileProgToFile(_, File, [Pred|Prog2]) :-
+	consult_pred(Pred),
+	compileProgToFile(_, File, Prog2).
+
+consult_preds([], L) :- !,
+	consult_preds(L).
+consult_preds(L0, L) :-
+	writeln(consult_preds(L0,L)).
+
+consult_preds([]).
+consult_preds([P|L]) :-
+	consult_pred(P),
+	consult_preds(L).
+
+consult_pred(pred(F,N,_Mode,_Delay,Tabled,Clauses)) :-
 	(nonvar(Tabled) -> table(F/N) ; true),
 	functor(S,F,N),
 	assert(b_IS_CONSULTED_c(S)),
-	'$assert_clauses'(Clauses),
-	compileProgToFile(_,File,Prog2).
+	abolish(F/N),
+	'$assert_clauses'(Clauses).
+
+add_pred(Name, Arity, _Mode, _Delay, Tabled, Clauses) :-
+	'$assert_clauses'(Clauses).
 
 '$assert_clauses'([]).
-'$assert_clauses'(Cl.Clauses) :-
+'$assert_clauses'([Cl|Clauses]) :-
 	assert_static(Cl),
 	'$assert_clauses'(Clauses).
 
-'$myload'(_F).
+'$myload'(_F) :-
+	'$damon_load'.
+
+'$query'(G) :- call(G).
 
 initialize_table :- abolish_all_tables.
 
@@ -158,46 +179,46 @@ vars_set(Term, Vars) :-
 
 sort(=<, L, R) :-
 	length(L, N), 
-	$bp_sort(@=<, N, L, _, R1), !, 
+	'$bp_sort'(@=<, N, L, _, R1), !, 
 	R = R1.
 sort(>=, L, R) :-
 	length(L, N), 
-	$bp_sort(@>=, N, L, _, R1), !, 
+	'$bp_sort'(@>=, N, L, _, R1), !, 
 	R = R1.
 sort(<, L, R) :-
 	length(L, N), 
-	$bp_sort2(@<, N, L, _, R1), !, 
+	'$bp_sort2'(@<, N, L, _, R1), !, 
 	R = R1.
 sort(>, L, R) :-
 	length(L, N), 
-	$bp_sort2(@>, N, L, _, R1), !, 
+	'$bp_sort2'(@>, N, L, _, R1), !, 
 	R = R1.
 
-$bp_sort(P, 2, [X1, X2|L], L, R) :- !, 
+'$bp_sort'(P, 2, [X1, X2|L], L, R) :- !, 
 	(
 	    call(P, X1, X2) ->
 	    R = [X1,X2]
 	;
 	    R = [X2,X1]
 	).
-$bp_sort(_, 1, [X|L], L, [X]) :- !.
-$bp_sort(_, 0, L, L, []) :- !.
-$bp_sort(P, N, L1, L3, R) :-
+'$bp_sort'(_, 1, [X|L], L, [X]) :- !.
+'$bp_sort'(_, 0, L, L, []) :- !.
+'$bp_sort'(P, N, L1, L3, R) :-
 	N1 is N // 2, 
 	plus(N1, N2, N), 
-	$bp_sort(P, N1, L1, L2, R1), 
-	$bp_sort(P, N2, L2, L3, R2), 
-	$bp_predmerge(P, R1, R2, R).
+	'$bp_sort'(P, N1, L1, L2, R1), 
+	'$bp_sort'(P, N2, L2, L3, R2), 
+	'$bp_predmerge'(P, R1, R2, R).
 
-$bp_predmerge(_, [], R, R) :- !.
-$bp_predmerge(_, R, [], R) :- !.
-$bp_predmerge(P, [H1|T1], [H2|T2], [H1|Result]) :-
+'$bp_predmerge'(_, [], R, R) :- !.
+'$bp_predmerge'(_, R, [], R) :- !.
+'$bp_predmerge'(P, [H1|T1], [H2|T2], [H1|Result]) :-
 	call(P, H1, H2), !,
-	$bp_predmerge(P, T1, [H2|T2], Result).
-$bp_predmerge(P, [H1|T1], [H2|T2], [H2|Result]) :-
-	$bp_predmerge(P, [H1|T1], T2, Result).
+	'$bp_predmerge'(P, T1, [H2|T2], Result).
+'$bp_predmerge'(P, [H1|T1], [H2|T2], [H2|Result]) :-
+	'$bp_predmerge'(P, [H1|T1], T2, Result).
 
-$bp_sort2(P, 2, [X1, X2|L], L, R) :- !, 
+'$bp_sort2'(P, 2, [X1, X2|L], L, R) :- !, 
 	(
 	    call(P, X1, X2) ->
 	    R = [X1,X2]
@@ -208,22 +229,22 @@ $bp_sort2(P, 2, [X1, X2|L], L, R) :- !,
 	;
 	    R = [X2,X1]
 	).
-$bp_sort2(_, 1, [X|L], L, [X]) :- !.
-$bp_sort2(_, 0, L, L, []) :- !.
-$bp_sort2(P, N, L1, L3, R) :-
+'$bp_sort2'(_, 1, [X|L], L, [X]) :- !.
+'$bp_sort2'(_, 0, L, L, []) :- !.
+'$bp_sort2'(P, N, L1, L3, R) :-
 	N1 is N // 2, 
 	plus(N1, N2, N), 
-	$bp_sort(P, N1, L1, L2, R1), 
-	$bp_sort(P, N2, L2, L3, R2), 
-	$bp_predmerge(P, R1, R2, R).
+	'$bp_sort'(P, N1, L1, L2, R1), 
+	'$bp_sort'(P, N2, L2, L3, R2), 
+	'$bp_predmerge'(P, R1, R2, R).
 
-$bp_predmerge2(_, [], R, R) :- !.
-$bp_predmerge2(_, R, [], R) :- !.
-$bp_predmerge2(P, [H1|T1], [H2|T2], [H1|Result]) :-
+'$bp_predmerge2'(_, [], R, R) :- !.
+'$bp_predmerge2'(_, R, [], R) :- !.
+'$bp_predmerge2'(P, [H1|T1], [H2|T2], [H1|Result]) :-
 	call(P, H1, H2), !,
-	$bp_predmerge(P, T1, [H2|T2], Result).
-$bp_predmerge2(P, [H1|T1], [H2|T2], [H1|Result]) :-
+	'$bp_predmerge'(P, T1, [H2|T2], Result).
+'$bp_predmerge2'(P, [H1|T1], [H2|T2], [H1|Result]) :-
 	H1 == H2, !,
-	$bp_predmerge(P, T1, T2, Result).
-$bp_predmerge2(P, [H1|T1], [H2|T2], [H2|Result]) :-
-	$bp_predmerge(P, [H1|T1], T2, Result).
+	'$bp_predmerge'(P, T1, T2, Result).
+'$bp_predmerge2'(P, [H1|T1], [H2|T2], [H2|Result]) :-
+	'$bp_predmerge'(P, [H1|T1], T2, Result).

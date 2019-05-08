@@ -3,9 +3,6 @@
 # (EROOT for architecture-dependent files)
 #
 #
-# default base directory for YAP installation
-# (EROOT for architecture-dependent files)
-#
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 ROOTDIR = $(prefix)
@@ -23,7 +20,7 @@ YAPLIBDIR=@libdir@/Yap
 #
 #
 CC=@CC@
-MPI_CC=@LAM_MPI_CC@
+MPI_CC=@MPI_CC@
 CFLAGS= @SHLIB_CFLAGS@ $(YAP_EXTRAS) $(DEFS) -I$(srcdir) -I../.. -I$(srcdir)/../../include
 #
 #
@@ -37,20 +34,19 @@ RANLIB=@RANLIB@
 srcdir=@srcdir@
 SO=@SO@
 CWD=$(PWD)
-MPILDF=`$(MPI_CC) -showme|sed "s/[^ ]*//"|sed "s/-pt/-lpt/"`
-MPICF=`$(MPI_CC) -showme| cut -d " " -f 2`
+MPILDF=@MPILDF@
+MPICF=@MPICF@
 #
 
 OBJS=yap_mpi.o hash.o prologterms2c.o
-SOBJS=@LAMOBJS@
-#yap_mpi.@SO@
+SOBJS=yap_mpi.@SO@
 
 #in some systems we just create a single object, in others we need to
 # create a libray
 
 all: $(SOBJS)
 
-yap_mpi.o: $(srcdir)/yap_mpi.c   $(srcdir)/yap_mpi.c  
+yap_mpi.o: $(srcdir)/yap_mpi.c 
 	$(MPI_CC)  $(CFLAGS) $(MPICF)  -c $(srcdir)/yap_mpi.c -o yap_mpi.o 
 
 prologterms2c.o: $(srcdir)/prologterms2c.c $(srcdir)/prologterms2c.h
@@ -60,10 +56,10 @@ hash.o: $(srcdir)/hash.c $(srcdir)/hash.h
 	$(MPI_CC) -c $(CFLAGS) $(srcdir)/hash.c -o hash.o
 
 @DO_SECOND_LD@yap_mpi.@SO@: $(OBJS)
-@DO_SECOND_LD@	@SHLIB_LD@  -o yap_mpi.@SO@ $(OBJS)  $(MPILDF) @EXTRA_LIBS_FOR_DLLS@
+@DO_SECOND_LD@	@SHLIB_LD@ $(LDFLAGS) -o yap_mpi.@SO@ $(OBJS)  $(MPILDF) @EXTRA_LIBS_FOR_DLLS@
 
-install: all
-	@if test "$(SOBJS)" = ""; then echo ""; else $(INSTALL_PROGRAM) $(SOBJS) $(DESTDIR)$(YAPLIBDIR); fi
+install: all  install-examples
+	if test x"$(SOBJS)" != "x"; then $(INSTALL_PROGRAM) $(SOBJS) $(DESTDIR)$(YAPLIBDIR); fi
 
 clean:
 	rm -f *.o *~ $(OBJS) $(SOBJS) *.BAK
@@ -71,3 +67,14 @@ clean:
 no:
 	@echo "YAP LAM/MPI module not compiled."
 
+install-examples:
+
+distclean: clean
+	rm -f Makefile
+
+FULL_PATH_C_SOURCES=  $(srcdir)/yap_mpi.c $(srcdir)/prologterms2c.c  $(srcdir)/hash.c 
+FULL_PATH_PL_SOURCES= 
+FULL_PATH_HEADERS=$(srcdir)/hash.h $(srcdir)/prologterms2c.h
+
+TAGS: $(C_SOURCES) $(PL_SOURCES) $(HEADERS)
+	etags --append ../../TAGS $(FULL_PATH_C_SOURCES)  $(FULL_PATH_PL_SOURCES) $(FULL_PATH_HEADERS) 

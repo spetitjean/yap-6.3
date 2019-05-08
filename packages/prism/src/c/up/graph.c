@@ -12,6 +12,8 @@ NORET  myquit(int, const char *);
 /* univ.c (B-Prolog) */
 int    list_length(BPLONG, BPLONG);
 
+int pc_import_graph_stats_4(void);
+
 /*------------------------------------------------------------------------*/
 
 static int max_egraph_size        = INIT_MAX_EGRAPH_SIZE;
@@ -560,7 +562,8 @@ int pc_clean_external_tables_0(void)
  */
 int pc_export_sw_info_1(void)
 {
-    int sw_id,instance_id,fixed,fixed_h;
+  //  int sw_id;
+  int instance_id,fixed,fixed_h;
     double prob,smooth;
     TERM p_switches, p_switch;
     TERM p_instance_list,p_prob_list,p_smooth_list;
@@ -572,7 +575,7 @@ int pc_export_sw_info_1(void)
         /* p_switch: sw(Id,InstList,ProbList,SmoothCList,FixedP,FixedH) */
         p_switch = bpx_get_car(p_switches);
 
-        sw_id           = bpx_get_integer(bpx_get_arg(1,p_switch));
+	//   sw_id           = bpx_get_integer(bpx_get_arg(1,p_switch));
         p_instance_list = bpx_get_arg(2,p_switch);
         p_prob_list     = bpx_get_arg(3,p_switch);
         p_smooth_list   = bpx_get_arg(4,p_switch);
@@ -776,7 +779,7 @@ int pc_import_occ_switches_3(void)
     TERM p_num_sw, p_num_sw_ins;
     int i;
     int num_sw_ins;
-    void release_occ_switches();
+    void release_occ_switches( void );
 
 #ifdef __YAP_PROLOG__
     TERM *hstart;
@@ -794,7 +797,7 @@ int pc_import_occ_switches_3(void)
 
 #ifdef __YAP_PROLOG__
 	if ( heap_top + 64*1024 >= local_top ) {			    
-	  H = hstart;
+	  HR = hstart;
 	  /* running out of stack */
 	  extern int Yap_gcl(UInt gc_lim, Int predarity, CELL *current_env, yamop *nextop);
 

@@ -18,6 +18,37 @@
 static char     SccsId[] = "%W% %G%";
 #endif
 
+/**
+ * @file   bb.c
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+ * @date   Mon Apr 30 09:32:54 2018
+ * 
+ * @brief  blackboard
+ * 
+ * @namespace prolog
+ * 
+ */
+
+
+/** @defgroup BlackBoard The Blackboard
+@ingroup builtins
+@{
+
+YAP implements a blackboard in the style of the SICStus Prolog
+blackboard. The blackboard uses the same underlying mechanism as the
+internal data-base but has several important differences:
+
++ It is module aware, in contrast to the internal data-base.
++ Keys can only be atoms or integers, and not compound terms.
++ A single term can be stored per key.
++ An atomic update operation is provided; this is useful for
+parallelism.
+
+
+
+ 
+*/
+
 #include "Yap.h"
 #include "clause.h"
 #ifndef NULL
@@ -40,7 +71,7 @@ PutBBProp(AtomEntry *ae, Term mod USES_REGS)		/* get BBentry for at; */
     p = (BBProp)Yap_AllocAtomSpace(sizeof(*p));
     if (p == NULL) {
       WRITE_UNLOCK(ae->ARWLock);
-      Yap_Error(OUT_OF_HEAP_ERROR,ARG1,"could not allocate space in bb_put/2");
+      Yap_Error(RESOURCE_ERROR_HEAP,ARG1,"could not allocate space in bb_put/2");
       return(NULL);
     }
     AddPropToAtom(ae, (PropEntry *)p);
@@ -71,7 +102,7 @@ PutIntBBProp(Int key, Term mod USES_REGS)	/* get BBentry for at; */
 	pp++;
       }
     } else {
-      Yap_Error(OUT_OF_HEAP_ERROR,ARG1,"could not allocate space in bb_put/2");
+      Yap_Error(RESOURCE_ERROR_HEAP,ARG1,"could not allocate space in bb_put/2");
       return(NULL);
     }
   }
@@ -88,7 +119,7 @@ PutIntBBProp(Int key, Term mod USES_REGS)	/* get BBentry for at; */
     p = (BBProp)Yap_AllocAtomSpace(sizeof(*p));
     if (p == NULL) {
       YAPLeaveCriticalSection();
-      Yap_Error(OUT_OF_HEAP_ERROR,ARG1,"could not allocate space in bb_put/2");
+      Yap_Error(RESOURCE_ERROR_HEAP,ARG1,"could not allocate space in bb_put/2");
       return(NULL);
     }
     p->ModuleOfBB = mod;
@@ -159,7 +190,7 @@ resize_bb_int_keys(UInt new_size) {
   new = (Prop *)Yap_AllocCodeSpace(sizeof(Prop)*new_size);
   if (new == NULL) {
     YAPLeaveCriticalSection();
-    Yap_Error(OUT_OF_HEAP_ERROR,ARG1,"could not allocate space");
+    Yap_Error(RESOURCE_ERROR_HEAP,ARG1,"could not allocate space");
     return(FALSE);
   }
   for (i = 0; i < new_size; i++) {
@@ -263,6 +294,14 @@ BBPut(Term t0, Term t2)
   }
 }
 
+/** @pred  bb_put(+ _Key_,? _Term_) 
+
+
+Store term table  _Term_ in the blackboard under key  _Key_. If a
+previous term was stored under key  _Key_ it is simply forgotten.
+
+ 
+*/
 static Int
 p_bb_put( USES_REGS1 )
 {
@@ -294,6 +333,14 @@ BBGet(Term t, UInt arity USES_REGS)
   }
 }
 
+/** @pred  bb_get(+ _Key_,? _Term_) 
+
+
+Unify  _Term_ with a term stored in the blackboard under key
+ _Key_, or fail silently if no such term exists.
+
+ 
+*/
 static Int
 p_bb_get( USES_REGS1 )
 {
@@ -313,6 +360,14 @@ p_bb_get( USES_REGS1 )
   return Yap_unify(ARG2,out);
 }
 
+/** @pred  bb_delete(+ _Key_,? _Term_) 
+
+
+Delete any term stored in the blackboard under key  _Key_ and unify
+it with  _Term_. Fail silently if no such term exists.
+
+ 
+*/
 static Int
 p_bb_delete( USES_REGS1 )
 {
@@ -333,6 +388,14 @@ p_bb_delete( USES_REGS1 )
   return Yap_unify(ARG2,out);
 }
 
+/** @pred  bb_update( +_Key_, ?_Term_, ?_New_) 
+
+
+Atomically  unify a term stored in the blackboard under key  _Key_
+with  _Term_, and if the unification succeeds replace it by
+ _New_. Fail silently if no such term exists or if unification fails.
+
+ */
 static Int
 p_bb_update( USES_REGS1 )
 {
@@ -375,6 +438,9 @@ Yap_InitBBPreds(void)
   Yap_InitCPred("bb_get", 2, p_bb_get, 0);
   Yap_InitCPred("bb_delete", 2, p_bb_delete, 0);
   Yap_InitCPred("bb_update", 3, p_bb_update, 0);
-  Yap_InitCPred("$resize_bb_int_keys", 1, p_resize_bb_int_keys, SafePredFlag|SyncPredFlag|HiddenPredFlag);
+  Yap_InitCPred("$resize_bb_int_keys", 1, p_resize_bb_int_keys, SafePredFlag|SyncPredFlag);
 }
 
+/**
+ @}
+*/

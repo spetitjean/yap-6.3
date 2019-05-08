@@ -54,8 +54,8 @@ this code is no being maintained anymore
  *   YAP_FindExecutable(argv[0]) should be called on yap initialization to
  *   locate the executable of Yap
 */
-void
-Yap_FindExecutable(char *name)
+char *
+Yap_FindExecutable(void)
 {
   register char  *cp, *cp2;
   struct stat     stbuf;
@@ -67,7 +67,8 @@ Yap_FindExecutable(char *name)
   if (*GLOBAL_argv[0] == '/') {
     if (oktox(GLOBAL_argv[0])) {
       strcpy(LOCAL_FileNameBuf, GLOBAL_argv[0]);
-      Yap_TrueFileName(LOCAL_FileNameBuf, GLOBAL_Executable, TRUE);
+      Yap_AbsoluteFileInBuffer(LOCAL_FileNameBuf, true);
+      strncpy( GLOBAL_Executable, LOCAL_FileNameBuf, YAP_MAXPATHLEN);
       return;
     }
   }
@@ -87,16 +88,16 @@ Yap_FindExecutable(char *name)
       cp++;
     if (!oktox(LOCAL_FileNameBuf))
       continue;
-    Yap_TrueFileName(LOCAL_FileNameBuf, GLOBAL_Executable, TRUE);
+    Yap_AbsoluteFileInBuffer(Yap_AbsoluteFileInBuffer(LOCAL_FileNameBuf, GLOBAL_Executable, TRUE);
     return;
   }
   /* one last try for dual systems */
-  strcpy(LOCAL_FileNameBuf, GLOBAL_argv[0]);
-  Yap_TrueFileName(LOCAL_FileNameBuf, GLOBAL_Executable, TRUE);
+      strcpy(LOCAL_FileNameBuf, GLOBAL_argv[0]);
+    Yap_AbsoluteFileInBuffer(Yap_AbsoluteFileInBuffer(LOCAL_FileNameBuf, GLOBAL_Executable, TRUE);
   if (oktox(GLOBAL_Executable))
-    return;
+    return GLOBAL_Executable;
   else
-    Yap_Error(SYSTEM_ERROR,MkAtomTerm(Yap_LookupAtom(GLOBAL_Executable)),
+    Yap_Error(SYSTEM_ERROR_INTERNAL,MkAtomTerm(Yap_LookupAtom(GLOBAL_Executable)),
 	  "cannot find file being executed");
 }
 

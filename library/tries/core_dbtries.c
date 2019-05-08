@@ -206,13 +206,27 @@
 /*      Local Procedures      */
 /* -------------------------- */
 
-inline void displaynode(TrNode node);
-inline int      traverse_get_counter(TrNode node);
-inline YAP_Term generate_label(YAP_Int Index);
-inline YAP_Term update_depth_breadth_trie(TrEngine engine, TrNode root, YAP_Int opt_level, void (*construct_function)(TrNode), void (*destruct_function)(TrNode), void (*copy_function)(TrNode, TrNode), void (*correct_order_function)(void));
-inline YAP_Term get_return_node_term(TrNode node);
-inline void     traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term);
-inline TrNode   replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term);
+int      traverse_get_counter(TrNode node);
+YAP_Term generate_label(YAP_Int Index);
+YAP_Term update_depth_breadth_trie(TrEngine engine, TrNode root, YAP_Int opt_level, void (*construct_function)(TrNode), void (*destruct_function)(TrNode), void (*copy_function)(TrNode, TrNode), void (*correct_order_function)(void));
+YAP_Term get_return_node_term(TrNode node);
+void     traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term, void (*construct_function)(TrNode), void (*destruct_function)(TrNode));
+TrNode   replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term, void (*construct_function)(TrNode), void (*destruct_function)(TrNode));
+void     check_attach_childs(TrNode parent, TrNode search_child, TrNode existing_child, void (*construct_function)(TrNode), void (*destruct_function)(TrNode));
+TrNode   get_simplification_sibling(TrNode node);
+TrNode   check_parent_first(TrNode node);
+TrNode   TrNode_myparent(TrNode node);
+
+/* -------------------------- */
+/*       Debug Procedures     */
+/* -------------------------- */
+
+void   displaynode(TrNode node);
+void   displayentry(TrNode node);
+void   displayterm(YAP_Term term);
+void   displaytrie(TrNode node);
+void   display_trie_inner(TrNode node);
+void   trie_display_node(TrNode node);
 
 
 /* -------------------------- */
@@ -229,59 +243,35 @@ static YAP_Int TRIE_DEPTH_BREADTH_OPT_COUNT[3];
 /*     depth-breadth Trie     */
 /* -------------------------- */
 
-inline
+
 YAP_Int core_get_trie_db_opt_min_prefix(void) {
   return TRIE_DEPTH_BREADTH_MIN_PREFIX;
 }
 
 
-inline
+
 void core_set_trie_db_opt_min_prefix(YAP_Int min_prefix) {
   TRIE_DEPTH_BREADTH_MIN_PREFIX = min_prefix;
   return;
 }
 
 
-inline
-void core_depth_breadth_trie_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term) {
-  traverse_and_replace_nested_trie(node, nested_trie_id, new_term);
-  return;
-}
-inline
-void displaynode(TrNode node) {
-  if (node != NULL) {
-/*  printf("hi\n");
-  if (IS_HASH_NODE(node))
-      {printf("1\n");} else {printf("2\n");}
-  printf("bye\n");*/
-    if (IS_HASH_NODE(node))
-      printf("HASH n%i, b%i, p%li\n", TrHash_num_nodes((TrHash) node), TrHash_num_buckets((TrHash) node), (long) node);
-    else if (TrNode_entry(node) == PairInitTag)
-      printf("PairInitTag\n");
-    else if (TrNode_entry(node) == PairEndTag)
-      printf("PairEndTag\n");
-    else if (IS_FUNCTOR_NODE(node))
-      printf("functor(%s)\n", YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)( ~ApplTag & TrNode_entry(node)))));
-    else if (YAP_IsIntTerm(TrNode_entry(node)))
-      printf("int(%ld)\n", YAP_IntOfTerm(TrNode_entry(node)));
-    else if (YAP_IsAtomTerm(TrNode_entry(node)))
-       printf("atom(%s)\n", YAP_AtomName(YAP_AtomOfTerm(TrNode_entry(node))));
-    else
-      printf("What?\n");
-  } else
-    printf("null\n");
+
+void core_depth_breadth_trie_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term, void (*construct_function)(TrNode), void (*destruct_function)(TrNode)) {
+  traverse_and_replace_nested_trie(node, nested_trie_id, new_term, construct_function, destruct_function);
   return;
 }
 
 
 inline
-void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term) {
+void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_Term new_term, void (*construct_function)(TrNode), void (*destruct_function)(TrNode)) {
   TrNode child, temp;
   if (TrNode_entry(node) == PairEndTag) {
     if (TrNode_next(node))
-      traverse_and_replace_nested_trie(TrNode_next(node), nested_trie_id, new_term);
+      traverse_and_replace_nested_trie(TrNode_next(node), nested_trie_id, new_term, construct_function, destruct_function);
     return;
   } else if (IS_HASH_NODE(node)) {
+    printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
     abort();
     TrNode *first_bucket, *bucket;
     TrHash hash = (TrHash) node;
@@ -290,7 +280,7 @@ void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_T
     do {
       if ((node = *--bucket)) {
         do {
-          traverse_and_replace_nested_trie(node, nested_trie_id, new_term);
+          traverse_and_replace_nested_trie(node, nested_trie_id, new_term, construct_function, destruct_function);
           node = TrNode_next(node);
         } while(node);
       }
@@ -302,7 +292,8 @@ void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_T
       if (arity == 1 && strcmp(YAP_AtomName(YAP_NameOfFunctor(f)), NESTED_TRIE_TERM) == 0) {
         child = TrNode_child(node);
         if (IS_HASH_NODE(child)) {
-    abort();
+          printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
+          abort();
           TrNode *first_bucket, *bucket;
           TrHash hash = (TrHash) child;
           first_bucket = TrHash_buckets(hash);
@@ -312,13 +303,13 @@ void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_T
               do {
                 if (YAP_IntOfTerm(TrNode_entry(child)) == nested_trie_id) {
                   temp = TrNode_previous(node);
-                  node = replace_nested_trie(node, child, new_term);
+                  node = replace_nested_trie(node, child, new_term, construct_function, destruct_function);
                   if (temp) {
                     temp = TrNode_next(node);
                     if (temp)
                       node = temp;
                   } else {
-                    traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term);
+                    traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term, construct_function, destruct_function);
                     return;
                   }
                 }
@@ -331,10 +322,10 @@ void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_T
           do {
             if (YAP_IntOfTerm(TrNode_entry(child)) == nested_trie_id) {
               temp = TrNode_next(node);
-              node = replace_nested_trie(node, child, new_term);
-              traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term);
+              node = replace_nested_trie(node, child, new_term, construct_function, destruct_function);
+              traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term, construct_function, destruct_function);
               if(temp)
-                traverse_and_replace_nested_trie(temp, nested_trie_id, new_term);
+                traverse_and_replace_nested_trie(temp, nested_trie_id, new_term, construct_function, destruct_function);
               return;
             }
             child = TrNode_next(child);
@@ -342,16 +333,15 @@ void traverse_and_replace_nested_trie(TrNode node, YAP_Int nested_trie_id, YAP_T
         }
       }
     }
-    traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term);
+    traverse_and_replace_nested_trie(TrNode_child(node), nested_trie_id, new_term, construct_function, destruct_function);
     if (TrNode_next(node))
-      traverse_and_replace_nested_trie(TrNode_next(node), nested_trie_id, new_term);
+      traverse_and_replace_nested_trie(TrNode_next(node), nested_trie_id, new_term, construct_function, destruct_function);
   }
   return;
 }
 
 /* fixmeeee */
-inline
-TrNode replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term) {
+TrNode replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term, void (*construct_function)(TrNode), void (*destruct_function)(TrNode)) {
   TrNode newnode, temp, newnodef = NULL;
   if (YAP_IsApplTerm(new_term)) {
     YAP_Term new_term_functor = ApplTag | ((YAP_Term) YAP_FunctorOfTerm(new_term));
@@ -378,12 +368,30 @@ TrNode replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term) {
       TrNode_previous(TrNode_child(newnodef)) = newnode;
     TrNode_child(newnodef) = newnode;
   } else {
-    new_trie_node(newnode, new_term, TrNode_parent(node), TrNode_child(child), TrNode_child(TrNode_parent(node)), NULL);
-    TrNode_previous(TrNode_child(TrNode_parent(node))) = newnode;
-    TrNode_child(TrNode_parent(node)) = newnode;
+    /* Check if one of the node siblings have new_term */
+    temp = node;
+    while (TrNode_previous(temp))
+      temp = TrNode_previous(temp);
+    while (temp && TrNode_entry(temp) != new_term)
+      temp = TrNode_next(temp);
+    if (temp) {
+      newnode = temp;
+      // Check if the childs of node/child exist already otherwise attach them
+      check_attach_childs(newnode, TrNode_child(child), TrNode_child(newnode), construct_function, destruct_function);
+      DATA_DESTRUCT_FUNCTION = destruct_function;
+      remove_child_nodes(TrNode_child(child));
+      TrNode_child(child) = NULL;
+      remove_entry(child);
+      return newnode;
+    } else { // Make a new node
+      new_trie_node(newnode, new_term, TrNode_parent(node), TrNode_child(child), TrNode_child(TrNode_parent(node)), NULL);
+      TrNode_previous(TrNode_child(TrNode_parent(node))) = newnode;
+      TrNode_child(TrNode_parent(node)) = newnode;
+    }
   }
   temp = TrNode_child(child);
   if (IS_HASH_NODE(temp)) {
+    printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
     abort();
     TrNode *first_bucket, *bucket;
     TrHash hash = (TrHash) temp;
@@ -403,37 +411,91 @@ TrNode replace_nested_trie(TrNode node, TrNode child, YAP_Term new_term) {
       temp = TrNode_next(temp);
     }
   }
+  DATA_DESTRUCT_FUNCTION = destruct_function;
   TrNode_child(child) = NULL;
   remove_entry(child);
   return newnode;
 }
 
 
-inline
+void check_attach_childs(TrNode parent, TrNode search_child, TrNode existing_child, void (*construct_function)(TrNode), void (*destruct_function)(TrNode)) {
+  TrNode newnode;
+  // Check if the childs of node/child exist already otherwise attach them
+  do {
+    while(existing_child && (TrNode_entry(existing_child) != PairEndTag) && (TrNode_entry(existing_child) != TrNode_entry(search_child)))
+      existing_child = TrNode_next(existing_child);
+
+    if (existing_child) {
+      if (TrNode_entry(existing_child) != PairEndTag)
+        check_attach_childs(existing_child, TrNode_child(search_child), TrNode_child(existing_child), construct_function, destruct_function);
+      existing_child = TrNode_child(parent);
+      search_child = TrNode_next(search_child);
+    } else if (TrNode_entry(search_child) == PairEndTag) {
+      newnode = parent;
+      DATA_DESTRUCT_FUNCTION = destruct_function;
+      remove_child_nodes(TrNode_child(newnode));
+      TrNode_child(newnode) = NULL;
+      newnode = trie_node_check_insert(newnode, PairEndTag);
+      INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+      (*construct_function)(newnode);
+      return;
+    } else {
+      existing_child = search_child;
+      search_child = TrNode_next(search_child);
+      if(TrNode_child(TrNode_parent(existing_child)) == existing_child) {
+        if(TrNode_next(existing_child)) {
+          TrNode_child(TrNode_parent(existing_child)) = TrNode_next(existing_child);
+        } else {
+          newnode = TrNode_parent(existing_child);
+//          DATA_DESTRUCT_FUNCTION = destruct_function;
+//          remove_child_nodes(TrNode_child(newnode));
+          TrNode_child(newnode) = NULL;
+          newnode = trie_node_check_insert(newnode, PairEndTag);
+          INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+          (*construct_function)(newnode);
+        }
+      }
+
+      if (TrNode_next(existing_child))
+        TrNode_previous(TrNode_next(existing_child)) = TrNode_previous(existing_child);
+      if (TrNode_previous(existing_child))
+        TrNode_next(TrNode_previous(existing_child)) = TrNode_next(existing_child);
+
+      TrNode_parent(existing_child) = parent;
+      TrNode_previous(existing_child) = NULL;
+      TrNode_next(existing_child) = TrNode_child(parent);
+      TrNode_previous(TrNode_child(parent)) = existing_child;
+      TrNode_child(parent) = existing_child;
+      existing_child = TrNode_child(parent);
+    }
+  } while(search_child);
+}
+
+
 YAP_Term  core_get_trie_db_return_term(void) {
   return TRIE_DEPTH_BREADTH_RETURN_TERM;
 }
 
 
-inline
+
 void core_set_trie_db_return_term(YAP_Term return_value){
   TRIE_DEPTH_BREADTH_RETURN_TERM = return_value;
   return;
 }
 
 
-inline
+
 void core_set_label_counter(YAP_Int value) {
   LABEL_COUNTER = value;                            // Initialize the counter
   return;
 }
 
-inline
+
 YAP_Int core_get_label_counter(void) {
   return LABEL_COUNTER;
 }
 
-inline
+
 void core_initialize_depth_breadth_trie(TrNode node, TrNode *depth_node, TrNode *breadth_node) {
   TrNode root = node;
   YAP_Functor f;
@@ -450,7 +512,7 @@ void core_initialize_depth_breadth_trie(TrNode node, TrNode *depth_node, TrNode 
 }
 
 
-inline
+
 void core_finalize_depth_breadth_trie(TrNode depth_node, TrNode breadth_node) {
   depth_node = trie_node_check_insert(depth_node, YAP_MkIntTerm(1));
   depth_node = trie_node_check_insert(depth_node, PairEndTag);
@@ -464,7 +526,50 @@ void core_finalize_depth_breadth_trie(TrNode depth_node, TrNode breadth_node) {
 }
 
 
-inline
+TrNode get_simplification_sibling(TrNode node) {
+  TrNode sibling = node;
+  while (sibling != NULL && TrNode_entry(sibling) != PairEndTag)
+    sibling = TrNode_next(sibling);
+  if (sibling != NULL && TrNode_entry(sibling) == PairEndTag) return sibling;
+  sibling = node;
+  while (sibling != NULL && TrNode_entry(sibling) != PairEndTag)
+    sibling = TrNode_previous(sibling);
+  return sibling;
+}
+
+TrNode check_parent_first(TrNode node) {
+  TrNode simplification;
+  if (TrNode_entry(TrNode_myparent(node)) != PairInitTag) {
+    simplification = check_parent_first(TrNode_myparent(node));
+    if (simplification != NULL && TrNode_entry(simplification) == PairEndTag) return simplification;
+  }
+  simplification = get_simplification_sibling(node);
+  return simplification;
+}
+
+TrNode TrNode_myparent(TrNode node) {
+  TrNode parent = TrNode_parent(node);
+  while (parent != NULL && IS_FUNCTOR_NODE(parent))
+    parent = TrNode_parent(parent);
+  return parent;
+}
+
+TrNode core_simplification_reduction(TrEngine engine, TrNode node, void (*destruct_function)(TrNode)) {
+  /* Try to find the greatest parent that has a sibling that is a PairEndTag: this indicates a deep simplification */
+  node = check_parent_first(TrNode_myparent(node));
+  if (node != NULL) {
+    /* do breadth reduction simplification */
+    node = TrNode_parent(node);
+    DATA_DESTRUCT_FUNCTION = destruct_function;
+    remove_child_nodes(TrNode_child(node));
+    TrNode_child(node) = NULL;
+    node = trie_node_check_insert(node, PairEndTag);
+    INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
+  }
+  return node;
+}
+
+
 TrNode core_depth_reduction(TrEngine engine, TrNode node, TrNode depth_node, YAP_Int opt_level, void (*construct_function)(TrNode), void (*destruct_function)(TrNode), void (*copy_function)(TrNode, TrNode), void (*correct_order_function)(void)) {
   TrNode leaf = node;
   YAP_Term t, *stack_top;
@@ -495,6 +600,8 @@ TrNode core_depth_reduction(TrEngine engine, TrNode node, TrNode depth_node, YAP
   }
   TrNode temp = TrNode_child(TrNode_parent(node));
   if (IS_HASH_NODE(temp)) {
+    printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
+    abort();
     TrNode *first_bucket, *bucket;
     TrHash hash = (TrHash) temp;
     first_bucket = TrHash_buckets(hash);
@@ -525,24 +632,29 @@ TrNode core_depth_reduction(TrEngine engine, TrNode node, TrNode depth_node, YAP
   INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
   temp = TrNode_parent(leaf);
   remove_child_nodes(TrNode_child(temp));
+  TrNode_child(temp) = NULL;
   remove_entry(temp);
   return node;
 }
 
 
-inline
+
 TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node, YAP_Int opt_level, void (*construct_function)(TrNode), void (*destruct_function)(TrNode), void (*copy_function)(TrNode, TrNode), void (*correct_order_function)(void)) {
   YAP_Term t, *stack_top;
   int count = -1;
   TrNode child;
+  
+  /* Simplification with breadth reduction (faster dbtrie execution worse BDD)
+  child = core_simplification_reduction(engine, node, destruct_function);
+  if (child) return child;
+  */
+
   /* collect breadth nodes */
   stack_args_base = stack_args = AUXILIARY_TERM_STACK;
   stack_top = AUXILIARY_TERM_STACK + CURRENT_AUXILIARY_TERM_STACK_SIZE - 1;
   node = TrNode_parent(TrNode_parent(node));
-//   printf("1\n");
-//   printf("start node: "); displaynode(node);
+  // printf("start node: "); displaynode(node);
   if (IS_FUNCTOR_NODE(node)) {
-//   printf("2\n");
     while(IS_FUNCTOR_NODE(node))
       node = TrNode_parent(node);
     child = TrNode_child(node);
@@ -550,9 +662,11 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
       child = TrNode_child(child);
   } else
     child = TrNode_child(node);
-//   printf("Chosen start node: "); displaynode(child);
+  // printf("Chosen start node: "); displaynode(child);
   if (IS_HASH_NODE(child)) {
-  printf("warning\n");
+    printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
+    abort();
+    /* Comment code for HASH NODES - the commented code 100% has a bug
     TrNode *first_bucket, *bucket;
     TrHash hash = (TrHash) child;
     first_bucket = TrHash_buckets(hash);
@@ -592,7 +706,7 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
           }
           //Nested Trie code
           if (IS_FUNCTOR_NODE(TrNode_parent(child)) && (strcmp(YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)(~ApplTag & TrNode_entry(TrNode_parent(child))))), NESTED_TRIE_TERM) == 0)) {
-            /* nested trie: stop procedure and return nested trie node */
+            // nested trie: stop procedure and return nested trie node
             return child;
           }
           PUSH_DOWN(stack_args, TrNode_entry(child), stack_top);
@@ -610,10 +724,14 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
         } while (child);
       }
     } while (bucket != first_bucket);
+    */
   } else {
     do {
       if (TrNode_entry(child) == PairEndTag) {
         /* do breadth reduction simplification */
+        printf("SIMPLIFICATION ERROR: I should never arrive here, please contact Theo!\n");
+        abort();
+        /*
         node = TrNode_parent(child);
         DATA_DESTRUCT_FUNCTION = destruct_function;
         remove_child_nodes(TrNode_child(node));
@@ -621,11 +739,13 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
         node = trie_node_check_insert(node, PairEndTag);
         INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
         return node;
-        //return core_breadth_reduction(engine, node, breadth_node, opt_level, construct_function, destruct_function, copy_function, correct_order_function);
+        */
       }
       while (IS_FUNCTOR_NODE(child)) {
         child = TrNode_child(child);
         if (IS_HASH_NODE(child)) { // gets first child in the hash
+          printf("HASH NODE ERROR: db_tries do not support hash nodes.\n");
+          abort();
           TrNode *first_bucket, *bucket;
           TrHash hash = (TrHash) child;
           first_bucket = TrHash_buckets(hash);
@@ -635,36 +755,9 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
       }
       if (TrNode_child(child) == NULL) return NULL;
       if (TrNode_entry(TrNode_child(child)) != PairEndTag) return NULL;
-      
-      
-   /*   TrNode temp = TrNode_child(child);
-      if (temp == NULL)
-        return NULL;
- printf("Chosen start node child: "); displaynode(temp);
-      if (IS_HASH_NODE(temp)) {
-        TrNode *first_bucket, *bucket;
-        TrHash hash = (TrHash) temp;
-        first_bucket = TrHash_buckets(hash);
-        bucket = first_bucket + TrHash_num_buckets(hash);
-        do {
-          if ((temp = *--bucket)) {
-            while((temp != NULL) && (TrNode_entry(temp) != PairEndTag)) {
-              temp = TrNode_next(temp);
-            }
-          }
-        } while (bucket != first_bucket && temp == NULL);
-      } else {
-        while((temp != NULL) && (TrNode_entry(temp) != PairEndTag))
-          temp = TrNode_next(temp);
-      }*/
-// printf("while end\n");
-      //Nested Trie code
-      if (IS_FUNCTOR_NODE(TrNode_parent(child)) && (strcmp(YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)(~ApplTag & TrNode_entry(TrNode_parent(child))))), NESTED_TRIE_TERM) == 0)) {
-        /* nested trie: stop procedure and return nested trie node */
+      /* nested trie: stop procedure and return nested trie node */
+      if (IS_FUNCTOR_NODE(TrNode_parent(child)) && (strcmp(YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)(~ApplTag & TrNode_entry(TrNode_parent(child))))), NESTED_TRIE_TERM) == 0))
         return child;
-      }
-      
-
       PUSH_DOWN(stack_args, TrNode_entry(child), stack_top);
       count++;
       if (IS_FUNCTOR_NODE(TrNode_parent(child))) {
@@ -677,15 +770,13 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
           child = TrNode_parent(child);
       }
       child = TrNode_next(child);
-         //   printf("Siblings: ");displaynode(child);
-
     } while (child);
-//      printf("pass through\n");
   }
   if (!count) {
     /* termination condition */
     core_set_trie_db_return_term(get_return_node_term(TrNode_child(node)));
     node = TrNode_parent(node);
+    DATA_DESTRUCT_FUNCTION = destruct_function;
     remove_child_nodes(TrNode_child(node));
     TrNode_child(node) = NULL;
     return NULL;
@@ -700,7 +791,6 @@ TrNode core_breadth_reduction(TrEngine engine, TrNode node, TrNode breadth_node,
   node = trie_node_check_insert(node, t);
   node = trie_node_check_insert(node, PairEndTag);
   INCREMENT_ENTRIES(CURRENT_TRIE_ENGINE);
-//    printf("end node: "); displaynode(node);
   return node;
 }
 
@@ -725,7 +815,6 @@ YAP_Term get_return_node_term(TrNode node) {
 }
 
 
-inline
 int traverse_get_counter(TrNode node) {
   int count = -1;
   while (TrNode_entry(node) != PairEndTag) {
@@ -752,15 +841,14 @@ int traverse_get_counter(TrNode node) {
 }
 
 
-inline
 YAP_Term generate_label(YAP_Int Index) {
   char label[20];
-  sprintf(label,"L%ld", Index);
+  sprintf(label,"L%" Int_F, Index);
   return YAP_MkAtomTerm(YAP_LookupAtom(label));
 }
 
 
-inline
+
 YAP_Term update_depth_breadth_trie(TrEngine engine, TrNode root, YAP_Int opt_level, void (*construct_function)(TrNode), void (*destruct_function)(TrNode), void (*copy_function)(TrNode, TrNode), void (*correct_order_function)(void)) {
   TrNode node = root, remember = NULL;
   int count = -1, cnt = -1, c_cnt = 0, f_cnt = 0;
@@ -903,7 +991,100 @@ YAP_Term update_depth_breadth_trie(TrEngine engine, TrNode root, YAP_Int opt_lev
 }
 
 
-inline
+
 YAP_Int core_db_trie_get_optimization_level_count(YAP_Int opt_level) {
   return TRIE_DEPTH_BREADTH_OPT_COUNT[opt_level - 1];
 }
+
+
+/* -------------------------- */
+/*       Debug Procedures     */
+/* -------------------------- */
+
+void displaynode(TrNode node) {
+  if (node != NULL) {
+    if (IS_HASH_NODE(node))
+      printf("HASH n%i, b%i, p%p\n", TrHash_num_nodes((TrHash) node), TrHash_num_buckets((TrHash) node), node);
+    else if (TrNode_entry(node) == PairInitTag)
+      printf("PairInitTag\n");
+    else if (TrNode_entry(node) == PairEndTag)
+      printf("PairEndTag\n");
+    else if (IS_FUNCTOR_NODE(node))
+      printf("functor(%s)\n", YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)( ~ApplTag & TrNode_entry(node)))));
+    else if (YAP_IsIntTerm(TrNode_entry(node)))
+      printf("int(%"Int_F")\n", YAP_IntOfTerm(TrNode_entry(node)));
+    else if (YAP_IsAtomTerm(TrNode_entry(node)))
+       printf("atom(%s)\n", YAP_AtomName(YAP_AtomOfTerm(TrNode_entry(node))));
+    else
+      printf("What?\n");
+  } else
+    printf("null\n");
+  return;
+}
+
+void displayentry(TrNode node) {
+  printf("Entry Contains Bottom Up:\n");
+  while (node) {
+    displaynode(node);
+    node = TrNode_parent(node);
+  }
+  printf("--- End of Entry ---\n");
+}
+
+void displayterm(YAP_Term term) {
+  if (term) {
+   if (term == PairInitTag)
+      printf("PairInitTag\n");
+    else if (term == PairEndTag)
+      printf("PairEndTag\n");
+    else if (YAP_IsApplTerm(term))
+      printf("functor(%s)\n", YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)( ~ApplTag & term))));
+    else if (YAP_IsIntTerm(term))
+      printf("int(%"Int_F")\n", YAP_IntOfTerm(term));
+    else if (YAP_IsAtomTerm(term))
+       printf("atom(%s)\n", YAP_AtomName(YAP_AtomOfTerm(term)));
+    else
+      printf("What?\n");
+  } else
+    printf("null\n");
+  return;
+}
+
+void displaytrie(TrNode node) {
+  while(TrNode_entry(node) != PairInitTag){
+    printf("?: "); displaynode(node);
+    node = TrNode_parent(node);
+  }
+  display_trie_inner(node);
+}
+
+void display_trie_inner(TrNode node) {
+  trie_display_node(node);
+  if (TrNode_entry(node) != PairEndTag && TrNode_child(node))
+    display_trie_inner(TrNode_child(node));
+  if (TrNode_next(node)) {
+    trie_display_node(TrNode_parent(node)); display_trie_inner(TrNode_next(node));
+  }
+}
+
+void trie_display_node(TrNode node) {
+  if (node != NULL) {
+    if (IS_HASH_NODE(node))
+      printf("HASH(n%i, b%i, p%p), ", TrHash_num_nodes((TrHash) node), TrHash_num_buckets((TrHash) node), node);
+    else if (TrNode_entry(node) == PairInitTag)
+      printf("PairInitTag, ");
+    else if (TrNode_entry(node) == PairEndTag)
+      printf("PairEndTag\n");
+    else if (IS_FUNCTOR_NODE(node))
+      printf("functor(%s), ", YAP_AtomName(YAP_NameOfFunctor((YAP_Functor)( ~ApplTag & TrNode_entry(node)))));
+    else if (YAP_IsIntTerm(TrNode_entry(node)))
+      printf("int(%" Int_F"), ", YAP_IntOfTerm(TrNode_entry(node)));
+    else if (YAP_IsAtomTerm(TrNode_entry(node)))
+       printf("atom(%s), ", YAP_AtomName(YAP_AtomOfTerm(TrNode_entry(node))));
+    else
+      printf("What?\n");
+  } else
+    printf("null\n");
+  return;
+}
+

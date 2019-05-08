@@ -1,67 +1,79 @@
-#ifndef HORUS_UTIL_H
-#define HORUS_UTIL_H
+#ifndef YAP_PACKAGES_CLPBN_HORUS_UTIL_H_
+#define YAP_PACKAGES_CLPBN_HORUS_UTIL_H_
 
 #include <cmath>
 #include <cassert>
-#include <limits>
 
-#include <algorithm>
 #include <vector>
-#include <set>
 #include <queue>
+#include <set>
 #include <unordered_map>
-
-#include <sstream>
+#include <algorithm>
+#include <limits>
+#include <string>
 #include <iostream>
+#include <sstream>
+#include <functional>
 
 #include "Horus.h"
 
-using namespace std;
-
+namespace Horus {
 
 namespace {
-const double NEG_INF = -numeric_limits<double>::infinity();
-};
+
+const double NEG_INF = -std::numeric_limits<double>::infinity();
+
+}
 
 
 namespace Util {
 
-template <typename T> void addToVector (vector<T>&, const vector<T>&);
+template <typename T> void
+addToVector (std::vector<T>&, const std::vector<T>&);
 
-template <typename T> void addToSet (set<T>&,  const vector<T>&);
+template <typename T> void
+addToSet (std::set<T>&, const std::vector<T>&);
 
-template <typename T> void addToQueue (queue<T>&,  const vector<T>&);
+template <typename T> void
+addToQueue (std::queue<T>&, const std::vector<T>&);
 
-template <typename T> bool contains (const vector<T>&, const T&);
+template <typename T> bool
+contains (const std::vector<T>&, const T&);
 
-template <typename T> bool contains (const set<T>&, const T&);
+template <typename T> bool contains
+(const std::set<T>&, const T&);
 
-template <typename K, typename V> bool contains (
-    const unordered_map<K, V>&, const K&);
+template <typename K, typename V> bool
+contains (const std::unordered_map<K, V>&, const K&);
 
-template <typename T> size_t indexOf (const vector<T>&, const T&);
+template <typename T> size_t
+indexOf (const std::vector<T>&, const T&);
 
-template <class Operation>
-void apply_n_times (Params& v1, const Params& v2, unsigned repetitions, Operation);
+template <class Operation> void
+apply_n_times (Params& v1, const Params& v2, unsigned reps, Operation);
 
-template <typename T> void log (vector<T>&);
+template <typename T> void
+log (std::vector<T>&);
 
-template <typename T> void exp (vector<T>&);
+template <typename T> void
+exp (std::vector<T>&);
 
-template <typename T> string elementsToString (
-    const vector<T>& v, string sep = " ");
+template <typename T> std::string
+elementsToString (const std::vector<T>& v, std::string sep = " ");
 
-template <typename T> std::string toString (const T&);
+template <typename T> std::string
+toString (const T&);
 
-template <> std::string toString (const bool&);
+template <> std::string
+toString (const bool&);
 
 double logSum (double, double);
 
-unsigned maxUnsigned (void);
+unsigned maxUnsigned();
 
-unsigned stringToUnsigned (string);
+unsigned stringToUnsigned (std::string);
 
-double stringToDouble (string);
+double stringToDouble (std::string);
 
 double factorial (unsigned);
 
@@ -73,28 +85,29 @@ size_t sizeExpected (const Ranges&);
 
 unsigned nrDigits (int);
 
-bool isInteger (const string&);
+bool isInteger (const std::string&);
 
-string parametersToString (const Params&, unsigned = Constants::PRECISION);
+std::string parametersToString (
+    const Params&, unsigned = Constants::precision);
 
-vector<string> getStateLines (const Vars&);
+std::vector<std::string> getStateLines (const Vars&);
 
-bool setHorusFlag (string key, string value);
+bool setHorusFlag (std::string option, std::string value);
 
-void printHeader (string, std::ostream& os = std::cout);
+void printHeader (std::string, std::ostream& os = std::cout);
 
-void printSubHeader (string, std::ostream& os = std::cout);
+void printSubHeader (std::string, std::ostream& os = std::cout);
 
 void printAsteriskLine (std::ostream& os = std::cout);
 
 void printDashedLine (std::ostream& os = std::cout);
 
-};
+}  // namespace Util
 
 
 
 template <typename T> void
-Util::addToVector (vector<T>& v, const vector<T>& elements)
+Util::addToVector (std::vector<T>& v, const std::vector<T>& elements)
 {
   v.insert (v.end(), elements.begin(), elements.end());
 }
@@ -102,7 +115,7 @@ Util::addToVector (vector<T>& v, const vector<T>& elements)
 
 
 template <typename T> void
-Util::addToSet (set<T>& s, const vector<T>& elements)
+Util::addToSet (std::set<T>& s, const std::vector<T>& elements)
 {
   s.insert (elements.begin(), elements.end());
 }
@@ -110,7 +123,7 @@ Util::addToSet (set<T>& s, const vector<T>& elements)
 
 
 template <typename T> void
-Util::addToQueue (queue<T>& q, const vector<T>& elements)
+Util::addToQueue (std::queue<T>& q, const std::vector<T>& elements)
 {
   for (size_t i = 0; i < elements.size(); i++) {
     q.push (elements[i]);
@@ -120,7 +133,7 @@ Util::addToQueue (queue<T>& q, const vector<T>& elements)
 
 
 template <typename T> bool
-Util::contains (const vector<T>& v, const T& e)
+Util::contains (const std::vector<T>& v, const T& e)
 {
   return std::find (v.begin(), v.end(), e) != v.end();
 }
@@ -128,7 +141,7 @@ Util::contains (const vector<T>& v, const T& e)
 
 
 template <typename T> bool
-Util::contains (const set<T>& s, const T& e)
+Util::contains (const std::set<T>& s, const T& e)
 {
   return s.find (e) != s.end();
 }
@@ -136,7 +149,7 @@ Util::contains (const set<T>& s, const T& e)
 
 
 template <typename K, typename V> bool
-Util::contains (const unordered_map<K, V>& m, const K& k)
+Util::contains (const std::unordered_map<K, V>& m, const K& k)
 {
   return m.find (k) != m.end();
 }
@@ -144,7 +157,7 @@ Util::contains (const unordered_map<K, V>& m, const K& k)
 
 
 template <typename T> size_t
-Util::indexOf (const vector<T>& v, const T& e)
+Util::indexOf (const std::vector<T>& v, const T& e)
 {
   return std::distance (v.begin(),
       std::find (v.begin(), v.end(), e));
@@ -153,7 +166,10 @@ Util::indexOf (const vector<T>& v, const T& e)
 
 
 template <class Operation> void
-Util::apply_n_times (Params& v1, const Params& v2, unsigned repetitions,
+Util::apply_n_times (
+    Params& v1,
+    const Params& v2,
+    unsigned repetitions,
     Operation unary_op)
 {
   Params::iterator       first  = v1.begin();
@@ -172,25 +188,25 @@ Util::apply_n_times (Params& v1, const Params& v2, unsigned repetitions,
 
 
 template <typename T> void
-Util::log (vector<T>& v)
+Util::log (std::vector<T>& v)
 {
-  std::transform (v.begin(), v.end(), v.begin(), ::log);
+  std::transform (v.begin(), v.end(), v.begin(),  (double (*)(double))std::log);
 }
 
 
 
 template <typename T> void
-Util::exp (vector<T>& v)
+Util::exp (std::vector<T>& v)
 {
-  std::transform (v.begin(), v.end(), v.begin(), ::exp);
+  std::transform (v.begin(), v.end(), v.begin(),  (double (*)(double))std::exp);
 }
 
 
 
-template <typename T> string
-Util::elementsToString (const vector<T>& v, string sep)
+template <typename T> std::string
+Util::elementsToString (const std::vector<T>& v, std::string sep)
 {
-  stringstream ss;
+  std::stringstream ss;
   for (size_t i = 0; i < v.size(); i++) {
     ss << ((i != 0) ? sep : "") << v[i];
   }
@@ -243,9 +259,9 @@ Util::logSum (double x, double y)
 
 
 inline unsigned
-Util::maxUnsigned (void)
+Util::maxUnsigned()
 {
-  return numeric_limits<unsigned>::max();
+  return std::numeric_limits<unsigned>::max();
 }
 
 
@@ -275,106 +291,106 @@ void pow (Params&, unsigned);
 
 void pow (Params&, double);
 
-};
+}  // namespace LogAware
 
 
 
-template <typename T>
-void operator+=(std::vector<T>& v, double val)
+template <typename T> void
+operator+=(std::vector<T>& v, double val)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (plus<double>(), val));
+      std::bind2nd (std::plus<double>(), val));
 }
 
 
 
-template <typename T>
-void operator-=(std::vector<T>& v, double val)
+template <typename T> void
+operator-=(std::vector<T>& v, double val)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (minus<double>(), val));
+      std::bind2nd (std::minus<double>(), val));
 }
 
 
 
-template <typename T>
-void operator*=(std::vector<T>& v, double val)
+template <typename T> void
+operator*=(std::vector<T>& v, double val)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (multiplies<double>(), val));
+      std::bind2nd (std::multiplies<double>(), val));
 }
 
 
 
-template <typename T>
-void operator/=(std::vector<T>& v, double val)
+template <typename T> void
+operator/=(std::vector<T>& v, double val)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (divides<double>(), val));
+      std::bind2nd (std::divides<double>(), val));
 }
 
 
 
-template <typename T>
-void operator+=(std::vector<T>& a, const std::vector<T>& b)
+template <typename T> void
+operator+=(std::vector<T>& a, const std::vector<T>& b)
 {
   assert (a.size() == b.size());
   std::transform (a.begin(), a.end(), b.begin(), a.begin(),
-      plus<double>());
+      std::plus<double>());
 }
 
 
 
-template <typename T>
-void operator-=(std::vector<T>& a, const std::vector<T>& b)
+template <typename T> void
+operator-=(std::vector<T>& a, const std::vector<T>& b)
 {
   assert (a.size() == b.size());
   std::transform (a.begin(), a.end(), b.begin(), a.begin(),
-      minus<double>());
+      std::minus<double>());
 }
 
 
 
-template <typename T>
-void operator*=(std::vector<T>& a, const std::vector<T>& b)
+template <typename T> void
+operator*=(std::vector<T>& a, const std::vector<T>& b)
 {
   assert (a.size() == b.size());
   std::transform (a.begin(), a.end(), b.begin(), a.begin(),
-      multiplies<double>());
+      std::multiplies<double>());
 }
 
 
 
-template <typename T>
-void operator/=(std::vector<T>& a, const std::vector<T>& b)
+template <typename T> void
+operator/=(std::vector<T>& a, const std::vector<T>& b)
 {
   assert (a.size() == b.size());
   std::transform (a.begin(), a.end(), b.begin(), a.begin(),
-      divides<double>());
+      std::divides<double>());
 }
 
 
 
-template <typename T>
-void operator^=(std::vector<T>& v, double exp)
+template <typename T> void
+operator^=(std::vector<T>& v, double exp)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (ptr_fun<double, double, double> (std::pow), exp));
+      std::bind2nd (std::ptr_fun<double, double, double> (std::pow), exp));
 }
 
 
 
-template <typename T>
-void operator^=(std::vector<T>& v, int iexp)
+template <typename T> void
+operator^=(std::vector<T>& v, int iexp)
 {
   std::transform (v.begin(), v.end(), v.begin(),
-      std::bind2nd (ptr_fun<double, int, double> (std::pow), iexp));
+      std::bind2nd (std::ptr_fun<double, int, double> (std::pow), iexp));
 }
 
 
 
-template <typename T> 
-std::ostream& operator << (std::ostream& os, const vector<T>& v)
+template <typename T> std::ostream&
+operator<< (std::ostream& os, const std::vector<T>& v)
 {
   os << "[" ;
   os << Util::elementsToString (v, ", ");
@@ -383,40 +399,33 @@ std::ostream& operator << (std::ostream& os, const vector<T>& v)
 }
 
 
-namespace FuncObject {
+namespace FuncObj {
 
 template<typename T>
-struct max : public std::binary_function<T, T, T>
-{
-  T operator() (const T& x, const T& y) const
-  {
+struct max : public std::binary_function<T, T, T> {
+  T operator() (const T& x, const T& y) const {
     return x < y ? y : x;
-  }
-};
+}};
 
 
 
 template <typename T>
-struct abs_diff : public std::binary_function<T, T, T>
-{
-  T operator() (const T& x, const T& y) const
-  {
+struct abs_diff : public std::binary_function<T, T, T> {
+  T operator() (const T& x, const T& y) const {
     return std::abs (x - y);
-  }
-};
+}};
 
 
 
 template <typename T>
-struct abs_diff_exp : public std::binary_function<T, T, T>
-{
-  T operator() (const T& x, const T& y) const
-  {
+struct abs_diff_exp : public std::binary_function<T, T, T> {
+  T operator() (const T& x, const T& y) const {
     return std::abs (std::exp (x) - std::exp (y));
-  }
-};
+}};
 
-}
+}  // namespace FuncObj
 
-#endif // HORUS_UTIL_H
+}  // namespace Horus
+
+#endif  // YAP_PACKAGES_CLPBN_HORUS_UTIL_H_
 

@@ -1,3 +1,14 @@
+/**
+  * @file   pl/swi.yap
+  * @author VITOR SANTOS COSTA <vsc@VITORs-MBP-2.lan>
+  * @date   Thu Oct 19 12:18:05 2017
+  * 
+  * @brief  SWI Emulation support
+  *
+  * @ingroup dialects
+  * 
+  * 
+*/
 :- module('$swi',
 	  []).
 
@@ -71,6 +82,14 @@ ensure_slash(Dir0, Dir) :-
 	atom_concat(Dir0, /, Dir).
 
 
+/** @pred reverse(+ _List_, ? _Reversed_) 
+
+
+True when  _List_ and  _Reversed_ are lists with the same elements
+but in opposite orders. 
+
+ 
+*/
 reverse(List, Reversed) :-
 	reverse(List, [], Reversed).
 
@@ -79,3 +98,17 @@ reverse([Head|Tail], Sofar, Reversed) :-
 	reverse(Tail, [Head|Sofar], Reversed).
 
 
+%%      win_add_dll_directory(+AbsDir) is det.
+%
+%       Add AbsDir to the directories where  dependent DLLs are searched
+%       on Windows systems.
+
+:- if(current_prolog_flag(windows, true)).
+prolog:win_add_dll_directory(Dir) :-
+        win_add_dll_directory(Dir, _), !.
+prolog:win_add_dll_directory(Dir) :-
+        prolog_to_os_filename(Dir, OSDir),
+        getenv('PATH', Path0),
+        atomic_list_concat([Path0, OSDir], ';', Path),
+        setenv('PATH', Path).
+:- endif.

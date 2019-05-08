@@ -14,40 +14,72 @@
 * comments:	protecting the system functions				 *
 *									 *
 *************************************************************************/
+/**
+ * @file protect.yap
+*/
 
-% This protects all code from further changes
-% and also makes it impossible from some predicates to be seen
-'$protect' :-
-	current_atom(Name),
-	atom_codes(Name,[0'$|_]),
-	'$hide_predicates'(Name),
-	'$hide'(Name).
-'$protect' :-
-	'$hide_predicates'(bootstrap),
-	'$hide'(bootstrap).
-'$protect'.
+:- system_module( '$_protect', [], ['$protect'/0]).
 
-'$hide_predicates'(Name) :-
-	'$current_predicate_for_atom'(Name, prolog, Ar),
-	functor(P, Name, Ar),
-	'$hide_predicate'(P,prolog),
-	fail.
-'$hide_predicates'(_).
+/**
+ *  * @addtogroup ProtectCore Freeze System Configuration
+ * @{
+ * @ingroup YAPControl
+ *
+ * This protects current code from further changes
+ *  and also makes it impossible for some predicates to be seen
+ * in user-space.
+ *
+ * Algorithm:
+ *  - fix system modules
+ *  - fix system predicates
+ *  - hide atoms with `$`
+ */
+
+
+prolog:'$protect' :-
+    '$all_current_modules'(M),
+    ( sub_atom(M,0,1,_, '$') ; M= prolog; M= system ),
+    new_system_module( M ),
+    fail.
+prolog:'$protect' :-
+	'$current_predicate'(Name,M,P,_),
+    '$is_system_module'(M),
+    functor(P,Name,Arity),
+    '$new_system_predicate'(Name,Arity,M),
+    sub_atom(Name,0,1,_, '$'),
+    functor(P,Name,Arity),
+    '$hide_predicate'(P,M),
+    fail.
+prolog:'$protect' :-
+    current_atom(Name),
+	sub_atom(Name,0,1,_, '$'),
+    \+ '$visible'(Name),
+    hide_atom(Name),
+    fail.
+prolog:'$protect'.
+
 
 % hide all atoms who start by '$'
-'$hide'('$VAR') :- !, fail.			/* not $VAR */
-'$hide'('$dbref') :- !, fail.			/* not stream position */
-'$hide'('$stream') :- !, fail.			/* not $STREAM */
-'$hide'('$stream_position') :- !, fail.		/* not stream position */
-'$hide'('$hacks') :- !, fail.			
-'$hide'('$source_location') :- !, fail.			
-'$hide'('$messages') :- !, fail.		
-'$hide'('$push_input_context') :- !, fail.		
-'$hide'('$pop_input_context') :- !, fail.		
-'$hide'('$set_source_module') :- !, fail.		
-'$hide'('$declare_module') :- !, fail.		
-'$hide'('$store_clause') :- !, fail.		
-'$hide'('$skip_list') :- !, fail.		
-'$hide'('$win_insert_menu_item') :- !, fail.		
-'$hide'(Name) :- hide(Name), fail.
+'$visible'('$').			/* not $VAR */
+'$visible'('$VAR').			/* not $VAR */
+'$visible'('$dbref').			/* not stream position */
+'$visible'('$stream').			/* not $STREAM */
+'$visible'('$stream_position').		/* not stream position */
+'$visible'('$hacks').
+'$visible'('$source_location').
+'$visible'('$messages').
+'$visible'('$push_input_context').
+'$visible'('$pop_input_context').
+'$visible'('$set_source_module').
+'$visible'('$declare_module').
+'$visible'('$store_clause').
+'$visible'('$skip_list').
+'$visible'('$win_insert_menu_item').
+'$visible'('$set_predicate_attribute').
+'$visible'('$parse_quasi_quotations').
+'$visible'('$quasi_quotation').
+'$visible'('$qq_open').
+'$visible'('$live').
+'$visible'('$init_prolog').
 
+%% @}

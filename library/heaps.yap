@@ -1,18 +1,59 @@
-% This file has been included as an YAP library by Vitor Santos Costa, 1999
+/**
+ * @file   heaps.yap
+ * @author R.A.O'Keefe,  included as an YAP library by Vitor Santos Costa, 1999.
+ * @date   29 November 1983
+ * 
+ * @brief  Implement heaps in Prolog.
+ * 
+ * 
+*/
 
-%   File   : HEAPS.PL
-%   Author : R.A.O'Keefe
-%   Updated: 29 November 1983
-%   Purpose: Implement heaps in Prolog.
+:- module(heaps,[
+                 add_to_heap/4, %   Heap x Key x Datum -> Heap
+                 get_from_heap/4, %   Heap -> Key x Datum x Heap
+                 empty_heap/1,    %   Heap
+                 heap_size/2,     %   Heap -> Size
+                 heap_to_list/2,  %   Heap -> List
+                 list_to_heap/2,  %   List -> Heap
+                 min_of_heap/3,   %   Heap -> Key x Datum
+                 min_of_heap/5 %   Heap -> (Key x Datum) x (Key x Datum)
+        	]).
 
-/*  A heap is a labelled binary tree where the key of each node is less
-    than or equal to the keys of its sons.  The point of a heap is that
-    we can keep on adding new elements to the heap and we can keep on
-    taking out the minimum element.  If there are N elements total, the
-    total time is O(NlgN).  If you know all the elements in advance, you
-    are better off doing a merge-sort, but this file is for when you
-    want to do say a best-first search, and have no idea when you start
-    how many elements there will be, let alone what they are.
+
+/** @defgroup heaps Heaps
+@ingroup library
+@{
+
+A heap is a labelled binary tree where the key of each node is less than
+or equal to the keys of its sons.  The point of a heap is that we can
+keep on adding new elements to the heap and we can keep on taking out
+the minimum element.  If there are N elements total, the total time is
+O(NlgN).  If you know all the elements in advance, you are better off
+doing a merge-sort, but this file is for when you want to do say a
+best-first search, and have no idea when you start how many elements
+there will be, let alone what they are.
+
+The following heap manipulation routines are available once included
+with the `use_module(library(heaps))` command. 
+
+  - add_to_heap/4
+  - empty_heap/1
+  - get_from_heap/4
+  - heap_size/2
+  - heap_to_list/2
+  - list_to_heap/2
+  - min_of_heap/3
+  - min_of_heap/5
+
+
+A heap is a labelled binary tree where the key of each node is less
+ than or equal to the keys of its sons.  The point of a heap is that
+ we can keep on adding new elements to the heap and we can keep on
+ taking out the minimum element.  If there are N elements total, the
+ total time is O(NlgN).  If you know all the elements in advance, you
+ are better off doing a merge-sort, but this file is for when you want
+ to do say a best-first search, and have no idea when you start how
+ many elements there will be, let alone what they are.
 
     A heap is represented as a triple t(N, Free, Tree) where N is the
     number of elements in the tree, Free is a list of integers which
@@ -40,17 +81,6 @@
 
 */
 
-:- module(heaps,[
-	add_to_heap/4,		%   Heap x Key x Datum -> Heap
-	get_from_heap/4,	%   Heap -> Key x Datum x Heap
-	empty_heap/1,           %   Heap
-	heap_size/2,		%   Heap -> Size
-	heap_to_list/2,		%   Heap -> List
-	list_to_heap/2,		%   List -> Heap
-	min_of_heap/3,		%   Heap -> Key x Datum
-	min_of_heap/5		%   Heap -> (Key x Datum) x (Key x Datum)
-    ]).
-
 /*
 :- mode
 	add_to_heap(+, +, +, -),
@@ -71,7 +101,8 @@
 */
 
 
-%   add_to_heap(OldHeap, Key, Datum, NewHeap)
+%% @pred   add_to_heap(OldHeap, Key, Datum, NewHeap)
+%
 %   inserts the new Key-Datum pair into the heap.  The insertion is
 %   not stable, that is, if you insert several pairs with the same
 %   Key it is not defined which of them will come out first, and it
@@ -115,7 +146,8 @@ sort2(Key1, Datum1, Key2, Datum2, Key2, Datum2, Key1, Datum1).
 
 
 
-%   get_from_heap(OldHeap, Key, Datum, NewHeap)
+%% @pred   @pred get_from_heap(+ _Heap_,- _key_,- _Datum_,- _Heap_)
+%
 %   returns the Key-Datum pair in OldHeap with the smallest Key, and
 %   also a New Heap which is the Old Heap with that pair deleted.
 %   The easy part is picking off the smallest element.  The hard part
@@ -147,14 +179,16 @@ repair_heap(t, t, t, 1) :- !.
 
 
 
-%   heap_size(Heap, Size)
+%% @pred   heap_size(+ _Heap_, - _Size_) 
+%
 %   reports the number of elements currently in the heap.
 
 heap_size(t(Size,_,_), Size).
 
 
 
-%   heap_to_list(Heap, List)
+%% @pred   heap_to_list(+ _Heap_, - _List_)
+%
 %   returns the current set of Key-Datum pairs in the Heap as a
 %   List, sorted into ascending order of Keys.  This is included
 %   simply because I think every data structure foo ought to have
@@ -186,7 +220,8 @@ heap_tree_to_list(T, [], T).
 
 
 
-%   list_to_heap(List, Heap)
+%% @pred   list_to_heap(+ _List_, - _Heap_)
+%
 %   takes a list of Key-Datum pairs (such as keysort could be used to
 %   sort) and forms them into a heap.  We could do that a wee bit
 %   faster by keysorting the list and building the tree directly, but
@@ -206,19 +241,27 @@ list_to_heap([Key-Datum|Rest], M, OldTree, Heap) :-
 
 
 
-%   min_of_heap(Heap, Key, Datum)
+%% @pred   min_of_heap(Heap, Key, Datum)
+%
 %   returns the Key-Datum pair at the top of the heap (which is of
 %   course the pair with the smallest Key), but does not remove it
 %   from the heap.  It fails if the heap is empty.
 
-%   min_of_heap(Heap, Key1, Datum1, Key2, Datum2)
-%   returns the smallest (Key1) and second smallest (Key2) pairs in
-%   the heap, without deleting them.  It fails if the heap does not
-%   have at least two elements.
 
+/** @pred min_of_heap(+ _Heap_,  - _Key_,  - _Datum_) 
+
+
+Returns the Key-Datum pair at the top of the heap (which is of course
+the pair with the smallest Key), but does not remove it from the heap.
+*/
 min_of_heap(t(_,_,t(Key,Datum,_,_)), Key, Datum).
 
 
+%% @pred   @pred min_of_heap(+ _Heap_,  - _Key1_,  - _Datum1_, -_Key2_,  - _Datum2_)
+%
+%   returns the smallest (Key1) and second smallest (Key2) pairs in
+%   the heap, without deleting them.  It fails if the heap does not
+%   have at least two elements.
 min_of_heap(t(_,_,t(Key1,Datum1,Lson,Rson)), Key1, Datum1, Key2, Datum2) :-
 	min_of_heap(Lson, Rson, Key2, Datum2).
 
@@ -228,6 +271,13 @@ min_of_heap(t(Ka,_Da,_,_), t(Kb,Db,_,_), Kb, Db) :-
 min_of_heap(t(Ka,Da,_,_), _, Ka, Da).
 min_of_heap(t, t(Kb,Db,_,_), Kb, Db).
 
+/** @pred empty_heap(? _Heap_) 
+
+
+Succeeds if  _Heap_ is an empty heap.
+*/
 empty_heap(t(0,[],t)).
 
+
+/** @} */
 

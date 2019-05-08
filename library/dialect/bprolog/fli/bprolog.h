@@ -12,8 +12,8 @@ typedef YAP_Int BPLONG;
 typedef YAP_UInt BPULONG;
 typedef BPLONG *BPLONG_PTR;
 
-#define BP_TRUE TRUE
-#define BP_FALSE FALSE
+#define BP_TRUE 1
+#define BP_FALSE 0
 
 //extern TERM bp_get_call_arg(int i, int arity);
 #define bp_get_call_arg( i,  arity) YAP_A(i)
@@ -119,19 +119,19 @@ bp_get_arity(TERM t)
 // TERM bp_insert_pred(char *name, int arity, int (*func)())
 #define bp_insert_pred(name, arity, func) YAP_UserCPredicate(name, func, arity)
 
-extern inline int bp_call_string(const char *goal) INLINE_ONLY;
-extern inline int bp_call_term(TERM t) INLINE_ONLY;
-extern inline int bp_next_solution(void) INLINE_ONLY;
-extern inline int bp_mount_query_term(TERM goal) INLINE_ONLY;
+INLINE_ONLY int bp_call_string(const char *goal);
+INLINE_ONLY int bp_call_term(TERM t);
+INLINE_ONLY int bp_next_solution(void);
+INLINE_ONLY int bp_mount_query_term(TERM goal);
 
 // int bp_call_string(char *goal)
-extern inline int
+INLINE_ONLY int
 bp_call_string(const char *goal) {
   return YAP_RunGoal(YAP_ReadBuffer(goal, NULL));
 }
 
 // int bp_call_term(TERM goal)
-extern inline int
+INLINE_ONLY int
 bp_call_term(TERM t) {
   return YAP_RunGoal(t);
 }
@@ -151,7 +151,7 @@ extern YAP_Term YAP_BPROLOG_curr_toam_status;
 extern YAP_Int YAP_BPROLOG_exception;
 
 // TERM bp_next_solution()
-extern inline int bp_next_solution(void) 
+INLINE_ONLY int bp_next_solution(void)
 {
   if (curr_toam_status) {
     TERM goal = curr_toam_status;
@@ -165,11 +165,11 @@ extern inline int bp_next_solution(void)
 #define bp_mount_query_string(goal) (curr_toam_status = YAP_ReadBuffer(goal, NULL))
 
 // void bp_mount_query_term(TERM goal)
-extern inline int
+INLINE_ONLY int
 bp_mount_query_term(TERM goal)
 {
   curr_toam_status = goal;
-  return TRUE;
+  return BP_TRUE;
 }
 
 #endif /* BPROLOG_H */

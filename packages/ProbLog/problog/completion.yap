@@ -243,7 +243,7 @@ reset_completion :-
 propagate_evidence(_,_) :-
 	\+ current_predicate(user:known/3),
 	!,
-	throw(error(system_error,'The predicate user:known/3 is not defined. If you really have empty interpretations declare the user:known/3 as dynamic and come back.')).
+	throw(error(system,'The predicate user:known/3 is not defined. If you really have empty interpretations declare the user:known/3 as dynamic and come back.')).
 
 
 propagate_evidence(InterpretationID,Query_Type) :-
@@ -291,7 +291,7 @@ propagate_evidence(InterpretationID,Query_Type) :-
         % iterate over all evidence atoms
 	forall(user:known(InterpretationID,Atom,Value),
 	       (
-		grounder_compute_reachable_atoms(Atom,InterpretationID,Success),
+		catch( grounder_compute_reachable_atoms(Atom,InterpretationID,Success), _, fail),
 		(
 		    (Success==true; Value==false)
 		->
@@ -385,7 +385,6 @@ propagate_evidence(InterpretationID,Query_Type) :-
 print_script_per_cluster([],_,_,Seen_Atoms,Seen_Atoms,Cluster_IDs,Cluster_IDs).
 print_script_per_cluster([Refs|T],InterpretationID,Cluster_ID,Old_Seen_Atoms,Seen_Atoms,Old_Cluster_IDs,Cluster_IDs) :-
 	create_bdd_file_name(InterpretationID,Cluster_ID,File_Name),
-	%trace,
 	once(print_simplecudd_script(Refs,File_Name,This_Seen_Atoms)),
 	New_Seen_Atoms is Old_Seen_Atoms+This_Seen_Atoms,
 	Next_Cluster_ID is Cluster_ID+1,

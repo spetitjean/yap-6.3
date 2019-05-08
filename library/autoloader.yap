@@ -1,4 +1,7 @@
+/**
+ * @file autoloader.yap
 
+ */
 :- module(autoloader,[make_library_index/0]).
 
 :- use_module(library(lists),[append/3]).
@@ -10,7 +13,7 @@ make_library_index :-
 	scan_swi_exports.
 
 scan_library_exports :-
-	% init table file.
+				% init table file.
 	open('INDEX.pl', write, W),
 	close(W),
 	scan_exports('../GPL/aggregate', library(aggregate)),
@@ -60,7 +63,7 @@ scan_exports(Library, CallName) :-
 	close(W).
 scan_exports(Library) :-
 	format(user_error,'[ warning: library ~w not defined ]~n',[Library]).
-	
+
 %
 % SWI is the only language that uses autoload.
 %
@@ -74,7 +77,7 @@ scan_swi_exports :-
 	open(Path, read, O),
 	get_exports(O, Exports, Module),
 	get_reexports(O, Reexports, Exports),
-	close(O),	
+	close(O),
 	open('dialect/swi/INDEX.pl', write, W),
 	publish_exports(Reexports, W, library(dialect/swi), Module),
 	close(W).
@@ -102,15 +105,21 @@ publish_exports([op(_,_,_)|Exports], W, Path, Module) :-
 	publish_exports(Exports, W, Path, Module).
 
 publish_export(F, A, _, _, Module) :-
-	exported(F, A, M), !,
+	exported(F, A, M), M \= Module, !,
 	format(user_error,'[ warning: clash between ~a and ~a over ~a/~d ]~n',[Module,M,F,A]).
 publish_export(F, A, W, Path, Module) :-
 	assert(exported(F, A, Module)), !,
 	portray_clause(W, index(F, A, Module, Path)).
 
 find_predicate(G,ExportingModI) :-
+	nonvar(G), !,
 	functor(G, Name, Arity),
 	index(Name,Arity,ExportingModI,File),
+	ensure_file_loaded(File).
+find_predicate(G,ExportingModI) :-
+        var(G),
+	index(Name,Arity,ExportingModI,File),
+	functor(G, Name, Arity),
 	ensure_file_loaded(File).
 
 ensure_file_loaded(File) :-
@@ -118,4 +127,3 @@ ensure_file_loaded(File) :-
 ensure_file_loaded(File) :-
 	load_files(autoloader:File,[silent(true),if(not_loaded)]),
 	assert(loaded(File)).
-

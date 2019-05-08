@@ -1,12 +1,11 @@
-#include <algorithm>
 #include <sstream>
 
 #include "Var.h"
 
-using namespace std;
 
+namespace Horus {
 
-unordered_map<VarId, VarInfo> Var::varsInfo_;
+std::unordered_map<VarId, Var::VarInfo> Var::varsInfo_;
 
 
 Var::Var (const Var* v)
@@ -14,7 +13,7 @@ Var::Var (const Var* v)
   varId_    = v->varId();
   range_    = v->range();
   evidence_ = v->getEvidence();
-  index_    = std::numeric_limits<unsigned>::max();
+  index_    = Util::maxUnsigned();
 }
 
 
@@ -26,7 +25,7 @@ Var::Var (VarId varId, unsigned range, int evidence)
   varId_    = varId;
   range_    = range;
   evidence_ = evidence;
-  index_    = std::numeric_limits<unsigned>::max();
+  index_    = Util::maxUnsigned();
 }
 
 
@@ -39,46 +38,23 @@ Var::isValidState (int stateIndex)
 
 
 
-bool
-Var::isValidState (const string& stateName)
-{
-  States states = Var::getVarInfo (varId_).states;
-  return Util::contains (states, stateName);
-}
-
-
-
 void
-Var::setEvidence (int ev) 
+Var::setEvidence (int evidence)
 {
-  assert (ev < (int) range_);
-  evidence_ = ev;
+  assert (evidence < (int) range_);
+  evidence_ = evidence;
 }
 
 
 
-void
-Var::setEvidence (const string& ev) 
-{ 
-  States states = Var::getVarInfo (varId_).states;
-  for (size_t i = 0; i < states.size(); i++) {
-    if (states[i] == ev) {
-      evidence_ = i;
-      return;
-    }
-  }
-  assert (false);
-}
-
-
-
-string
-Var::label (void) const
+std::string
+Var::label() const
 {
   if (Var::varsHaveInfo()) {
-    return Var::getVarInfo (varId_).label;
+    assert (Util::contains (varsInfo_, varId_));
+    return varsInfo_.find (varId_)->second.first;
   }
-  stringstream ss;
+  std::stringstream ss;
   ss << "x" << varId_;
   return ss.str();
 }
@@ -86,17 +62,46 @@ Var::label (void) const
 
 
 States
-Var::states (void) const
+Var::states() const
 {
   if (Var::varsHaveInfo()) {
-    return Var::getVarInfo (varId_).states;
+    assert (Util::contains (varsInfo_, varId_));
+    return varsInfo_.find (varId_)->second.second;
   }
   States states;
   for (unsigned i = 0; i < range_; i++) {
-    stringstream ss;
+    std::stringstream ss;
     ss << i ;
     states.push_back (ss.str());
   }
   return states;
 }
+
+
+
+void
+Var::addVarInfo (
+    VarId vid, std::string label, const States& states)
+{
+  assert (Util::contains (varsInfo_, vid) == false);
+  varsInfo_.insert (std::make_pair (vid, VarInfo (label, states)));
+}
+
+
+
+bool
+Var::varsHaveInfo()
+{
+  return varsInfo_.empty() == false;
+}
+
+
+
+void
+Var::clearVarsInfo()
+{
+  varsInfo_.clear();
+}
+
+}  // namespace Horus
 

@@ -1,8 +1,8 @@
-/*************************************************************************
+/**********************************************************************a***
 *									 *
-*	 YAP Prolog 							 *
+  *	 YAP Prolog 							 *
 *									 *
-*	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
+  *	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
 *									 *
 * Copyright L.Damas, V.S.Costa and Universidade do Porto 1985-1997	 *
 *									 *
@@ -11,241 +11,234 @@
 * File:		debug.pl						 *
 * Last rev:								 *
 * mods:									 *
-* comments:	YAP's debugger						 *
+* comments:	YAP debugger						 *
 *									 *
 *************************************************************************/
 
-/*-----------------------------------------------------------------------------
 
-			Debugging / creating spy points
-
------------------------------------------------------------------------------*/
-
-:- op(900,fx,[spy,nospy]).
+:- system_module( '$_debug', [], ['$trace_query'/4,
+        '$init_debugger'/0,
+        '$skipeol'/1]).
 
 
-% First part : setting and reseting spy points
 
-% $suspy does most of the work
-'$suspy'(V,S,M) :- var(V) , !,
-	'$do_error'(instantiation_error,M:spy(V,S)).
-'$suspy'((M:S),P,_) :- !,
-    '$suspy'(S,P,M).
-'$suspy'([],_,_) :- !.
-'$suspy'([F|L],S,M) :- !, ( '$suspy'(F,S,M) ; '$suspy'(L,S,M) ).
-'$suspy'(F/N,S,M) :- !,
-	functor(T,F,N),
-	'$do_suspy'(S, F, N, T, M).
-'$suspy'(A,S,M) :- atom(A), !,
-	'$suspy_predicates_by_name'(A,S,M).
-'$suspy'(P,spy,M) :- !,
-	 '$do_error'(domain_error(predicate_spec,P),spy(M:P)).
-'$suspy'(P,nospy,M) :-
-	 '$do_error'(domain_error(predicate_spec,P),nospy(M:P)).
+/**
+  @defgroup Deb_Interaction Interacting with the debugger
+@{
+  @ingroup YAPProgramming
 
-'$suspy_predicates_by_name'(A,S,M) :-
-	% just check one such predicate exists
-	(
-	  current_predicate(A,M:_)
-	->
-	 M = EM,
-	 A = NA
-	;
-	 recorded('$import','$import'(EM,M,GA,_,A,_),_),
-	 functor(GA,NA,_)
-	),
-	!,
-	'$do_suspy_predicates_by_name'(NA,S,EM).
-'$suspy_predicates_by_name'(A,spy,M) :- !,
-	print_message(warning,no_match(spy(M:A))).
-'$suspy_predicates_by_name'(A,nospy,M) :-
-	print_message(warning,no_match(nospy(M:A))).
-	
-'$do_suspy_predicates_by_name'(A,S,M) :-
-	current_predicate(A,M:T),
-	functor(T,A,N),
-	'$do_suspy'(S, A, N, T, M).
-'$do_suspy_predicates_by_name'(A, S, M) :-
-	recorded('$import','$import'(EM,M,T0,_,A,N),_),
-	functor(T0,A0,N0),
-	'$do_suspy'(S, A0, N0, T, EM).
+Debugging with YAP is similar to debugging with C-Prolog. Both systems
+include a procedural debugger, based on Byrd's four port model. In this
+model, execution is seen at the procedure level: each activation of a
+procedure is seen as a box with control flowing into and out of that
+box.
+
+In the four port model control is caught at four key points: before
+entering the procedure, after exiting the procedure (meaning successful
+evaluation of all queries activated by the procedure), after backtracking but
+before trying new alternative to the procedure and after failing the
+procedure. Each one of these points is named a port:
+
+~~~~~
+           *--------------------------------------*
+   Call    |                                      |    Exit
+---------> +  descendant(X,Y) :- offspring(X,Y).  + --------->
+           |                                      |
+           |  descendant(X,Z) :-                  |
+<--------- +     offspring(X,Y), descendant(Y,Z). + <---------
+   Fail    |                                      |    Redo
+           *--------------------------------------*
+~~~~~
 
 
-%
-% protect against evil arguments.
-%
-'$do_suspy'(S, F, N, T, M) :-
-	recorded('$import','$import'(EM,M,T0,_,F,N),_), !,
-	functor(T0, F0, N0),
-	'$do_suspy'(S, F0, N0, T, EM).
-'$do_suspy'(S, F, N, T, M) :-
-	 '$undefined'(T,M), !,
-	 ( S = spy ->
-	     print_message(warning,no_match(spy(M:F/N)))
-	 ;
-	     print_message(warning,no_match(nospy(M:F/N)))
-	 ).
-'$do_suspy'(S, F, N, T, M) :-
-	 '$system_predicate'(T,M),
-	'$flags'(T,M,F,F),
-	F /\ 0x118dd080 =\= 0,
-	 ( S = spy ->
-	     '$do_error'(permission_error(access,private_procedure,T),spy(M:F/N))
-	 ;
-	     '$do_error'(permission_error(access,private_procedure,T),nospy(M:F/N))
-	 ).
-'$do_suspy'(S, F, N, T, M) :-
-	 '$undefined'(T,M), !,
-	 ( S = spy ->
-	     print_message(warning,no_match(spy(M:F/N)))
-	 ;
-	     print_message(warning,no_match(nospy(M:F/N)))
-	 ).
-'$do_suspy'(S,F,N,T,M) :-
-	'$suspy2'(S,F,N,T,M).
 
-'$suspy2'(spy,F,N,T,M) :- 
-	recorded('$spy','$spy'(T,M),_), !,
-	print_message(informational,breakp(bp(debugger,plain,M:T,M:F/N,N),add,already)).
-'$suspy2'(spy,F,N,T,M) :- !,
-	recorda('$spy','$spy'(T,M),_), 
-	'$set_spy'(T,M),
-	print_message(informational,breakp(bp(debugger,plain,M:T,M:F/N,N),add,ok)).
-'$suspy2'(nospy,F,N,T,M) :- 
-	recorded('$spy','$spy'(T,M),R), !,
-	erase(R),
-	'$rm_spy'(T,M),
-	print_message(informational,breakp(bp(debugger,plain,M:T,M:F/N,N),remove,last)).
-'$suspy2'(nospy,F,N,_,M) :-
-	print_message(informational,breakp(no,breakpoint_for,M:F/N)).
++ `Call`
 
-'$pred_being_spied'(G, M) :-
-	recorded('$spy','$spy'(G,M),_), !.
+    The call port is activated before initial invocation of
+procedure. Afterwards, execution will try to match the goal with the
+head of existing clauses for the procedure.
 
-spy Spec :-
-	'$notrace'(prolog:debug_action_hook(spy(Spec))), !.
-spy L :-
-	'$current_module'(M),
-	'$suspy'(L, spy, M), fail.
-spy _ :- debug.
++ `Exit`
 
-nospy Spec :-
-	'$notrace'(prolog:debug_action_hook(nospy(Spec))), !.
-nospy L :-
-	'$current_module'(M),
-	'$suspy'(L, nospy, M), fail.
-nospy _.
+    This port is activated if the procedure succeeds.
+Control will  now leave the procedure and return to its ancestor.
 
-nospyall :-
-	'$notrace'(prolog:debug_action_hook(nospyall)), !.
-nospyall :-
-	recorded('$spy','$spy'(T,M),_), functor(T,F,N), '$suspy'(F/N,nospy,M), fail.
-nospyall.
++ `Redo`
 
-% debug mode -> debug flag = 1
+    If the goal, or goals, activated after the call port
+fail  then backtracking will eventually return control to this procedure
+through  the redo port.
 
-debug :-
-	( nb_getval('$spy_gn',L) -> true ; nb_setval('$spy_gn',1) ),
-	'$start_debugging'(on),
-	print_message(informational,debug(debug)).
++ `Fail`
 
-'$start_debugging'(Mode) :-
-	(Mode == on ->
-	 '$debug_on'(true)
-	;
-	 '$debug_on'(false)
-	),
-	nb_setval('$debug_run',off),
-	nb_setval('$debug_jump',false).
-	
-nodebug :-
-	'$debug_on'(false),
-	nb_setval('$trace',off),
-	print_message(informational,debug(off)).
-
- %
- % remove any debugging info after an abort.
- %
-	
-trace :- 
-	nb_getval('$trace',on), !.
-trace :-
-	nb_setval('$trace',on),
-	'$start_debugging'(on),
-	print_message(informational,debug(trace)),
-	'$creep'.
-
-notrace :-
-	nodebug.
-
-/*-----------------------------------------------------------------------------
-
-				leash
-
------------------------------------------------------------------------------*/
+    If all clauses for this predicate fail, then the
+invocation fails,  and control will try to redo the ancestor of this
+invocation.
 
 
-leash(X) :- var(X),
-	'$do_error'(instantiation_error,leash(X)).
-leash(X) :-
-	'$leashcode'(X,Code),
-	set_value('$leash',Code),
-	'$show_leash'(informational,Code), !.
-leash(X) :-
-	'$do_error'(type_error(leash_mode,X),leash(X)).
+To start debugging, the user will either call `trace` or spy the
+relevant procedures, entering debug mode, and start execution of the
+program. When finding the first spy-point, YAP's debugger will take
+control and show a message of the form:
 
-'$show_leash'(Msg,0) :-
-	print_message(Msg,leash([])).
-'$show_leash'(Msg,Code) :-
-	'$check_leash_bit'(Code,0x8,L3,call,LF),
-	'$check_leash_bit'(Code,0x4,L2,exit,L3),
-	'$check_leash_bit'(Code,0x2,L1,redo,L2),
-	'$check_leash_bit'(Code,0x1,[],fail,L1),
-	print_message(Msg,leash(LF)).
+~~~~~
+* (1)  call:  quicksort([1,2,3],_38) ?
+~~~~~
 
-'$check_leash_bit'(Code,Bit,L0,_,L0) :- Bit /\ Code =:= 0, !.
-'$check_leash_bit'(_,_,L0,Name,[Name|L0]).
+The debugger message will be shown while creeping, or at spy-points,
+and it includes four or five fields:
 
-'$leashcode'(full,0xf) :- !.
-'$leashcode'(on,0xf) :- !.
-'$leashcode'(half,0xb) :- !.
-'$leashcode'(loose,0x8) :- !.
-'$leashcode'(off,0x0) :- !.
-'$leashcode'(none,0x0) :- !.
-%'$leashcode'([L|M],Code) :- !, '$leashcode_list'([L|M],Code).
-'$leashcode'([L|M],Code) :- !,
-	'$list2Code'([L|M],Code).
-'$leashcode'(N,N) :- integer(N), N >= 0, N =< 0xf.
-
-'$list2Code'(V,_) :- var(V), !,
-	'$do_error'(instantiation_error,leash(V)).
-'$list2Code'([],0) :- !.
-'$list2Code'([V|L],_) :- var(V), !,
-	'$do_error'(instantiation_error,leash([V|L])).
-'$list2Code'([call|L],N) :- '$list2Code'(L,N1), N is 0x8 + N1.
-'$list2Code'([exit|L],N) :- '$list2Code'(L,N1), N is 0x4 + N1.
-'$list2Code'([redo|L],N) :- '$list2Code'(L,N1), N is 0x2 + N1.
-'$list2Code'([fail|L],N) :- '$list2Code'(L,N1), N is 0x1 + N1.
-
-/*-----------------------------------------------------------------------------
-
-				debugging
-
------------------------------------------------------------------------------*/
++
+The first three characters are used to point out special states of the
+debugger. If the port is exit and the first character is '?', the
+current call is non-deterministic, that is, it still has alternatives to
+be tried. If the second character is a `\*`, execution is at a
+spy-point. If the third character is a `>`, execution has returned
+either from a skip, a fail or a redo command.
++
+The second field is the activation number, and uniquely identifies the
+activation. The number will start from 1 and will be incremented for
+each activation found by the debugger.
++
+In the third field, the debugger shows the active port.
++
+The fourth field is the goal. The goal is written by
+`write_term/3` on the standard error stream, using the options
+given by debugger_print_options.
 
 
-debugging :-
-	prolog:debug_action_hook(nospyall), !.
-debugging :-
-	( '$debug_on'(true) ->
-	    print_message(help,debug(debug))
-	    ;
-	    print_message(help,debug(off))
-	),
-	findall(M:(N/A),(recorded('$spy','$spy'(T,M),_),functor(T,N,A)),L),
-	print_message(help,breakpoints(L)),
-	get_value('$leash',Leash),
-	'$show_leash'(help,Leash).
+If the active port is leashed, the debugger will prompt the user with a
+`?`, and wait for a command. A debugger command is just a
+character, followed by a return. By default, only the call and redo
+entries are leashed, but the leash/1 predicate can be used in
+order to make the debugger stop where needed.
+
+There are several commands available, but the user only needs to
+remember the help command, which is `h`. This command shows all the
+available options, which are:
+
++ `c` - creep
+
+    this command makes YAP continue execution and stop at the next
+leashed port.
+
++ `return` - creep
+
+    the same as c
+
++ `l` - leap
+
+    YAP will execute until it meets a port for a spied predicate; this mode
+keeps all computation history for debugging purposes, so it is more
+expensive than standard execution. Use <tt>k</tt> or <tt>z</tt> for fast execution.
+
++ `k` - quasi-leap
+
+    similar to leap but faster since the computation history is
+not kept; useful when leap becomes too slow.
+
++ `z` - zip
+
+
+    same as <tt>k</tt>
++ `s` - skip
+
+    YAP will continue execution without showing any messages until
+returning to the current activation. Spy-points will be  ignored in this
+mode. Note that this command keeps all debugging history, use <tt>t</tt> for fast execution. This command is meaningless, and therefore illegal, in the fail
+and exit ports.
+
++ `t` - fast-skip
+
+    similar to skip but faster since computation history is not
+kept; useful if skip becomes slow.
+
++ `f [ _GoalId_]` - fail
+
+    If given no argument, forces YAP to fail the goal, skipping the fail
+port and backtracking to the parent.
+If <tt>f</tt> receives a goal number as
+the argument, the command fails all the way to the goal. If goal  _GoalId_ has completed execution, YAP fails until meeting the first active ancestor.
+
++ `r` [ _GoalId_] - retry
+
+    This command forces YAP to jump back call to the port. Note that any
+side effects of the goal cannot be undone. This command is not available
+at the call port.  If <tt>f</tt> receives a goal number as the argument, the
+command retries goal  _GoalId_ instead. If goal  _GoalId_ has
+completed execution, YAP fails until meeting the first active ancestor.
+
++ `a` - abort
+
+    execution will be aborted, and the interpreter will return to the
+top-level. YAP disactivates debug mode, but spypoints are not removed.
+
++ `n` - nodebug
+
+    stop debugging and continue execution. The command will not clear active
+§spy-points.
+
++ `e` - exit
+
+    leave YAP.
+
++ `h` - help
+
+    show the debugger commands.
+
++ `!` Query
+
+    execute a query. YAP will not show the result of the query.
+
++ `b` - break
+
+    break active execution and launch a break level. This is  the same as `!break`.
+
++ `+` - spy this goal
+
+    start spying the active goal. The same as `! spy  G` where  _G_
+is the active goal.
+
++ `-` - nospy this goal
+
+    stop spying the active goal. The same as `! nospy G` where  _G_ is
+the active goal.
+
++ `p` - print
+
+    shows the active goal using print/1
+
++ `d` - display
+
+    shows the active goal using display/1
+
++ `<Depth` - debugger write depth
+
+    sets the maximum write depth, both for composite terms and lists, that
+will be used by the debugger. For more
+information about `write_depth/2` ( (see Input/Output Control)).
+
++ `<` - full term
+
+    resets to the default of ten the debugger's maximum write depth. For
+more information about `write_depth/2` ( (see Input/Output Control)).
+
++ `A` - alternatives
+
+    show the list of backtrack points in the current execution.
+
++ `g [ _N_]`
+
+    show the list of ancestors in the current debugging environment. If it
+receives  _N_, show the first  _N_ ancestors.
+
+
+The debugging information, when fast-skip `quasi-leap` is used, will
+be lost.
+
+*/
+
+
 
 /*-----------------------------------------------------------------------------
 
@@ -253,123 +246,431 @@ debugging :-
 
 -----------------------------------------------------------------------------*/
 
-% ok, I may have a spy point for this goal, or not.
-%  if I do, I should check what mode I am in.
-% Goal/Mode          Have Spy     Not Spied
-% Creep                 Stop        Stop
-% Leap                  Stop        Create CP
-% Skip               Create CP     Create CP
-% FastLeap              Stop        Ignore
-% FastIgnore           Ignore       Ignore
-    
 
-%	flag		description		initial possible values
+ /**
+   * @defgroup DebImplementation Implementation of the Debugger
+   * @{
+   * @brief Prolog code to do debugging.
+   *
+   * The debugger is an interpreter. with main predicates:
+   * - $trace: this is the API
+   * - $trace_query: reduce a query to a goal
+   * - $trace_goal: execute:
+   *    + using the source, Luke
+   *    + hooking into the WAM procedure call mechanism
+   *    + asking Prolog to do it (system_library-builtins)
+   *
+   *	|flag	        | description	| initial | possible values
+   *    |   ----------------------------------------------------------------
+   *	| spy_gn	| last goal number 	| 1	| 1...
+   *	| spy_trace	| trace	 		| 0	| 0, 1
+   *	| spy_status	| step	 	 	| creep	| creep,leap,skip
+   *	| ...	|  	| stop at goal	 	| -1	| Integer >= 1
+   *	| ...	| 	| stop at spy-points	| stop	| stop,
+   *
+   *
+   *
+ */
 
-%	spy_gn		goal number		1	1...
-%	spy_trace	trace		0	0, 1
-%	spy_skip	leap			off	Num (stop level)
-%	debug_prompt	stop at spy points	on	on,off
-% a flip-flop is also used
-%	when 1 spying is enabled *(the same as spy stop).
 
 
-%'$spy'(G) :- write(user_error,'$spy'(G)), nl, fail.
-%
-% handle suspended goals
-% take care with hidden goals.
-%
-% $spy may be called from user code, so be careful.
+%'$trace'(G) :- write(user_error,'$spy'(G)), nl, fail.
+				%
+/**
+  * @pred $spy( +Goal )
+  *
+  *
+  * @param _Goal_ is the goal with a spy point
+  * @return `call(Goal)`
+*/
 '$spy'([Mod|G]) :-
-	'$debug_on'(F), F = false, !,
+	'$trace'([Mod|G]).
+
+/**
+  * @pred $trace( +Goal )
+  *
+  * This launches a goal from the debugger with the  call. It must:
+  *  - disable user interaction;
+  *  - verify whether debugging is still ok;
+  *  - enter the debugger core.
+  * The top gated_call should set up creeping for the next call.
+  *
+  * @param _Mod_:_Goal_ is the goal to be examined.
+  * @return `call(Goal)`
+*/
+'$trace'([Mod|G]) :-
+    '$stop_creeping'(_),
+	current_prolog_flag(debug, false),
+	!,
 	'$execute_nonstop'(G,Mod).
-'$spy'([Mod|G]) :-
-	nb_getval('$system_mode',on), !,
-	'$execute_nonstop'(G,Mod).
-'$spy'([Mod|G]) :-
-	CP is '$last_choice_pt',	
-	'$do_spy'(G, Mod, CP, no).
+'$trace'([Mod|G]) :-
+	CP is '$last_choice_pt',
+	    '$trace_query'(G, Mod, CP, G, EG),
+	gated_call(
+		   '$debugger_input',
+		   EG,
+	     E,
+		'$continue_debugging'(E)
+		  ).
 
-% last argument to do_spy says that we are at the end of a context. It
-% is required to know whether we are controlled by the debugger.
-'$do_spy'(V, M, CP, Flag) :- var(V), !, '$do_spy'(call(V), M, CP, Flag).
-'$do_spy'(!, _, CP, _) :- !, '$$cut_by'(CP).
-'$do_spy'('$cut_by'(M), _, _, _) :- !, '$$cut_by'(M).
-'$do_spy'(true, _, _, _) :- !.
-%'$do_spy'(fail, _, _, _) :- !, fail.
-'$do_spy'(M:G, _, CP, CalledFromDebugger) :- !,
-	'$do_spy'(G, M, CP, CalledFromDebugger).
-'$do_spy'((A,B), M, CP, CalledFromDebugger) :- !,
-	'$do_spy'(A, M, CP, yes),
-	'$do_spy'(B, M, CP, CalledFromDebugger).
-'$do_spy'((T->A;B), M, CP, CalledFromDebugger) :- !,
-	( '$do_spy'(T, M, CP, yes) -> '$do_spy'(A, M, CP, yes)
-	;
-	  '$do_spy'(B, M, CP, CalledFromDebugger)
-	).
-'$do_spy'((T->A|B), M, CP, CalledFromDebugger) :- !,
-	( '$do_spy'(T, M, CP, yes) -> 	'$do_spy'(A, M, CP, yes)
-	;
-	  '$do_spy'(B, M, CP, CalledFromDebugger)
-	).
-'$do_spy'((T->A), M, CP, _) :- !,
-	( '$do_spy'(T, M, CP, yes) -> '$do_spy'(A, M, CP, yes) ).
-'$do_spy'((A;B), M, CP, CalledFromDebugger) :- !,
+
+'$continue_debugging'(_) :- !,
+	current_prolog_flag(debug, false).
+'$continue_debugging'(exit) :- !, '$creep'.
+'$continue_debugging'(answer) :- !, '$creep'.
+'$continue_debugging'(fail) :- !, '$creep'.
+'$continue_debugging'(_).
+
+
+
+
+
+'$trace'([Mod|G], A1) :-
+	G =.. L,
+	lists:append( L, [A1], NL),
+	NG =.. NL,
+	'$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2) :-
+	G =.. L,
+	lists:append( L, [A1, A2], NL),
+	NG =.. NL,
+	'$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2, A3) :-
+    G =.. L,
+    lists:append( L, [A1, A2, A3], NL),
+    NG =.. NL,
+    '$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2, A3, A4) :-
+    G =.. L,
+    lists:append( L, [A1,A2,A3,A4], NL),
+    NG =.. NL,
+    '$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2, A3, A4, A5) :-
+    G =.. L,
+    lists:append( L, [A1, A2, A3, A4, A5], NL),
+    NG =.. NL,
+    '$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2, A3, A4, A5, A6) :-
+	G =.. L,
+	lists:append( L, [A1, A2, A3, A4, A5, A6], NL),
+	NG =.. NL,
+	'$trace'([Mod|NG]).
+
+'$trace'([Mod|G], A1, A2, A3, A4, A5, A6, A7) :-
+	G =.. L,
+	lists:append( L, [A1, A2, A3, A4, A5, A6, A7 ], NL),
+	NG =.. NL,
+	'$trace'([Mod|NG]).
+
+/**
+  * @pred debugger_input.
+  *
+  * set up the stream used for debugging,
+  * - must be interactive.
+  * - default is `user_input`, but /dev/tty and CONIN$ can be used directly if
+  *   user_input is bound to a file.
+  *
+*/
+'$debugger_input' :-
+	stream_property(_,alias(debugger_input)),
+	!.
+'$debugger_input' :-
+        S = user_input,
+        stream_property(S,tty(true)),
+    %    stream_property(S,input),
+	!,
+	set_stream(S,alias(debugger_input)).
+'$debugger_input' :-
+	current_prolog_flag(unix, true ), !,
+        open('/dev/tty', read, _S, [alias(debugger_input),bom(false)]).
+'$debugger_input' :-
+        current_prolog_flag(windows, true ), !,
+        open('CONIN$', read, _S, [alias(debugger_input),bom(false)]).
+
+
+'$trace_meta_call'( G, M, CP ) :-
+	'$trace_query'(G, M, CP, G, EG ),
+	call(EG).
+
+%% @pred '$trace_query'( +G, +M, +CP, +Expanded)
+%
+% debug a complex query
+%
+'$trace_query'(V, M, CP, _, '$trace'([M|V],CP)) :-
+	var(V), !.
+'$trace_query'(!, _, CP, _, '$$cut_by'(CP)) :-
+	!.
+'$trace_query'('$cut_by'(M), _, _, _, '$$cut_by'(M)) :-
+	!.
+'$trace_query'('$$cut_by'(M), _, _, _, '$$cut_by'(M)) :-
+	!.
+'$trace_query'(true, _, _, _, true) :- !.
+'$trace_query'(fail, _, _, _, '$trace'(fail)) :- !.
+'$trace_query'(M:G, _, CP,S, Expanded) :-
+        !,
+        '$yap_strip_module'(M:G, M0, G0),
+	'$trace_query'(G0, M0, CP,S, Expanded ).
+'$trace_query'((A,B), M, CP, S, (EA,EB)) :- !,
+	'$trace_query'(A, M, CP, S, EA),
+	'$trace_query'(B, M, CP, S, EB).
+'$trace_query'((A->B), M, CP, S, (EA->EB)) :- !,
+	'$trace_query'(A, M, CP, S, EA),
+	'$trace_query'(B, M, CP, S, EB).
+'$trace_query'((A;B), M, CP, S, (EA;EB)) :- !,
+	'$trace_query'(A, M, CP, S, EA),
+	'$trace_query'(B, M, CP, S, EB).
+'$trace_query'((A|B), M, CP, S, (EA|EB)) :- !,
+	'$trace_query'(A, M, CP, S, EA),
+	'$trace_query'(B, M, CP, S, EB).
+'$trace_query'((\+ A), M, CP, S, (\+ EA)) :- !,
+	'$trace_query'(A, M, CP, S, EA).
+'$trace_query'(G, M, _CP, _, (
+        % spy a literal
+	'$id_goal'(L),
+        catch(
+                '$trace_goal'(G, M, L, H),
+                E,
+                '$re_trace_query'(E, G, M, L, H)
+                ))).
+
+%% @pred $trace_goal( +Goal, +Module, +CallId, +CallInfo)
+%%
+%% Actuallb sy debugs a
+%% goal!
+'$trace_goal'(G, M, GoalNumber, _H) :-
 	(
-	  '$do_spy'(A, M, CP, yes)
+	 current_prolog_flag(debug, false)
 	;
-	  '$do_spy'(B, M, CP, CalledFromDebugger)
-	).
-'$do_spy'((A|B), M, CP, CalledFromDebugger) :- !,
-	(
-	  '$do_spy'(A, M, CP, yes)
+	 '__NB_getval__'('$debug_status',state(zip,Border,Spy), fail),
+	 Border < GoalNumber,
+	 ( Spy == ignore ; '$pred_being_spied'(G, M) )
+	),
+	%writeln(go:G:M),
+	!,
+	'$execute_nonstop'(G,M).
+'$trace_goal'(G, M, GoalNumber, H) :-
+	'$undefined'(G, M),
+	!,
+	'$get_undefined_pred'(G, M,  Goal, NM),
+	( ( M == NM ; NM == prolog), G == Goal
+	->
+	  yap_flag( unknown, Action ),
+	  '$undefp'([M|G], Action )
 	;
-	  '$do_spy'(B, M, CP, CalledFromDebugger)
+	 '$trace_goal'(Goal, NM, GoalNumber, H)
 	).
-'$do_spy'((\+G), M, CP, CalledFromDebugger) :- !,
-	\+ '$do_spy'(G, M, CP, CalledFromDebugger).
-'$do_spy'((not(G)), M, CP, CalledFromDebugger) :- !,
-	\+ '$do_spy'(G, M, CP, CalledFromDebugger).
-'$do_spy'(G, Module, _, CalledFromDebugger) :-
-        nb_getval('$spy_gn',L),		/* get goal no.			*/
-	L1 is L+1,			/* bump it			*/
-	nb_setval('$spy_gn',L1),	/* and save it globaly		*/
-        b_getval('$spy_glist',History),	/* get goal list		*/
-	b_setval('$spy_glist',[info(L,Module,G,_Retry,_Det,_HasFoundAnswers)|History]),	/* and update it		*/
-	'$loop_spy'(L, G, Module, CalledFromDebugger).	/* set creep on		*/
+% meta system
+'$trace_goal'(G, M, GoalNumber, H) :-
+        '$is_metapredicate'(G, prolog),
+        !,
+        '$debugger_expand_meta_call'(M:G, [], G1),
+	strip_module(G1, MF, NG),
+	gated_call(
+		   '$enter_trace'(GoalNumber, G, M, H),
+		   '$execute_nonstop'(NG,MF),
+		   Port,
+		   '$trace_port'(Port, GoalNumber, G, M, true, H)
+                  ).
+% system_
+'$trace_goal'(G, M, GoalNumber, H) :-
+	   (
+	    '$is_opaque_predicate'(G, M)
+	       ;
+	     'strip_module'(M:G, prolog, _NG)
+	   ),
+	!,
+	gated_call(
+		   '$enter_trace'(GoalNumber, G, M, H),
+		   '$execute_nonstop'(G,M),
+		   Port,
+		   '$trace_port'(Port, GoalNumber, G, M, true, H)
+                  ).
+'$trace_goal'(G, M, GoalNumber, H) :-
+	     gated_call(
+		          '$enter_trace'(GoalNumber, G, M, H),
+		          '$debug'( GoalNumber, G, M, H),
+		          Port,
+		          '$trace_port'(Port, GoalNumber, G, M, true, H)
+              ).
 
-% we are skipping, so we can just call the goal,
-% while leaving the minimal structure in place.
-'$loop_spy'(GoalNumber, G, Module, CalledFromDebugger) :-
-	yap_hacks:current_choice_point(CP),
-	'$system_catch'('$loop_spy2'(GoalNumber, G, Module, CalledFromDebugger, CP),
-		    Module, error(Event,Context),
-		    '$loop_spy_event'(error(Event,Context), GoalNumber, G, Module, CalledFromDebugger)).
 
-% handle weird things happening in the debugger.		    
-'$loop_spy_event'('$pass'(Event), _, _, _, _) :- !,
+/**
+ * @pred '$enter_trace'(+L, 0:G, +Module, +Info)
+ *
+ * call goal: prelims
+ *
+ * @parameter _Module_:_G_
+ * @parameter _L_ is the list of active goals
+ * @parameter _Info_ describes the goal
+ *
+ */
+'$enter_trace'(L, G, Module, Info) :-
+        /* get goal no.	*/
+        ( var(L) ->
+        '__NB_getval__'('$spy_gn',L,fail),
+        /* bump it			*/
+        L1 is L+1,
+        /* and save it globaly		*/
+        '__NB_setval__'('$spy_gn',L1)
+        ;
+        true
+        ),
+        /* get goal list		*/
+        '__NB_getval__'('$spy_glist',History,true),
+	H  = [Info|History],
+	Info = info(L,Module,G,_Retry,_Det,_HasFoundAnswers),
+	'__B_setval__'('$spy_glist',H),
+	/* and update it		*/
+	'$port'(call,G,Module,L,deterministic, Info).
+
+'$id_goal'(L) :-
+	var(L),
+        '__NB_getval__'('$spy_gn',L,fail),
+        /* bump it			*/
+        L1 is L+1,
+        /* and save it globaly		*/
+        '__NB_setval__'('$spy_gn',L1).
+
+/**
+ * @pred '$enter_trace'(+L, 0:G, +Module, +Info)
+ *
+ * call goal: setup the diferrent cases
+ *  - zip, just run through
+ *  - source, call an interpreter
+ *  - compiled code: try black magic.
+ *
+ * @parameter _Module_:_G_
+ * @parameter _GoalNumber_ identifies the active goal
+ * @parameter _Info_ describes the goal
+ *
+ */
+'$debug'(_, G, M, _H) :-
+        '__NB_getval__'('$debug_status',state(zip,_Border,_), fail),
+	!,
+	'$execute_nonstop'( G, M ).
+'$debug'(GoalNumber, G, M, Info) :-
+	'$is_source'(G,M),
+	!,
+	'$trace_go'(GoalNumber, G, M, Info).
+'$debug'(GoalNumber, G, M, Info) :-
+	'$creep_step'(GoalNumber, G, M, Info).
+
+
+/**
+ * @pred '$trace_go'(+L, 0:G, +Module, +Info)
+ *
+ * It needs to run in two separate steps:
+ *    1. Select a clause;
+ *    2. Debug it.
+ * We use a marker to track who we are in gated_call.
+ *
+ * @parameter _Module_:_G_
+ * @parameter _GoalNumber_ identifies the active goal
+ * @parameter _Info_ describes the goal
+ *
+ */
+'$trace_go'(GoalNumber, G, M, Info) :-
+		X=marker(_,M,G),
+        CP is '$last_choice_pt',
+        clause(M:G, Cl, _),
+		'$retry_clause'(GoalNumber, G, M, Info, X),
+		'$trace_query'(Cl, M, CP, Cl, ECl),
+		'$execute0'(ECl,M).
+
+'$creep_step'(GoalNumber, G, M, Info) :-
+	X=marker(_,M,G),
+	 '$$save_by'(CP),
+	 '$static_clause'(G,M,_,Ref),
+	 '$retry_clause'(GoalNumber, G, M, Info, X),
+	 '$creep',
+	 '$execute_clause'(G,M,Ref,CP).
+
+'$retry_clause'(_GoalNumber, _G, _M, _Info, MarkerV) :-
+	arg(1, MarkerV, V),
+	var(V),
+	!,
+	nb_setarg(1,MarkerV, visited).
+'$retry_clause'(GoalNumber, G, Module, Info, _X) :-
+	'$trace_port_'(redo, GoalNumber, G, Module, Info).
+
+%% @pred '$re_trace_query'( Exception, +Goal, +Mod, +GoalID )
+%
+% debugger code for exceptions. Recognised cases are:
+%   - abort always forwarded
+%   - redo resets the goal
+%   - fail gives up on the goal.
+'$re_trace_query'(abort, _G, _Module,  _GoalNumber, _H) :-
+	!,
+    abort.
+'$re_trace_query'(forward(fail,G0), _G, __Module, GoalNumber, _H) :-
+    GoalNumber =< G0,
+    !,
+    fail.
+    '$re_trace_query'(forward(redo,G0), G, M, GoalNumber, H) :-
+    GoalNumber > G0,
+    !,
+    catch(
+            '$trace_goal'(G, M, GoalNumber, H),
+            E,
+            '$re_trace_query'(E, G,M, GoalNumber, H)
+            ).
+'$re_trace_query'(forward(C,G0), _G, _Module, _GoalNumber, _H) :-
+            throw(forward(C,G0)).
+
+'$trace_port'(Port, GoalNumber, G, Module, _CalledFromDebugger, Info) :-
+	'$stop_creeping'(_) ,
+	current_prolog_flag(debug, true),
+        '__NB_getval__'('$debug_status',state(Skip,Border,_), fail),
+	( Skip == creep -> true; '$id_goal'(GoalNumber) ; GoalNumber =< Border),
+	!,
+	'__NB_setval__'('$debug_status', state(creep, 0, stop)),
+	'$trace_port_'(Port, GoalNumber, G, Module, Info).
+'$trace_port'(_Port, _GoalNumber, _G, _Module, _CalledFromDebugger, _Info).
+
+'$trace_port_'(call, GoalNumber, G, Module, Info) :-
+	'$port'(call,G,Module,GoalNumber,deterministic, Info).
+'$trace_port_'(exit, GoalNumber, G, Module, Info) :-
+	nb_setarg(6, Info, true),
+	'$port'(exit,G,Module,GoalNumber,deterministic, Info).
+'$trace_port_'(answer, GoalNumber, G, Module, Info) :-
+	'$port'(exit,G,Module,GoalNumber,nondeterministic, Info).
+'$trace_port_'(redo, GoalNumber, G, Module, Info) :-
+	'$port'(redo,G,Module,GoalNumber,nondeterministic, Info), /* inform user_error	*/
+	'$stop_creeping'(_ ).
+'$trace_port_'(fail, GoalNumber, G, Module, Info) :-
+	'$port'(fail,G,Module,GoalNumber,deterministic, Info). /* inform user_error		*/
+'$trace_port_'(! ,_GoalNumber,_G,_Module,_Imfo) :- /* inform user_error		*/
+    !.
+'$trace_port_'(exception(E), GoalNumber, G, Module, Info) :-
+    '$TraceError'(E, GoalNumber, G, Module, Info).
+'$trace_port_'(external_exception(E), GoalNumber, G, Module, Info) :-
+    '$TraceError'(E, GoalNumber, G, Module, Info).
+
+
+%%% - abort: forward throw while the call is newer than goal
+'$TraceError'( abort, _, _, _, _).
+'$TraceError'(forward(redo,_G0), _, _, _, _).
+%%% - backtrack long distance
+'$TraceError'(forward(fail,_G0),GoalNumber, _, _, _) :- !,
+	throw(debugger(fail,GoalNumber)).
+%%%
+%%% - forward through the debugger
+'$TraceError'(forward('$wrapper',Event), _, _, _, _) :-
+	!,
 	throw(Event).
-'$loop_spy_event'(error('$retry_spy'(G0),_), GoalNumber, G, Module, CalledFromDebugger) :-
-	G0 >= GoalNumber, !,
-	'$loop_spy'(GoalNumber, G, Module, CalledFromDebugger).
-'$loop_spy_event'(error('$retry_spy'(GoalNumber),_), _, _, _, _) :- !,
-	throw(error('$retry_spy'(GoalNumber),[])).
-'$loop_spy_event'(error('$fail_spy'(G0),_), GoalNumber, G, Module, CalledFromDebugger) :-
-	G0 >= GoalNumber, !,
-	'$loop_fail'(GoalNumber, G, Module, CalledFromDebugger).
-'$loop_spy_event'(error('$fail_spy'(GoalNumber),_), _, _, _, _) :- !,
-	throw(error('$fail_spy'(GoalNumber),[])).
-'$loop_spy_event'(error('$done_spy'(G0),_), GoalNumber, G, _, CalledFromDebugger) :-
-	G0 >= GoalNumber, !,
-	'$continue_debugging'(CalledFromDebugger).
-'$loop_spy_event'(error('$done_spy'(GoalNumber),_), _, _, _, _) :- !,
-	throw(error('$done_spy'(GoalNumber),[])).
-'$loop_spy_event'(Event, GoalNumber, G, Module, CalledFromDebugger) :-
+%%% - anything else, leave to the user and restore the catch
+'$TraceError'(Event, GoalNumber, G, Module, CalledFromDebugger) :-
 	'$debug_error'(Event),
 	'$system_catch'(
-		     ('$trace'(exception(Event),G,Module,GoalNumber,_),fail),
+		     ('$port'(exception(Event),G,Module,GoalNumber,_,creep),fail),
 		     Module,
-		     error(NewEvent,NewContext),
-		     '$loop_spy_event'(error(NewEvent,NewContext), GoalNumber, G, Module, CalledFromDebugger)
+		     Error,
+		     '$TraceError'(Error, GoalNumber, G, Module, CalledFromDebugger)
 		    ).
 
 
@@ -380,172 +681,39 @@ debugging :-
 
 % just fail here, don't really need to call debugger, the user knows what he
 % wants to do
-'$loop_fail'(_GoalNumber, _G, _Module, _CalledFromDebugger) :-
-	'$continue_debugging'(CalledFromDebugger),
+'$loop_fail'(_GoalNumber, _G, _Module,Creep) :-
+	current_prolog_flag(debug, true),
+	'$continue_debugging'(fail, Creep),
 	fail.
-
-% if we are in 
-'$loop_spy2'(GoalNumber, G0, Module, CalledFromDebugger, CP) :- 
-/* the following choice point is where the predicate is  called */
-	   (
-             '$is_metapredicate'(G0, Module)
-	   ->
-	    '$meta_expansion'(G0,Module,Module,Module,G,[])
-	   ;
-	     G = G0
-	   ),
-	   b_getval('$spy_glist',[Info|_]),	/* get goal list		*/
-	   Info = info(_,_,_,Retry,Det,false),
-	   (
-	    /* call port */
-	    '$enter_goal'(GoalNumber, G, Module),
-	    '$spycall'(G, Module, CalledFromDebugger, Retry),
-	    '$disable_docreep',
-	    (
-	      '$debugger_deterministic_goal'(G) ->
-	      Det=true
-	    ;
-	      Det=false
-	    ),
-	/* go execute the predicate	*/
-	    (
-	      Retry = false ->
-	       /* found an answer, so it can redo */
-	       nb_setarg(6, Info, true),
-	      '$show_trace'(exit,G,Module,GoalNumber,Det),	/* output message at exit	*/
-	       /* exit port */
-	       /* get rid of deterministic computations */
-	      (
-		Det == true
-		->
-		'$$cut_by'(CP)
-		;
-		true
-	      ),
-	      '$continue_debugging'(CalledFromDebugger)	   
-	      ;
-		/* backtracking from exit				*/
-	        /* we get here when we want to redo a goal		*/
-		/* redo port */
-	     '$disable_docreep',
-	      (
-	       arg(6, Info, true)
-	      ->
-	        '$show_trace'(redo,G,Module,GoalNumber,_), /* inform user_error		*/
-	        nb_setarg(6, Info, false)
-	       ;
-	         true
-	      ),
-	     '$continue_debugging'(CalledFromDebugger),
-	     fail			/* to backtrack to spycalls	*/
-	     )
-	  ;
-	    '$show_trace'(fail,G,Module,GoalNumber,_), /* inform at fail port		*/
-	    '$continue_debugging'(CalledFromDebugger),
-	    /* fail port */
-	    fail
-	).
-	
-'$enter_goal'(GoalNumber, G, Module) :-
-    '$zip'(GoalNumber, G, Module), !.
-'$enter_goal'(GoalNumber, G, Module) :-
-    '$trace'(call, G, Module, GoalNumber, _).
-
-'$show_trace'(_, G, Module, GoalNumber,_) :-
-	'$zip'(GoalNumber, G, Module), !.
-'$show_trace'(P,G,Module,GoalNumber,Deterministic) :-
-	'$trace'(P,G,Module,GoalNumber,Deterministic).
 
 %
 % skip a goal or a port
 %
-'$zip'(GoalNumber, G, Module) :-
-    nb_getval('$debug_run',StopPoint),
-    % zip mode off, we cannot zip
-    StopPoint \= off,
-    (
-      % skip spy points (eg, s).
-      StopPoint == spy
-    ->
-      \+ '$pred_being_spied'(G, Module)
-    ;
-      % skip goals (eg, l).
-      number(StopPoint)
-    ->
-      StopPoint < GoalNumber
-    ).
-	
 
+'$gg'(CP,Goal) :-
+	CP is '$last_choice_point',
+	Goal.
 
-% 
-'$spycall'(G, M, _, _) :-
-	nb_getval('$debug_jump',true),
-	!,
-	'$execute_nonstop'(G,M).
-'$spycall'(G, M, _, _) :-
-        '$system_predicate'(G,M),
-	\+ '$is_metapredicate'(G,M), !,
-	'$execute'(M:G).
-'$spycall'(G, M, _, _) :-
-        '$system_module'(M), !,
-	'$execute'(M:G).
-'$spycall'(G, M, _, _) :-
-        '$tabled_predicate'(G,M),
-	 !,
-	'$continue_debugging'(no, '$execute_nonstop'(G,M)).
-'$spycall'(G, M, CalledFromDebugger, InRedo) :-
-	'$flags'(G,M,F,F),
-	F /\ 0x08402000 =\= 0, !, % dynamic procedure, logical semantics, or source
-	% use the interpreter
-	CP is '$last_choice_pt',
-	'$clause'(G, M, Cl, _),
-	% I may backtrack to here from far away
-	'$disable_docreep',	
-	( '$do_spy'(Cl, M, CP, CalledFromDebugger) ; InRedo = true ).
-'$spycall'(G, M, CalledFromDebugger, InRedo) :-
-	'$undefined'(G, M), !,
-	'$find_goal_definition'(M, G, NM, Goal),
-	'$spycall'(Goal, NM, CalledFromDebugger, InRedo).
-'$spycall'(G, M, _, InRedo) :-
-	% I lost control here.
-	CP is '$last_choice_pt',
-	'$static_clause'(G,M,_,R),
-	% I may backtrack to here from far away
-	'$disable_docreep',	
-	(
-	 '$continue_debugging'(no, '$execute_clause'(G, M, R, CP))
-	;
-	 InRedo = true
-	).
-
-'$tabled_predicate'(G,M) :-
-	'$flags'(G,M,F,F),
-	F /\ 0x00000040 =\= 0.
-
-'$trace'(P,G,Module,L,Deterministic) :-
+'$port'(_P,_G,_Module,_L,_Determinic, _Info ) :-  %%> debugging done
+	current_prolog_flag(debug, false),
+	!.
+'$port'(_P, _G, _M,GoalNumber,_Determinic, _Info ) :-   %%> leap
+        '__NB_getval__'('$debug_status',state(leap,Border,_), fail),
+	GoalNumber > Border,
+	!.
+'$port'(P,G,Module,L,Deterministic, Info) :-
 	% at this point we are done with leap or skip
-	nb_setval('$debug_run',off),
-	% make sure we run this code outside debugging mode.
-	'$debug_on'(false),
 	repeat,
 	'$trace_msg'(P,G,Module,L,Deterministic),
-	( 
+	(
 	  '$unleashed'(P) ->
-	  '$action'(10,P,L,G,Module,Debug),
+	  '$action'('\n',P,L,G,Module,Info),
 	  put_code(user_error, 10)
 	  ;
-	  write(user_error,' ? '), get0(user_input,C),
-	  '$action'(C,P,L,G,Module,Debug)
-	),
-	(Debug = on
-	->
-	 '$debug_on'(true)
-	;
-	 Debug = zip
-	->
-	 '$debug_on'(true)
-	;
-	 '$debug_on'(false)
+	 write(user_error,' ? '),
+         '$clear_input'(debugger_input),
+         get_char(debugger_input,C),
+	 '$action'(C,P,L,G,Module,_Info)
 	),
 	!.
 
@@ -553,7 +721,7 @@ debugging :-
 	flush_output(user_output),
 	flush_output(user_error),
 	functor(P,P0,_),
-	(P = exit, Deterministic \= true -> Det = '?' ; Det = ' '),
+	(P = exit, Deterministic \= deterministic -> Det = '?' ; Det = ' '),
 	('$pred_being_spied'(G,Module) -> CSPY = '*' ; CSPY = ' '),
 % vsc: fix this
 		%		( SL = L -> SLL = '>' ; SLL = ' '),
@@ -563,7 +731,7 @@ debugging :-
 	->
 	    GW = Module:G
 	;
-	    GW = G	  
+	    GW = G
 	),
 	format(user_error,'~a~a~a       (~d)    ~q:',[Det,CSPY,SLL,L,P0]),
 	'$debugger_write'(user_error,GW).
@@ -573,171 +741,156 @@ debugging :-
 '$unleashed'(redo) :- get_value('$leash',L), L /\ 2'0010 =:= 0. %'
 '$unleashed'(fail) :- get_value('$leash',L), L /\ 2'0001 =:= 0. %'
 % the same as fail.
-'$unleashed'(exception(_)) :- get_value('$leash',L), L /\ 2'0001 =:= 0.  %'
+'$unleashed'(exception(_)) :- get_value('$leash',L), L /\ 2'10000 =:= 0.  %'
 
 '$debugger_write'(Stream, G) :-
-	recorded('$print_options','$debugger'(OUT),_), !,
+	current_prolog_flag( debugger_print_options, OUT ), !,
 	write_term(Stream, G, OUT).
 '$debugger_write'(Stream, G) :-
 	writeq(Stream, G).
 
-'$action'(13,P,CallNumber,G,Module,Zip) :- !,	% newline 	creep
-	get0(user_input,C),
-	'$action'(C,P,CallNumber,G,Module,Zip).
-%'$action'(10,_,_,_,_,on) :-			% newline 	creep
-%	nb_setval('$debug_jump',false).
-'$action'(10,_,_,_,_,on) :- !,			% newline 	creep
-	nb_setval('$debug_jump',false).
-'$action'(0'!,_,_,_,_,_) :- !,			% ! 'g		execute
-	read(user,G),
+'$action'('\r',P,CallNumber,G,Module,H) :- !,	% newline 	creep
+	get_char( debugger_input,C),
+	'$action'(C,P,CallNumber,G,Module,H).
+'$action'('\n',_,_,_,_,_) :- !,			% newline 	creep
+        '__NB_setval__'('$debug_status', state(creep, 0, stop)).
+'$action'(!,_,_,_,_,_) :- !,			% ! 'g		execute
+	read(debugger_input, G),
 	% don't allow yourself to be caught by creep.
-	'$debug_on'(OldDeb),
-	'$debug_on'(false),
-	( '$execute'(G) -> true ; true),
-	'$debug_on'(OldDeb),
-%	'$skipeol'(0'!),                        % '
+	current_prolog_flag(debug, OldDeb),
+	set_prolog_flag(debug, false),
+	ignore( G ),
+	% at this point we are done with leap or skip
+	set_prolog_flag(debug, OldDeb),
+%	skip( debugger_input, 10),                        % '
 	fail.
-'$action'(0'<,_,_,_,_,_) :- !,			% <'Depth
+'$action'(<,_,_,_,_,_) :- !,			% <'Depth
 	'$new_deb_depth',
-	'$skipeol'(0'<),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'^,_,_,G,_,_) :- !,			% '
+'$action'('C',_,_,_,_,_) :-
+	yap_flag(system_options, Opts),
+        lists:memberchk( call_tracer, Opts),
+	!,			% <'Depth
+	skip( debugger_input, 10),
+        '__NB_setval__'('$debug_status', state(creep, 0, stop)).
+'$action'(^,_,_,G,_,_) :- !,			% '
 	'$print_deb_sterm'(G),
-	'$skipeol'(0'^),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'a,_,_,_,_,off) :- !,		% 'a		abort
-	'$skipeol'(0'a),
+'$action'(a,_,_,_,_,_) :- !,		% 'a		abort
+	skip( debugger_input, 10),
+    '$stop_creeping'(_),
+    nodebug,
 	abort.
-'$action'(0'b,_,_,_,_,_) :- !,			% 'b		break
-	'$skipeol'(0'b),
+'$action'(b,_,_,_,_,_) :- !,			% 'b		break
+    '$stop_creeping'(_),
+	skip( debugger_input, 10),
 	break,
 	fail.
-'$action'(0'A,_,_,_,_,_) :- !,			% 'b		break
-	'$skipeol'(0'A),
-	'$show_choicepoint_stack',
+'$action'('A',_,_,_,_,_) :- !,			% 'b		break
+	skip( debugger_input, 10),
+	'$stack_dump',
 	fail.
-'$action'(0'c,_,_,_,_,on) :- !,			% 'c		creep
-	'$skipeol'(0'c),
-	nb_setval('$debug_jump',false).
-'$action'(0'e,_,_,_,_,_) :- !,			% 'e		exit
-	'$skipeol'(0'e),
+'$action'(c,_,_,_,_,_) :- !,			% 'c		creep
+	skip( debugger_input, 10),
+	'__NB_setval__'('$debug_status',status(creep,0,stop)).
+'$action'(e,_,_,_,_,_) :- !,			% 'e		exit
 	halt.
-'$action'(0'f,_,CallId,_,_,_) :- !,		% 'f		fail
-	'$scan_number'(0'f, CallId, GoalId),    %'f
-	throw(error('$fail_spy'(GoalId),[])).
-'$action'(0'h,_,_,_,_,_) :- !,			% 'h		help
+'$action'(f,_,_,_,_,_) :- !,		% 'f		fail
+	'$scan_number'( GoalId),    %'f
+	throw(forward(fail,GoalId)).
+'$action'(h,_,_,_,_,_) :- !,			% 'h		help
 	'$action_help',
-	'$skipeol'(104),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'?,_,_,_,_,_) :- !,			% '?		help
+'$action'(?,_,_,_,_,_) :- !,			% '?		help
 	'$action_help',
-	'$skipeol'(104),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'p,_,_,G,Module,_) :- !,		% 'p		print
+'$action'(p,_,_,G,Module,_) :- !,		% 'p		print
 	((Module = prolog ; Module = user) ->
 	    print(user_error,G), nl(user_error)
 	;
 	    print(user_error,Module:G), nl(user_error)
 	),
-	'$skipeol'(0'p),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'd,_,_,G,Module,_) :- !,		% 'd		display
+'$action'(d,_,_,G,Module,_) :- !,		% 'd		display
 	((Module = prolog ; Module = user) ->
 	    display(user_error,G), nl(user_error)
 	;
 	    display(user_error,Module:G), nl(user_error)
 	),
-	'$skipeol'(0'd),
+	skip( debugger_input, 10),
 	fail.
-'$action'(0'l,_,_,_,_,on) :- !,			% 'l		leap
-	'$skipeol'(0'l),
-	nb_setval('$debug_run',spy),
-	nb_setval('$debug_jump',false).
-'$action'(0'z,_,_,_,_,zip) :- !,		% 'z		zip, fast leap
-	'$skipeol'(0'z),			% 'z
-	nb_setval('$debug_run',spy),
-	nb_setval('$debug_jump',true).
-	% skip first call (for current goal),
+'$action'(l,_,_CallNumber,_,_,_) :- !,			% 'l		leap
+	skip( debugger_input, 10),
+        '__NB_setval__'('$debug_status', state(leap, 0, stop)).
+'$action'(z,_,_CallNumber,_,_,_H) :- !,		% 'z		zip, fast leap
+	skip( debugger_input, 10),			% 'z
+        '__NB_setval__'('$debug_status', state(zip, 0, stop)).
+        % skip first call (for current goal),
 	% stop next time.
-'$action'(0'k,_,_,_,_,zip) :- !,		% 'k		zip, fast leap
-	'$skipeol'(0'k),			% '
-	nb_setval('$debug_run',spy),
-	nb_setval('$debug_jump',true).
-	% skip first call (for current goal),
+'$action'(k,_,CallNumber,_,_,_) :- !,		% 'k		zip, fast leap
+	skip( debugger_input, 10),			% '
+         '__NB_setval__'('$debug_status', state(zip, CallNumber, ignore)).
+        % skip first call (for current goal),
 	% stop next time.
-'$action'(0'n,_,_,_,_,off) :- !,			% 'n		nodebug
-	'$skipeol'(0'n),				% '
+'$action'(n,_,_,_,_,_) :- !,			% 'n		nodebug
+	skip( debugger_input, 10),				% '
 	% tell debugger never to stop.
-        nb_setval('$debug_run', -1),
-	nb_setval('$debug_jump',true),
-	nodebug.
-'$action'(0'r,_,CallId,_,_,_) :- !,		        % 'r		retry
-        '$scan_number'(0'r,CallId,ScanNumber),		% '
-        '$debug_on'(true),
-	throw(error('$retry_spy'(ScanNumber),[])).
-'$action'(0's,P,CallNumber,_,_,on) :- !,		% 's		skip
-	'$skipeol'(0's),				% '		
+        '__NB_setval__'('$debug_status', state(zip, 0, ignore)),
+ 	nodebug.
+'$action'(r,_,_,_,_,_) :- !,		        % 'r		retry
+    '$scan_number'(ScanNumber),		% '
+%	set_prolog_flag(debug, true),
+    throw(forward(redo,ScanNumber)).
+'$action'(s,P,CallNumber,_,_,_) :- !,		% 's		skip
+	skip( debugger_input, 10),				% '
 	( (P=call; P=redo) ->
-	  nb_setval('$debug_run',CallNumber),
-	  nb_setval('$debug_jump',false)
-	;
-	    '$ilgl'(0's)				% '
+             '__NB_setval__'('$debug_status', state(leap, CallNumber, ignore) ) ;
+	    '$ilgl'(s)				% '
 	).
-'$action'(0't,P,CallNumber,_,_,zip) :- !,		% 't		fast skip
-	'$skipeol'(0't),				% '
+'$action'(t,P,CallNumber,_,_,_) :- !,		% 't		fast skip
+	skip( debugger_input, 10),				% '
 	( (P=call; P=redo) ->
-	  nb_setval('$debug_run',CallNumber),
-	  nb_setval('$debug_jump',true)
-	;
-	    '$ilgl'(0't)				% '
+            '__NB_setval__'('$debug_status', state(zip, CallNumber, ignore))	;
+	    '$ilgl'(t)				% '
 	).
-'$action'(0'+,_,_,G,M,_) :- !,			% '+		spy this
+'$action'(q,P,CallNumber,_,_,_) :- !,		% 'qst skip
+	skip( debugger_input, 10),				% '
+	( (P=call; P=redo) ->
+            '__NB_setval__'('$debug_status', state(leap, CallNumber, stop))	;
+	    '$ilgl'(t)				% '
+	).
+'$action'(+,_,_,G,M,_) :- !,			% '+		spy this
 	functor(G,F,N), spy(M:(F/N)),
-	'$skipeol'(0'+),			% '
+	skip( debugger_input, 10),			% '
 	fail.
-'$action'(0'-,_,_,G,M,_) :- !,			% '-		nospy this
+'$action'(-,_,_,G,M,_) :- !,			% '-		nospy this
 	functor(G,F,N), nospy(M:(F/N)),
-	'$skipeol'(0'-),			% '
+	skip( debugger_input, 10),			% '
 	fail.
-'$action'(0'g,_,_,_,_,_) :- !,			% 'g		ancestors
-        '$scan_number'(0'g,-1,HowMany),         % '
+'$action'(g,_,_,_,_,_) :- !,			% 'g		ancestors
+        '$scan_number'(HowMany),         % '
         '$show_ancestors'(HowMany),
 	fail.
+'$action'('T',exception(G),_,_,_,_) :- !,	% 'T		throw
+	throw( forward('$wrapper',G)).
 '$action'(C,_,_,_,_,_) :-
-	'$skipeol'(C),
+	skip( debugger_input, 10),
 	'$ilgl'(C),
 	fail.
 
-'$continue_debugging'(yes).
-% do not need to debug!
-'$continue_debugging'(no) :-
+'$continue_debugging'(_, creep) :-
+	'__NB_getval__'('$if_skip_mode',no_skip),
+	!,
 	'$creep'.
-
-% if we are in the interpreter, don't need to care about forcing a trace, do we?
-'$continue_debugging'(yes,G) :- !,
-	'$execute_dgoal'(G).
-% do not need to debug!
-'$continue_debugging'(_,G) :-
-	'nb_getval'('$debug_run',Zip),
-        (Zip == nodebug ; number(Zip) ; Zip = spy(_) ), !,
-	'$execute_dgoal'(G).
-'$continue_debugging'(_,G) :-
-	'$execute_creep_dgoal'(G).
-	
-'$execute_dgoal'('$execute_nonstop'(G,M)) :-
-	'$execute_nonstop'(G,M).
-'$execute_dgoal'('$execute_clause'(G, M, R, CP)) :-
-	'$execute_clause'(G, M, R, CP).
-
-'$execute_creep_dgoal'('$execute_nonstop'(G,M)) :-
-	'$signal_creep',
-	'$execute_nonstop'(G,M).
-'$execute_creep_dgoal'('$execute_clause'(G, M, R, CP)) :-
-	'$signal_creep',
-	'$execute_clause'(G, M, R, CP).
+'$continue_debugging'(_, _).
 
 '$show_ancestors'(HowMany) :-
-	b_getval('$spy_glist',[_|History]),
+	'__NB_getval__'('$spy_glist',[_|History], fail),
 	(
 	  History == []
 	->
@@ -779,60 +932,43 @@ debugging :-
 	format(user_error,'+        spy this    -       nospy this~n', []),
 	format(user_error,'^        view subg   ^^      view using~n', []),
 	format(user_error,'A        choices     g [N]   ancestors~n', []),
+	format(user_error,'T        throw       ~n', []),
 	format(user_error,'! g execute goal~n', []).
-	
+
 '$ilgl'(C) :-
 	print_message(warning, trace_command(C)),
 	print_message(help, trace_help),
 	fail.
 
-'$skipeol'(10) :- !.
-'$skipeol'(_) :- get0(user,C), '$skipeol'(C).
+'$scan_number'(Nb) :-
+	readutil:read_line_to_codes( debugger_input, S),
+	S = [_|_],
+	!,
+        number_codes(Nb,S).
+'$scan_number'(0).
 
-'$scan_number'(_, _, Nb) :-
-	get0(user,C),
-	'$scan_number2'(C, Nb), !.
-'$scan_number'(_, CallId, CallId).
-
-'$scan_number2'(10, _) :- !, fail.
-'$scan_number2'(0' , Nb) :- !, % '
-	get0(user,C),
-	'$scan_number2'(C , Nb).
-'$scan_number2'(0'	, Nb) :- !, %'
-	get0(user,C),
-	'$scan_number2'(C, Nb).
-'$scan_number2'(C, Nb) :-
-	'$scan_number3'(C, 0, Nb).
-
-'$scan_number3'(10,  Nb, Nb) :- !, Nb > 0.
-'$scan_number3'( C, Nb0, Nb) :-
-	C >= "0", C =< "9",
-	NbI is Nb0*10+(C-"0"),
-	get0(user, NC),
-	'$scan_number3'( NC, NbI, Nb).
-	
 '$print_deb_sterm'(G) :-
 	'$get_sterm_list'(L), !,
 	'$deb_get_sterm_in_g'(L,G,A),
 	recorda('$debug_sub_skel',L,_),
 	format(user_error,'~n~w~n~n',[A]).
-'$print_deb_sterm'(_) :- '$skipeol'(94).
+'$print_deb_sterm'(_) :- skip( debugger_input, 10).
 
 '$get_sterm_list'(L) :-
-	get0(user_input,C),
+	get_code( debugger_input_input,C),
 	'$deb_inc_in_sterm_oldie'(C,L0,CN),
 	'$get_sterm_list'(L0,CN,0,L).
 
 '$deb_inc_in_sterm_oldie'(94,L0,CN) :- !,
-	get0(user_input,CN),
+	get_code( debugger_input,CN),
 	( recorded('$debug_sub_skel',L0,_) -> true ;
 	  CN = [] ).
 '$deb_inc_in_sterm_oldie'(C,[],C).
 
 '$get_sterm_list'(L0,C,N,L) :-
-	( C =:= "^", N =\= 0 -> get0(CN),
+	( C =:= "^", N =\= 0 -> get_code(debugger_input, CN),
 				'$get_sterm_list'([N|L0],CN,0,L) ;
-	  C >= "0", C =< "9" -> NN is 10*N+C-"0", get0(CN),
+	  C >= "0", C =< "9" -> NN is 10*N+C-"0", get_code(debugger_input, CN),
 				'$get_sterm_list'(L0,CN,NN,L);
 	  C =:= 10 -> (N =:= 0 -> L = L0 ; L=[N|L0]) ).
 
@@ -842,7 +978,7 @@ debugging :-
 	arg(H,A1,A).
 
 '$new_deb_depth' :-
-	get0(user_input,C),
+	get_code( debugger_input,C),
 	'$get_deb_depth'(C,D),
 	'$set_deb_depth'(D).
 
@@ -854,71 +990,26 @@ debugging :-
 '$get_deb_depth_char_by_char'(C,X0,XF) :-
 	C >= "0", C =< "9", !,
 	XI is X0*10+C-"0",
-	get0(user_input,NC),
+	get_code( debugger_input,NC),
 	'$get_deb_depth_char_by_char'(NC,XI,XF).
 % reset when given garbage.
-'$get_deb_depth_char_by_char'(C,_,10) :- '$skipeol'(C).
+'$get_deb_depth_char_by_char'(_C,_,10) :- skip( debugger_input, 10).
 
 '$set_deb_depth'(D) :-
-	recorded('$print_options','$debugger'(L),R), !,
-	'$delete_if_there'(L, max_depth(_), LN),
-	erase(R),
-	recorda('$print_options','$debugger'([max_depth(D)|LN]),_).
-'$set_deb_depth'(D) :-
-	recorda('$print_options','$debugger'([quoted(true),numbervars(true),portrayed(true),max_depth(D)]),_).
-	
-'$delete_if_there'([], _, []).
-'$delete_if_there'([T|L], T, LN) :- !,
-	'$delete_if_there'(L, T, LN).
-'$delete_if_there'([Q|L], T, [Q|LN]) :-
-	'$delete_if_there'(L, T, LN).
+	yap_flag(debugger_print_options,L),
+	'$delete_if_there'(L, max_depth(_), max_depth(D), LN),
+	yap_flag(debugger_print_options,LN).
 
-'$show_choicepoint_stack' :-
-	yap_hacks:current_choicepoints(Cps),
-	length(Cps,Level),
-	'$debug_show_cps'(Cps,Level).
+'$delete_if_there'([], _, TN, [TN]).
+'$delete_if_there'([T|L], T, TN, [TN|L]).
+'$delete_if_there'([Q|L], T, TN, [Q|LN]) :-
+	'$delete_if_there'(L, T, TN, LN).
 
-'$debug_show_cps'([],_).
-'$debug_show_cps'([C|Cps],Level) :-
-	'$debug_show_cp'(C, Level),
-	Level1 is Level-1,
-	'$debug_show_cps'(Cps, Level1).
-
-'$debug_show_cp'(C, Level) :-
-	yap_hacks:choicepoint(C,_,Module,Name,Arity,Goal,_),
-	'$continue_debug_show_cp'(Module,Name,Arity,Goal,Level).
-
-'$continue_debug_show_cp'(prolog,'$do_live',0,(_;_),Level) :- !,
-	format(user_error,'      [~d] \'$toplevel\'',[Level]).
-'$continue_debug_show_cp'(prolog,'$do_log_upd_clause',4,'$do_log_upd_clause'(_,_,Goal,_),Level) :- !,
-	format(user_error,'      [~d] ',[Level]),
-	'$debugger_write'(user_error,Goal),
-	nl(user_error).
-'$continue_debug_show_cp'(prolog,'$do_static_clause',5,'$do_static_clause'(_,_,Goal,_,_),Level) :- !,
-	format(user_error,'      [~d] ',[Level]),
-	'$debugger_write'(user_error,Goal),
-	nl(user_error).
-'$continue_debug_show_cp'(Module,Name,Arity,_,_) :-
-	functor(G0, Name, Arity),
-	'$hidden_predicate'(G0,Module),
-	!.
-'$continue_debug_show_cp'(Module,Name,Arity,Goal,Level) :-
-	var(Goal), !,
-	format(user_error,'      [~d] ~q:~q/~d~n',[Level,Module,Name,Arity]).
-'$continue_debug_show_cp'(Module,Name,Arity,(V1;V2),Level) :-
-	var(V1),  var(V2), !,
-	format(user_error,'      [~d] ~q:~q/~d: ;/2~n',[Level,Module,Name,Arity]).
-'$continue_debug_show_cp'(_,_,_,G,Level) :-
-	format(user_error,'      [~d] ~q~n',[Level,G]).
-	
-'$debugger_deterministic_goal'(G) :-
-	yap_hacks:current_choicepoints(CPs0),
-%	$cps(CPs0),
-	'$debugger_skip_traces'(CPs0,CPs1),
-	'$debugger_skip_loop_spy2'(CPs1,CPs2),
-	'$debugger_skip_spycall'(CPs2,CPs3),
-	'$debugger_skip_loop_spy2'(CPs3,[Catch|_]),
-	yap_hacks:choicepoint(Catch,_,prolog,'$catch',3,'$catch'(_,'$loop_spy_event'(_,_,G,_,_),_),_).
+  '$debugger_deterministic_goal'(exit).
+  '$debugger_deterministic_goal'(fail).
+  '$debugger_deterministic_goal'(!).
+  '$debugger_deterministic_goal'(exception(_)).
+  '$debugger_deterministic_goal'(external_exception(_)).
 
 
 '$cps'([CP|CPs]) :-
@@ -928,13 +1019,13 @@ debugging :-
 '$cps'([]).
 
 
-'$debugger_skip_spycall'([CP|CPs],CPs1) :-
-	yap_hacks:choicepoint(CP,_,prolog,'$spycall',4,(_;_),_), !,
-	'$debugger_skip_spycall'(CPs,CPs1).
-'$debugger_skip_spycall'(CPs,CPs).
+'$debugger_skip_trace_query'([CP|CPs],CPs1) :-
+	yap_hacks:choicepoint(CP,_,prolog,'$trace_query',4,(_;_),_), !,
+	'$debugger_skip_trace_query'(CPs,CPs1).
+'$debugger_skip_trace_query'(CPs,CPs).
 
 '$debugger_skip_traces'([CP|CPs],CPs1) :-
-	yap_hacks:choicepoint(CP,_,prolog,'$trace',4,(_;_),_), !,
+	yap_hacks:choicepoint(CP,_,prolog,'$port',4,(_;_),_), !,
 	'$debugger_skip_traces'(CPs,CPs1).
 '$debugger_skip_traces'(CPs,CPs).
 
@@ -943,5 +1034,42 @@ debugging :-
 	'$debugger_skip_loop_spy2'(CPs,CPs1).
 '$debugger_skip_loop_spy2'(CPs,CPs).
 
+'$debugger_expand_meta_call'( G, VL, M:G2 ) :-
+    '$expand_meta_call'( G, VL, G0 ),
+    '$yap_strip_module'( G0, M, G1 ),
+    (
+	'$is_system_predicate'(G0,M) ->
+	    '$debugger_process_meta_arguments'(G1, M, G2)
+     ;
+     G1 = G2
+    ).
+
+'$debugger_process_meta_arguments'(G, M, G1) :-
+	'$yap_strip_module'( M:G, MM, GM ),
+	functor(GM,F,N),
+	'$meta_predicate'(F,MM,N,D), !, % we're in an argument
+	D =.. [F|BMs],
+	GM =.. [F|BGs],
+	'$ldebugger_process_meta_args'(BGs, M, BMs, BG1s),
+	G1 =.. [F|BG1s].
+'$debugger_process_meta_arguments'(G, _M, G).
+
+'$ldebugger_process_meta_args'([], _, [], []).
+'$ldebugger_process_meta_args'([G|BGs], M, [N|BMs], ['$trace'([M1|G1])|BG1s]) :-
+    number(N),
+    N >= 0,
+	'$yap_strip_module'( M:G, M1, G1 ),
+	functor(G1, Na, _),
+	Na \= '$trace',
+	!,
+	'$ldebugger_process_meta_args'(BGs, M, BMs, BG1s).
+'$ldebugger_process_meta_args'([G|BGs], M, [_|BMs], [G|BG1s]) :-
+	'$ldebugger_process_meta_args'(BGs, M, BMs, BG1s).
 
 
+'$creep'(creep) :- '$creep'.
+'$creep'(leap) :- '$creep'.
+'$creep'(zip).
+
+%% @}
+%% @}

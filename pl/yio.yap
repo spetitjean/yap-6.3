@@ -2,7 +2,7 @@
 *									 *
 *	 YAP Prolog 							 *
 *									 *
-*	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
+  *	Yap Prolog was developed at NCCUP - Universidade do Porto	 *
 *									 *
 * Copyright L.Damas, V.S.Costa and Universidade do Porto 1985-1997	 *
 *									 *
@@ -15,182 +15,138 @@
 *									 *
 *************************************************************************/
 
+
+
+:- system_module( '$_yio', [at_end_of_line/0,
+        at_end_of_line/1,
+        consult_depth/1,
+        current_char_conversion/2,
+        current_line_number/1,
+        current_line_number/2,
+        current_stream/3,
+        display/1,
+        display/2,
+        exists/1,
+        fileerrors/0,
+        format/1,
+        nofileerrors/0,
+        open_pipe_streams/2,
+        prolog_file_name/2,
+        read/1,
+        read/2,
+        sformat/3,
+        socket/2,
+        socket/4,
+        socket_connect/3,
+        stream_position/2,
+        stream_position/3,
+        stream_position_data/3,
+        ttyget/1,
+        ttyget0/1,
+        ttynl/0,
+        ttyput/1,
+        ttyskip/1,
+	rename/2,
+        write_depth/2], ['$default_expand'/1,
+        '$extend_file_search_path'/1,
+        '$set_default_expand'/1]).
+
+:- use_system_module( '$_boot', ['$system_catch'/4]).
+
+:- use_system_module( '$_errors', ['$do_error'/2]).
+
+/** @defgroup InputOutput Input/Output Predicates
+@ingroup builtins
+
+Some of the Input/Output predicates described below will in certain conditions
+provide error messages and abort only if the file_errors flag is set.
+If this flag is cleared the same predicates will just fail. Details on
+setting and clearing this flag are given under 7.7.
+
+  @{
+ */
+
 /* stream predicates							*/
 
-/* check whether a list of options is valid */
-'$check_io_opts'(V,G) :- var(V), !,
-	'$do_error'(instantiation_error,G).
-'$check_io_opts'([],_) :- !.
-'$check_io_opts'([H|_],G) :- var(H), !,
-	'$do_error'(instantiation_error,G).
-'$check_io_opts'([Opt|T],G) :- !,
-	'$check_opt'(G,Opt,G),
-	'$check_io_opts'(T,G).
-'$check_io_opts'(T,G) :-
-	'$do_error'(type_error(list,T),G).
+/** @defgroup IO_Sockets YAP Old Style Socket and Pipe Interface
+     @{
 
-'$check_opt'(read_term(_,_),Opt,G) :-
-	'$check_opt_read'(Opt, G).
-'$check_opt'(stream_property(_,_),Opt,G) :-
-	'$check_opt_sp'(Opt, G).
+    Autoload the socket/pipe library
 
-'$check_opt_read'(variables(_), _) :- !.
-'$check_opt_read'(variable_names(_), _) :- !.
-'$check_opt_read'(singletons(_), _) :- !.
-'$check_opt_read'(syntax_errors(T), G) :- !,
-	'$check_read_syntax_errors_arg'(T, G).
-'$check_opt_read'(term_position(_), _) :- !.
-'$check_opt_read'(term_position(_), _) :- !.
-'$check_opt_read'(comments(_), _) :- !.
-'$check_opt_read'(module(_), _) :- !.
-'$check_opt_read'(A, G) :-
-	'$do_error'(domain_error(read_option,A),G).
+*/
 
-'$check_opt_sp'(file_name(_), _) :- !.
-'$check_opt_sp'(mode(_), _) :- !.
-'$check_opt_sp'(input, _) :- !.
-'$check_opt_sp'(output, _) :- !.
-'$check_opt_sp'(alias(_), _) :- !.
-'$check_opt_sp'(position(_), _) :- !.
-'$check_opt_sp'(end_of_stream(_), _) :- !.
-'$check_opt_sp'(eof_action(_), _) :- !.
-'$check_opt_sp'(reposition(_), _) :- !.
-'$check_opt_sp'(type(_), _) :- !.
-'$check_opt_sp'(bom(_), _) :- !.
-'$check_opt_sp'(encoding(_), _) :- !.
-'$check_opt_sp'(representation_errors(_), _) :- !.
-'$check_opt_sp'(A, G) :-
-	'$do_error'(domain_error(stream_property,A),G).
+/** @pred  socket(+ _DOMAIN_,- _SOCKET_)
 
-'$check_read_syntax_errors_arg'(X, G) :- var(X), !,
-	'$do_error'(instantiation_error,G).
-'$check_read_syntax_errors_arg'(dec10,_) :- !.
-'$check_read_syntax_errors_arg'(fail,_) :- !.
-'$check_read_syntax_errors_arg'(error,_) :- !.
-'$check_read_syntax_errors_arg'(quiet,_) :- !.
-'$check_read_syntax_errors_arg'(X,G) :-
-	'$do_error'(domain_error(read_option,syntax_errors(X)),G).
+Call socket/4 with  _TYPE_ bound to `SOCK_STREAM'` and
+ _PROTOCOL_ bound to `0`.
 
-'$check_boolean'(X, _, _, G) :- var(X), !,
-	'$do_error'(instantiation_error,G).
-'$check_boolean'(true,_,_,_) :- !.
-'$check_boolean'(false,_,_,_) :- !.
-'$check_boolean'(X,B,T,G) :-
-	'$do_error'(domain_error(B,T),G).
 
-open_pipe_streams(Read, Write) :-
-	(
-	 '$undefined'(pipe(_,_),unix)
-	->
-	 load_files(library(unix), [silent(true),if(not_loaded)])
-	;
-	 true
-	),
-	unix:pipe(Read, Write).
+*/
 
-fileerrors :- 	'$swi_set_prolog_flag'(fileerrors, true).
+/** @pred  socket(+ _DOMAIN_,+ _TYPE_,+ _PROTOCOL_,- _SOCKET_)
 
-nofileerrors :- '$swi_set_prolog_flag'(fileerrors, false).
+Corresponds to the BSD system call `socket`. Create a socket for
+domain  _DOMAIN_ of type  _TYPE_ and protocol
+ _PROTOCOL_. Both  _DOMAIN_ and  _TYPE_ should be atoms,
+whereas  _PROTOCOL_ must be an integer.
+The new socket object is
+accessible through a descriptor bound to the variable  _SOCKET_.
 
+The current implementation of YAP  accepts socket
+domains `AF_INET` and `AF_UNIX`.
+Socket types depend on the
+underlying operating system, but at least the following types are
+supported: `SOCK_STREAM'` and `SOCK_DGRAM'` (untested in 6.3).
+
+
+*/
+/** @pred  socket_connect(+ _SOCKET_, + _PORT_, - _STREAM_)
+
+
+
+Interface to system call `connect`, used for clients: connect
+socket  _SOCKET_ to  _PORT_. The connection results in the
+read/write stream  _STREAM_.
+
+Port information depends on the domain:
+
++ 'AF_UNIX'(+ _FILENAME_)
++ 'AF_FILE'(+ _FILENAME_)
+connect to socket at file  _FILENAME_.
+
++ 'AF_INET'(+ _HOST_,+ _PORT_)
+Connect to socket at host  _HOST_ and port  _PORT_.
+*/
+
+
+/** @pred open_pipe_streams(Read, Write)
+
+  Autoload old pipe access interface
+
+*/
+%! @}
+
+
+
+
+/** @pred  exists(+ _F_)
+
+Checks if file  _F_ exists in the current directory.
+
+*/
 exists(F) :-
 	absolute_file_name(F, _, [file_errors(fail),access(exist),expand(true)]).
 
+%! @addtogroup ReadTerm
+%   @{
+
 /* Term IO	*/
 
-read(T) :-
-	'$read'(false,T,_,_,_,Err,_),
-	(nonvar(Err) ->
-	    print_message(error,Err), fail
-	    ;
-	    true
-	).
 
-read(Stream,T) :-
-	'$read'(false,T,_,_,_,Err,_,Stream),
-	(nonvar(Err) ->
-	    print_message(error,Err), fail
-	    ;
-	    true
-	).
+%! @}
 
-read_term(T, Options) :-
-	'$check_io_opts'(Options,read_term(T, Options)),
-	current_input(S),
-	'$preprocess_read_terms_options'(Options,Module,DoComments),
-	'$read_vars'(S,T,Module,Pos,VL,'|: ',DoComments),
-	'$postprocess_read_terms_options'(Options, T, VL, Pos).
-
-read_term(Stream, T, Options) :-
-	'$check_io_opts'(Options,read_term(T, Options)),
-	'$preprocess_read_terms_options'(Options,Module,DoComments),
-	'$read_vars'(Stream,T,Module,Pos,VL,'|: ',DoComments),
-	'$postprocess_read_terms_options'(Options, T, VL, Pos).
-
-%
-% support flags to read
-%
-'$preprocess_read_terms_options'([], _, no).
-'$preprocess_read_terms_options'([syntax_errors(NewVal)|L], Mod, DoComments) :- !,
-	'$get_read_error_handler'(OldVal),
-	set_value('$read_term_error_handler', OldVal),
-	'$set_read_error_handler'(NewVal),
-	'$preprocess_read_terms_options'(L,Mod, DoComments).
-'$preprocess_read_terms_options'([module(Mod)|L], Mod, DoComments) :- !,
-	'$preprocess_read_terms_options'(L, Mod, DoComments).
-'$preprocess_read_terms_options'([comments(Val)|L], Mod, Val) :- !,
-	'$preprocess_read_terms_options'(L, Mod, _).
-'$preprocess_read_terms_options'([_|L],Mod, DoComments) :-
-	'$preprocess_read_terms_options'(L,Mod, DoComments).
-
-'$postprocess_read_terms_options'([], _, _, _).
-'$postprocess_read_terms_options'([H|Tail], T, VL, Pos) :- !,
-	'$postprocess_read_terms_option'(H, T, VL, Pos),
-	'$postprocess_read_terms_options_list'(Tail, T, VL, Pos).
-	
-'$postprocess_read_terms_options_list'([], _, _, _).
-'$postprocess_read_terms_options_list'([H|Tail], T, VL, Pos) :-
-	'$postprocess_read_terms_option'(H, T, VL, Pos),
-	'$postprocess_read_terms_options_list'(Tail, T, VL, Pos).
-
-'$postprocess_read_terms_option'(syntax_errors(_), _, _, _) :-
-	get_value('$read_term_error_handler', OldVal),
-	'$set_read_error_handler'(OldVal).
-'$postprocess_read_terms_option'(variable_names(Vars), _, VL, _) :-
-	'$read_term_non_anonymous'(VL, Vars).
-'$postprocess_read_terms_option'(singletons(Val), T, VL, _) :-
-	'$singletons_in_term'(T, Val1),
-	'$fetch_singleton_names'(Val1,VL,Val).
-'$postprocess_read_terms_option'(variables(Val), T, _, _) :-
-	'$variables_in_term'(T, [], Val).
-'$postprocess_read_terms_option'(comments(_), _, _, _).
-'$postprocess_read_terms_option'(term_position(Pos), _, _, Pos).
-'$postprocess_read_terms_option'(module(_), _, _, _).
-%'$postprocess_read_terms_option'(cycles(Val), _, _).
-
-'$read_term_non_anonymous'([], []).
-'$read_term_non_anonymous'([[S|V]|VL], [Name=V|Vars]) :-
-	atom_codes(Name,S),
-	'$read_term_non_anonymous'(VL, Vars).
-
-
-% problem is what to do about _ singletons.
-% no need to do ordering, the two lists already come ordered.
-'$fetch_singleton_names'([], _, []).
-'$fetch_singleton_names'([_|_], [], []) :- !.
-'$fetch_singleton_names'([V1|Ss], [[Na|V2]|Ns], ONs) :-
-	V1 == V2, !,
-	'$add_singleton_if_no_underscore'(Na,V2,NSs,ONs),
-	'$fetch_singleton_names'(Ss, Ns, NSs).
-'$fetch_singleton_names'([V1|Ss], [[_|V2]|Ns], NSs) :-
-	V1 @> V2, !,
-	'$fetch_singleton_names'([V1|Ss], Ns, NSs).
-'$fetch_singleton_names'([_V1|Ss], Ns, NSs) :-
-%	V1 @> V2,
-	'$fetch_singleton_names'(Ss, Ns, NSs).
-
-'$add_singleton_if_no_underscore'([95|_],_,NSs,NSs) :- !.
-'$add_singleton_if_no_underscore'(Na,V2,NSs,[(Name=V2)|NSs]) :-
-	atom_codes(Name, Na).
+%! @addtogroup Write
+%   @{
 
 /* meaning of flags for '$write' is
 	 1	quote illegal atoms
@@ -201,64 +157,169 @@ read_term(Stream, T, Options) :-
    flags are defined in yapio.h
 */
 
+/** @pred  display(+ _T_)
+
+
+Displays term  _T_ on the current output stream. All Prolog terms are
+written in standard parenthesized prefix notation.
+
+
+*/
 display(T) :-
 	   current_output(Out),
 	   write_term(Out, T, [ignore_ops(true)]).
 
+/** @pred  display(+ _S_, _T_)
+
+Like display/1, but using stream  _S_ to display the term.
+
+
+*/
 display(Stream, T) :-
-	   write_term(Term, T, [ignore_ops(true)]).
-
-format(T) :-
-	format(T, []).
-
-writeln(T) :-
-	write(T),
-	nl.
+	   write_term(Stream, T, [ignore_ops(true)]).
 
 /* interface to user portray	*/
 '$portray'(T) :-
 	\+ '$undefined'(portray(_),user),
-	'$system_catch'(call(portray(T)),user,Error,user:'$Error'(Error)), !,
+	catch(user:portray(T),user,Error,user:'$Error'(Error)), !,
 	set_value('$portray',true), fail.
 '$portray'(_) :- set_value('$portray',false), fail.
 
+%! @}
+
+%! @addtogroup Format
+%   @{
+
+/** @pred  format(+ _T_)
+
+Print formatted output to the current output stream.
+
+
+*/
+format(T) :-
+	format(T, []).
+
+%! @}
+
+%! @addtogroup CharsIO
+%   @{
+
 /* character I/O	*/
 
+/** @pred  ttyget(- _C_)
+
+
+The same as `get(C)`, but from stream user_input.
+
+
+*/
 ttyget(N) :- get(user_input,N).
 
+/** @pred  ttyget0(- _C_)
+
+
+The same as `get0(C)`, but from stream user_input.
+
+
+*/
 ttyget0(N) :- get0(user_input,N).
 
+/** @pred  ttyskip(- _C_)
+
+
+Like skip/1, but always using stream user_input.
+stream.
+
+
+*/
 ttyskip(N) :-  N1 is N, '$skip'(user_input,N1).
 
+/** @pred  ttyput(+ _N_)
+
+
+As `put(N)` but always to user_output.
+
+
+*/
 ttyput(N) :-  N1 is N, put(user_output,N1).
 
+/** @pred  ttynl
+
+
+Outputs a new line to stream user_output.
+
+*/
 ttynl :- nl(user_output).
 
+%! @}
+
+%! @addtogroup StreamM
+%   @{
+
+/** @pred  current_line_number(- _LineNumber_)
+
+Unify  _LineNumber_ with the line number for  the current output stream.
+
+*/
 current_line_number(N) :-
 	current_input(Stream),
 	line_count(Stream, N).
 
+/** @pred  current_line_number(+ _Stream_,- _LineNumber_)
+
+Unify  _LineNumber_ with the line number for  _Stream_.
+
+*/
 current_line_number(Stream,N) :-
 	line_count(Stream, N).
 
+/** @pred  stream_position(+ _Stream_,- _StreamPosition_)
+
+Unify  _StreamPosition_ with the packaged information of position on
+current stream  _Stream_. Use stream_position_data/3 to
+retrieve information on character or line count.
+
+*/
 stream_position(Stream, Position) :-
 	stream_property(Stream, position(Position)).
+
+/** @pred  stream_position(+ _Stream_,- _StreamPosition_, +_NewPosition_)
+
+Unify _StreamPosition_ with the packaged information of position on
+current stream _Stream_ an then moves to position _NewPosition_.
+
+*/
 stream_position(Stream, Position, NewPosition) :-
 	stream_property(Stream, position(Position)),
 	set_stream_position(Stream, NewPosition).
+
+/** @pred at_end_of_line
+
+   Tests whether the next character in the current input stream is a line break character.
+*/
 
 at_end_of_line :-
 	current_input(S),
 	at_end_of_line(S).
 
+/** @pred at_end_of_line( +Stream )
+
+   Tests whether the next character in the stream is a line break character.
+*/
 at_end_of_line(S) :-
-	current_stream(S, end_of_stream(past)), !.
+	stream_property(S, end_of_stream(past)), !.
 at_end_of_line(S) :-
-	peek(S,N), ( N = 10 -> true ; N = -1).
+	peek_code(S,N), ( N = 10 -> true ; N = -1).
+
+/** @pred  current_char_conversion(? _IN_,? _OUT_) is iso
 
 
-consult_depth(LV) :- '$show_consult_level'(LV).
+If  _IN_ is unbound give all current character
+translations. Otherwise, give the translation for  _IN_, if one
+exists.
 
+
+*/
 current_char_conversion(X,Y) :-
 	var(X), !,
 	'$all_char_conversions'(List),
@@ -271,9 +332,33 @@ current_char_conversion(X,Y) :-
 '$fetch_char_conversion'([_,_|List],X,Y) :-
 	'$fetch_char_conversion'(List,X,Y).
 
+split_path_file(File, Path, Name) :-
+	file_directory_name(File, Path),
+	file_base_name(File, Name).
 
-current_stream(File, Opts, Stream) :-
-	'$current_stream'(File, Opts, Stream).
+/** @pred  current_stream( _F_, _M_, _S_)
+
+
+Defines the relation: The stream  _S_ is opened on the file  _F_
+in mode  _M_. It might be used to obtain all open streams (by
+backtracking) or to access the stream for a file  _F_ in mode
+ _M_, or to find properties for a stream  _S_. Notice that some
+streams might not be associated to a file: in this case YAP tries to
+return the file number. If that is not available, YAP unifies  _F_
+with  _S_.
+
+
+*/
+current_stream(File, Mode, Stream) :-
+
+    stream_property(Stream, mode(Mode)),
+    '$stream_name'(Stream, File).
+
+'$stream_name'(Stream, File) :-
+    stream_property(Stream, file_name(File)), !.
+'$stream_name'(Stream, file_no(File)) :-
+    stream_property(Stream, file_no(File)), !.
+'$stream_name'(Stream, Stream).
 
 '$extend_file_search_path'(P) :-
 	atom_codes(P,S),
@@ -310,18 +395,22 @@ current_stream(File, Opts, Stream) :-
 sformat(String, Form, Args) :-
 	format(codes(String, []), Form, Args).
 
-write_depth(T,L) :- write_depth(T,L,_).
 
-%%      stream_position_data(?Field, +Pos, ?Date)
-%
-%       Extract values from stream position objects. '$stream_position' is
-%       of the format '$stream_position'(Byte, Char, Line, LinePos)
+/** @pred  stream_position_data(+ _Field_,+ _StreamPosition_,- _Info_)
+  Extract values from stream position objects.
 
+
+  '$stream_position' is of the format '$stream_position'(Byte, Char,
+  Line, LinePos).  Given the packaged stream position term
+  _StreamPosition_, unify _Info_ with _Field_ `line_count`,
+  `byte_count`, or `char_count`.
+
+ */
 stream_position_data(Prop, Term, Value) :-
         nonvar(Prop), !,
         (   '$stream_position_field'(Prop, Pos)
         ->  arg(Pos, Term, Value)
-        ;   throw(error(domain_error(stream_position_data, Prop)))
+        ;   '$do_error'(domain_error(stream_position_data), Prop)
         ).
 stream_position_data(Prop, Term, Value) :-
         '$stream_position_field'(Prop, Pos),
@@ -332,26 +421,10 @@ stream_position_data(Prop, Term, Value) :-
 '$stream_position_field'(line_position, 3).
 '$stream_position_field'(byte_count,    4).
 
+'$set_encoding'(Enc) :-
+    set_stream(loop_stream, encoding(Enc)).
 
-'$default_expand'(Expand) :-
-	nb_getval('$open_expands_filename',Expand).
-
-'$set_default_expand'(true) :- !,
-	nb_setval('$open_expands_filename',true).
-'$set_default_expand'(false) :- !,
-	nb_setval('$open_expands_filename',false).
-'$set_default_expand'(V) :- !,
-	'$do_error'(domain_error(flag_value,V),yap_flag(open_expands_file_name,X)).
-
-prolog_file_name(File, PrologFileName) :-
-	var(File), !,
-	'$do_error'(instantiation_error, prolog_file_name(File, PrologFileName)).
-prolog_file_name(user, Out) :- !, Out = user.
-prolog_file_name(File, PrologFileName) :-
-	atom(File), !,
-	operating_system_support:true_file_name(File, PrologFileName).
-prolog_file_name(File, PrologFileName) :-
-	'$do_error'(type_error(atom,T), prolog_file_name(File, PrologFileName)).
+%! @}
 
 
 '$codes_to_chars'(String0, String, String0) :- String0 == String, !.
@@ -359,8 +432,33 @@ prolog_file_name(File, PrologFileName) :-
 	atom_codes(Char, [Code]),
 	'$codes_to_chars'(String0, String, Chars).
 
+/** @pred file_exists(+ _File__)
+
+The atom  _File_ corresponds to an existing file or directory.
 
 
+*/
+file_exists(IFile) :-
+	absolute_file_name(IFile, _File, [expand(true), solutions(first), access(exist)]).
+
+/** @pred  rename(+F , +G)
+
+      Renames the single file  _F_ to  _G_.
+*/
+rename(IFile, OFile) :-
+	absolute_file_name(IFile, IF, [access(read),expand(true)]),
+	absolute_file_name(OFile, OF, [expand(true)]),
+	'$rename'(IF, OF).
+
+/** @pred  access_file(+F , +G)
+
+      Verify whether file F respects property _G_. The file is  processed
+      with absolute_file_name.
+*/
+access_file(IFile, Access) :-
+    absolute_file_name(IFile, _IF, [access(Access),expand(true)]).
 
 
-
+/**
+@}
+*/

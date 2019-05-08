@@ -14,6 +14,8 @@
 * version:      $Id: Tags_32LowTag.h,v 1.4 2008-01-30 10:35:43 vsc Exp $	 *
 *************************************************************************/
 
+#if SIZEOF_INT_P==4 && USE_LOW32_TAGS
+
 #define TAG_LOW_BITS_32 1
 
      /*    Version for 32 bit addresses machines,
@@ -77,9 +79,9 @@
 #define YAP_PROTECTED_MASK 0xc0000000L
 
 #include "inline-only.h"
-inline EXTERN int IsVarTerm (Term) INLINE_ONLY;
+INLINE_ONLY int IsVarTerm (Term);
 
-inline EXTERN int
+INLINE_ONLY int
 IsVarTerm (Term t)
 {
   return (int) (!((t) & LowTagBits));
@@ -87,9 +89,9 @@ IsVarTerm (Term t)
 
 
 
-inline EXTERN int IsNonVarTerm (Term) INLINE_ONLY;
+INLINE_ONLY int IsNonVarTerm (Term);
 
-inline EXTERN int
+INLINE_ONLY int
 IsNonVarTerm (Term t)
 {
   return (int) (((t) & LowTagBits));
@@ -97,9 +99,9 @@ IsNonVarTerm (Term t)
 
 
 
-inline EXTERN Term *RepPair (Term) INLINE_ONLY;
+INLINE_ONLY Term *RepPair (Term);
 
-inline EXTERN Term *
+INLINE_ONLY Term *
 RepPair (Term t)
 {
   return (Term *) ((t) - PairBits);
@@ -107,9 +109,9 @@ RepPair (Term t)
 
 
 
-inline EXTERN Term AbsPair (Term *) INLINE_ONLY;
+INLINE_ONLY Term AbsPair (Term *);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AbsPair (Term * p)
 {
   return (Term) (Unsigned (p) + PairBits);
@@ -117,9 +119,9 @@ AbsPair (Term * p)
 
 
 
-inline EXTERN Int IsPairTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsPairTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsPairTerm (Term t)
 {
   return (Int) ((((t) & LowTagBits) == PairBits));
@@ -127,9 +129,9 @@ IsPairTerm (Term t)
 
 
 
-inline EXTERN Term *RepAppl (Term) INLINE_ONLY;
+INLINE_ONLY Term *RepAppl (Term);
 
-inline EXTERN Term *
+INLINE_ONLY Term *
 RepAppl (Term t)
 {
   return (Term *) (((t) - ApplBit));
@@ -137,9 +139,9 @@ RepAppl (Term t)
 
 
 
-inline EXTERN Term AbsAppl (Term *) INLINE_ONLY;
+INLINE_ONLY Term AbsAppl (Term *);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AbsAppl (Term * p)
 {
   return (Term) (Unsigned (p) + ApplBit);
@@ -147,9 +149,9 @@ AbsAppl (Term * p)
 
 
 
-inline EXTERN Int IsApplTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsApplTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsApplTerm (Term t)
 {
   return (Int) ((((t) & LowTagBits) == ApplBit));
@@ -157,9 +159,9 @@ IsApplTerm (Term t)
 
 
 
-inline EXTERN Int IsAtomOrIntTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IsAtomOrIntTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IsAtomOrIntTerm (Term t)
 {
   return (Int) ((((t) & LowTagBits) == 2));
@@ -168,9 +170,9 @@ IsAtomOrIntTerm (Term t)
 
 
 
-inline EXTERN Term AdjustPtr (Term t, Term off) INLINE_ONLY;
+INLINE_ONLY Term AdjustPtr (Term t, Term off);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AdjustPtr (Term t, Term off)
 {
   return (Term) ((t) + off);
@@ -178,9 +180,9 @@ AdjustPtr (Term t, Term off)
 
 
 
-inline EXTERN Term AdjustIDBPtr (Term t, Term off) INLINE_ONLY;
+INLINE_ONLY Term AdjustIDBPtr (Term t, Term off);
 
-inline EXTERN Term
+INLINE_ONLY Term
 AdjustIDBPtr (Term t, Term off)
 {
   return (Term) ((t) + off);
@@ -189,10 +191,13 @@ AdjustIDBPtr (Term t, Term off)
 
 
 
-inline EXTERN Int IntOfTerm (Term) INLINE_ONLY;
+INLINE_ONLY Int IntOfTerm (Term);
 
-inline EXTERN Int
+INLINE_ONLY Int
 IntOfTerm (Term t)
 {
   return (Int) (((Int) (t << 1)) >> (SHIFT_LOW_TAG + SHIFT_HIGH_TAG + 1));
 }
+
+#endif
+

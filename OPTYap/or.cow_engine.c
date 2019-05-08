@@ -18,7 +18,9 @@
 #include "Yap.h"
 #ifdef YAPOR_COW
 #include <sys/types.h>
+#if HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <stdio.h>
 #include "Yatom.h"
 #include "YapHeap.h"
@@ -39,7 +41,7 @@ static void share_private_nodes(int worker_q);
 **      Local inlines      **
 ** ----------------------- */
 
-STD_PROTO(static inline void PUT_BUSY, (int));
+static inline void PUT_BUSY(int);
 
 static inline
 void PUT_BUSY(int worker_num) {
@@ -197,7 +199,7 @@ void share_private_nodes(int worker_q) {
   }
   /* update depth */
   if (depth >= MAX_BRANCH_DEPTH)
-    Yap_Error(INTERNAL_ERROR, TermNil, "maximum depth exceded (share_private_nodes)");
+    Yap_Error(SYSTEM_ERROR_INTERNAL, TermNil, "maximum depth exceded (share_private_nodes)");
   or_frame = B->cp_or_fr;
   while (or_frame != LOCAL_top_or_fr) {
     unsigned int branch;

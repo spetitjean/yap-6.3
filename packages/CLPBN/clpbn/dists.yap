@@ -3,47 +3,51 @@
 %
 
 :- module(clpbn_dist,
-	  [
-	   dist/1,
-	   dist/4,
-	   dists/1,
-	   dist_new_table/2,
-	   get_dist/4,
-	   get_dist_matrix/5,
-	   get_possibly_deterministic_dist_matrix/5,
-	   get_dist_domain/2,
-	   get_dist_domain_size/2,
-	   get_dist_params/2,
-	   get_dist_key/2,
-	   get_dist_all_sizes/2,
-	   get_evidence_position/3,
-	   get_evidence_from_position/3,
-	   dist_to_term/2,
-	   empty_dist/2,
-	   all_dist_ids/1,
-	   randomise_all_dists/0,
-	   randomise_dist/1,
-	   uniformise_all_dists/0,
-	   uniformise_dist/1,
-	   reset_all_dists/0,
-	   add_dist/6,
-	   additive_dists/6
-	]).
+		[dist/1,
+		 dist/4,
+		 dists/1,
+		 dist_new_table/2,
+		 get_dist/4,
+		 get_dist_matrix/5,
+		 get_possibly_deterministic_dist_matrix/5,
+		 get_dist_domain/2,
+		 get_dist_domain_size/2,
+		 get_dist_params/2,
+		 get_dist_key/2,
+		 get_dist_all_sizes/2,
+		 get_evidence_position/3,
+		 get_evidence_from_position/3,
+		 dist_to_term/2,
+		 empty_dist/2,
+		 all_dist_ids/1,
+		 randomise_all_dists/0,
+		 randomise_dist/1,
+		 uniformise_all_dists/0,
+		 uniformise_dist/1,
+		 reset_all_dists/0,
+		 add_dist/6,
+		 additive_dists/6
+		]).
 
-:- use_module(library(lists),[nth0/3,append/3]).
+:- use_module(library(lists),
+		[nth0/3,
+		 append/3
+		]).
 
 :- use_module(library(clpbn),
-	[use_parfactors/1]).
+		[use_parfactors/1]).
 
 :- use_module(library(matrix),
-	      [matrix_new/4,
-	       matrix_new/3,
-	       matrix_to_list/2,
-	       matrix_to_logs/1]).
+		[matrix_new/4,
+		 matrix_new/3,
+		 matrix_to_list/2,
+		 matrix_to_logs/1
+		]).
 
 :- use_module(library(clpbn/matrix_cpt_utils),
-	      [random_CPT/2,
-	       uniform_CPT/2]).
+		[random_CPT/2,
+		 uniform_CPT/2
+		]).
 
 /*
 :- mode dist(+, -).
@@ -86,7 +90,7 @@ where Id is the id,
     dna for [a,c,g,t]
     rna for [a,c,g,u]
     reals
-	
+
 
 ********************************************/
 
@@ -234,7 +238,7 @@ get_dist_all_sizes(Id, DSizes) :-
 
 get_dist_domain_size(DistId, DSize) :-
 	use_parfactors(on), !,
-	pfl:get_pfl_parameters(DistId, Dist),
+	pfl:get_pfl_parameters(DistId, _, Dist),
 	length(Dist, DSize).
 get_dist_domain_size(avg(D,_), DSize) :- !,
 	length(D, DSize).
@@ -293,7 +297,7 @@ empty_dist(Dist, TAB) :-
 dist_new_table(DistId, NewMat) :-
 	use_parfactors(on), !,
 	matrix_to_list(NewMat, List),
-	pfl:new_pfl_parameters(DistId, List).
+	pfl:new_pfl_parameters(DistId, _, List).
 dist_new_table(Id, NewMat) :-
 	matrix_to_list(NewMat, List),
 	recorded(clpbn_dist_db, db(Id, Key, _, A, B, C, D), R),
@@ -365,3 +369,4 @@ reset_all_dists.
 additive_dists(ip(Domain,Tabs1), ip(Domain,Tabs2), Parents1, Parents2, ip(Domain,Tabs), Parents) :-
 	append(Tabs1, Tabs2, Tabs),
 	append(Parents1, Parents2, Parents).
+

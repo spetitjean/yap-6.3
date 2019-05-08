@@ -43,8 +43,9 @@ SO=@SO@
 #4.1VPATH=@srcdir@:@srcdir@/OPTYap
 CWD=$(PWD)
 
+utestsdir=@srcdir@/unit_tests
 
-HEADERS = \
+MAIN_HEADERS = \
 	$(srcdir)/BayesBall.h \
 	$(srcdir)/BayesBallGraph.h \
 	$(srcdir)/BeliefProp.h \
@@ -53,23 +54,35 @@ HEADERS = \
 	$(srcdir)/ElimGraph.h \
 	$(srcdir)/Factor.h \
 	$(srcdir)/FactorGraph.h \
+	$(srcdir)/GenericFactor.h \
+	$(srcdir)/GroundSolver.h \
 	$(srcdir)/Histogram.h \
 	$(srcdir)/Horus.h \
 	$(srcdir)/Indexer.h \
 	$(srcdir)/LiftedBp.h \
+	$(srcdir)/LiftedKc.h \
+	$(srcdir)/LiftedOperations.h \
+	$(srcdir)/LiftedSolver.h \
 	$(srcdir)/LiftedUtils.h \
 	$(srcdir)/LiftedVe.h \
+	$(srcdir)/LiftedWCNF.h \
 	$(srcdir)/Parfactor.h \
 	$(srcdir)/ParfactorList.h \
 	$(srcdir)/ProbFormula.h \
-	$(srcdir)/Solver.h \
 	$(srcdir)/TinySet.h \
 	$(srcdir)/Util.h \
 	$(srcdir)/Var.h \
 	$(srcdir)/VarElim.h \
 	$(srcdir)/WeightedBp.h
-	
-CPP_SOURCES = \
+
+UTESTS_HEADERS = \
+	$(utestsdir)/Common.h
+
+HEADERS = \
+	$(MAIN_HEADERS) \
+	$(UTESTS_HEADERS)
+
+MAIN_SOURCES = \
 	$(srcdir)/BayesBall.cpp \
 	$(srcdir)/BayesBallGraph.cpp \
 	$(srcdir)/BeliefProp.cpp \
@@ -78,20 +91,37 @@ CPP_SOURCES = \
 	$(srcdir)/ElimGraph.cpp \
 	$(srcdir)/Factor.cpp \
 	$(srcdir)/FactorGraph.cpp \
+	$(srcdir)/GenericFactor.cpp \
+	$(srcdir)/GroundSolver.cpp \
 	$(srcdir)/Histogram.cpp \
 	$(srcdir)/HorusCli.cpp \
 	$(srcdir)/HorusYap.cpp \
+	$(srcdir)/Indexer.cpp \
 	$(srcdir)/LiftedBp.cpp \
+	$(srcdir)/LiftedKc.cpp \
+	$(srcdir)/LiftedOperations.cpp \
 	$(srcdir)/LiftedUtils.cpp \
 	$(srcdir)/LiftedVe.cpp \
+	$(srcdir)/LiftedWCNF.cpp \
 	$(srcdir)/Parfactor.cpp \
 	$(srcdir)/ParfactorList.cpp \
 	$(srcdir)/ProbFormula.cpp \
-	$(srcdir)/Solver.cpp \
 	$(srcdir)/Util.cpp \
 	$(srcdir)/Var.cpp \
 	$(srcdir)/VarElim.cpp \
-	$(srcdir)/WeightedBp.cpp \
+	$(srcdir)/WeightedBp.cpp
+
+UTESTS_SOURCES = \
+	$(utestsdir)/BeliefPropTest.cpp \
+	$(utestsdir)/Common.cpp	\
+	$(utestsdir)/CountingBpTest.cpp \
+	$(utestsdir)/FactorTest.cpp \
+	$(utestsdir)/VarElimTest.cpp \
+	$(utestsdir)/UnitTesting.cpp
+
+SOURCES = \
+	$(MAIN_SOURCES) \
+	$(UTESTS_SOURCES)
 
 OBJS = \
 	BayesBall.o \
@@ -102,19 +132,27 @@ OBJS = \
 	ElimGraph.o \
 	Factor.o \
 	FactorGraph.o \
+	GenericFactor.o \
+	GroundSolver.o \
 	Histogram.o \
-	HorusYap.o \
+	Indexer.o \
 	LiftedBp.o \
+	LiftedKc.o \
+	LiftedOperations.o \
 	LiftedUtils.o \
 	LiftedVe.o \
+	LiftedWCNF.o \
 	ProbFormula.o \
 	Parfactor.o \
 	ParfactorList.o \
-	Solver.o \
 	Util.o \
 	Var.o \
 	VarElim.o \
 	WeightedBp.o
+
+LIB_OBJS = \
+	$(OBJS) \
+	HorusYap.o
 
 HCLI_OBJS = \
 	BayesBall.o \
@@ -124,50 +162,85 @@ HCLI_OBJS = \
 	ElimGraph.o \
 	Factor.o \
 	FactorGraph.o \
+	GenericFactor.o \
+	GroundSolver.o \
 	HorusCli.o \
-	Solver.o \
+	Indexer.o \
 	Util.o \
 	Var.o \
 	VarElim.o \
 	WeightedBp.o
 
-SOBJS=horus.@SO@
+UTESTS_OBJS = \
+	$(OBJS) \
+	$(utestsdir)/BeliefPropTest.o \
+	$(utestsdir)/Common.o	\
+	$(utestsdir)/CountingBpTest.o \
+	$(utestsdir)/FactorTest.o \
+	$(utestsdir)/VarElimTest.o \
+	$(utestsdir)/UnitTesting.o
 
 
-all: $(SOBJS) hcli
+SOBJS = horus.@SO@
+HCLI = hcli@EXEC_SUFFIX@
+UTESTING = $(srcdir)/run_tests
+
+
+all: $(SOBJS) $(HCLI)
+
+
+# Don't require $(UTESTING) by default as we
+# don't want a hard dependency on CppUnit
+with_tests: $(SOBJS) $(HCLI) $(UTESTING)
+
+
+@DO_SECOND_LD@$(SOBJS): $(LIB_OBJS)
+@DO_SECOND_LD@	@SHLIB_CXX_LD@ $(LDFLAGS) -o $@ $(LIB_OBJS) @EXTRA_LIBS_FOR_SWIDLLS@
+
+
+$(HCLI): $(HCLI_OBJS)
+	$(CXX) -o $@ $(HCLI_OBJS)
+
+
+$(UTESTING): $(UTESTS_OBJS)
+	$(CXX) -o $@ $(UTESTS_OBJS) -lcppunit
+
 
 # default rule
 %.o : $(srcdir)/%.cpp
-	$(CXX) -c $(CXXFLAGS) $< -o $@
+	$(CXX) -o $@ -c $(CXXFLAGS) $<
 
 
-@DO_SECOND_LD@horus.@SO@: $(OBJS)
-@DO_SECOND_LD@	@SHLIB_CXX_LD@ -o horus.@SO@ $(OBJS) @EXTRA_LIBS_FOR_SWIDLLS@
+install: all install-examples
+	$(INSTALL_PROGRAM) $(SOBJS) $(DESTDIR)$(YAPLIBDIR)
+	$(INSTALL_PROGRAM) $(HCLI)  $(DESTDIR)$(BINDIR)
 
-
-hcli: $(HCLI_OBJS)
-	$(CXX) -o hcli $(HCLI_OBJS)
-
-
-install: all
-	$(INSTALL_PROGRAM) $(SOBJS) $(DESTDIR) $(YAPLIBDIR)
-
+install-examples:
 
 clean:
-	rm -f *.o *~ $(OBJS) $(SOBJS) *.BAK hcli
+	rm -f $(SOBJS) $(HCLI) $(UTESTING) *.o *~ $(utestsdir)/*.o $(utestsdir)/*~
+
+distclean: clean
+	rm -f Makefile
+
+remove_dots:
+	rm -f *.dot *.png *.svg
 
 
-erase_dots:
-	rm -f *.dot *.png
-
-
-depend: $(HEADERS) $(CPP_SOURCES)
+depend: $(SOURCES) $(HEADERS)
 	-@if test "$(GCC)" = yes; then\
-	  $(CC) -std=c++0x -MM -MG $(CFLAGS) -I$(srcdir) -I$(srcdir)/../../../../include -I$(srcdir)/../../../../H $(CPP_SOURCES) >> Makefile;\
+	  for F in $(SOURCES); do \
+	    D=`dirname $$F`; \
+	    B=`basename $$F .cpp`; \
+	    $(CXX) $(CXXFLAGS) -MM -MG -MT "$$D/$$B.o" -I$(srcdir)/../../../../H -I$(srcdir)/../../../../include $$F >> Makefile; \
+	  done; \
 	else\
-          makedepend -f - -- $(CFLAGS) -I$(srcdir)/../../../../H -I$(srcdir)/../../../../include -- $(CPP_SOURCES) |\
-          sed 's|.*/\([^:]*\):|\1:|' >> Makefile ;\
+	  makedepend -- $(CXXFLAGS) -- -I$(srcdir)/../../../../H -I$(srcdir)/../../../../include $(SOURCES); \
 	fi
+
+
+.PHONY: default all install clean remove_dots depend
+
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 

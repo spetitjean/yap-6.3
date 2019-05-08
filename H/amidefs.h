@@ -10,84 +10,15 @@
  *									 *
  * File:		amidefs.h						 *
  * comments:	Abstract machine peculiarities				 *
- *									 *
- * Last rev:     $Date: 2008-07-22 23:34:49 $							 *
- * $Log: not supported by cvs2svn $
- * Revision 1.33  2007/11/26 23:43:09  vsc
- * fixes to support threads and assert correctly, even if inefficiently.
- *
- * Revision 1.32  2006/10/10 14:08:17  vsc
- * small fixes on threaded implementation.
- *
- * Revision 1.31  2006/09/20 20:03:51  vsc
- * improve indexing on floats
- * fix sending large lists to DB
- *
- * Revision 1.30  2005/12/17 03:25:39  vsc
- * major changes to support online event-based profiling
- * improve error discovery and restart on scanner.
- *
- * Revision 1.29  2005/07/06 15:10:15  vsc
- * improvements to compiler: merged instructions and fixes for ->
- *
- * Revision 1.28  2005/05/30 06:07:35  vsc
- * changes to support more tagging schemes from tabulation.
- *
- * Revision 1.27  2005/04/10 04:01:13  vsc
- * bug fixes, I hope!
- *
- * Revision 1.26  2004/09/30 21:37:41  vsc
- * fixes for thread support
- *
- * Revision 1.25  2004/09/27 20:45:04  vsc
- * Mega clauses
- * Fixes to sizeof(expand_clauses) which was being overestimated
- * Fixes to profiling+indexing
- * Fixes to reallocation of memory after restoring
- * Make sure all clauses, even for C, end in _Ystop
- * Don't reuse space for Streams
- * Fix Stream_F on StreaNo+1
- *
- * Revision 1.24  2004/04/14 19:10:40  vsc
- * expand_clauses: keep a list of clauses to expand
- * fix new trail scheme for multi-assignment variables
- *
- * Revision 1.23  2004/03/31 01:03:10  vsc
- * support expand group of clauses
- *
- * Revision 1.22  2004/03/10 14:59:55  vsc
- * optimise -> for type tests
- *									 *
- *									 *
+ *						    			 *
  *************************************************************************/
+
+#ifndef AMIDEFS_H
+#define AMIDEFS_H 1
 
 #ifndef NULL
 #include <stdio.h>
-#endif 
-
-#ifdef FROZEN_STACKS
-#ifdef YAPOR_SBA
-#define PROTECT_FROZEN_H(CPTR)                                  \
-       ((Unsigned((Int)((CPTR)->cp_h)-(Int)(H_FZ)) <            \
-	 Unsigned((Int)(B_FZ)-(Int)(H_FZ))) ?                   \
-	(CPTR)->cp_h : H_FZ)
-#define PROTECT_FROZEN_B(CPTR)                                  \
-       ((Unsigned((Int)(CPTR)-(Int)(H_FZ)) <                    \
-	 Unsigned((Int)(B_FZ)-(Int)(H_FZ)))  ?                  \
-	(CPTR) : B_FZ)
-	 /*
-#define PROTECT_FROZEN_H(CPTR) ((CPTR)->cp_h > H_FZ && (CPTR)->cp_h < (CELL *)B_FZ ? (CPTR)->cp_h : H_FZ )
-
-#define PROTECT_FROZEN_B(CPTR)  ((CPTR) < B_FZ && (CPTR) > (choiceptr)H_FZ ? (CPTR) : B_FZ )
-	 */
-#else /* TABLING */
-#define PROTECT_FROZEN_B(CPTR)  (YOUNGER_CP(CPTR, B_FZ) ? CPTR        : B_FZ)
-#define PROTECT_FROZEN_H(CPTR)  (((CPTR)->cp_h > H_FZ) ? (CPTR)->cp_h : H_FZ)
-#endif /* YAPOR_SBA */
-#else
-#define PROTECT_FROZEN_B(CPTR)  (CPTR)
-#define PROTECT_FROZEN_H(CPTR)  (CPTR)->cp_h
-#endif /* FROZEN_STACKS */
+#endif
 
 #if ALIGN_LONGS
 /*   */ typedef Int DISPREG;
@@ -121,7 +52,6 @@ typedef Int (*CPredicate)(CACHE_TYPE1);
 
 typedef Int (*CmpPredicate)(Term, Term);
 
-
 #define OpRegSize    sizeof(OPREG)
 
 /*
@@ -135,8 +65,6 @@ typedef Int (*CmpPredicate)(Term, Term);
 typedef OPREG  wamreg;
 typedef OPREG  yslot;
 typedef OPREG  COUNT;
-
-
 /*
   This is a table with the codes for YAP instructions
 */
@@ -163,6 +91,7 @@ typedef enum {
   _number,
   _var,
   _cut_by,
+  _save_by,
   _db_ref,
   _primitive,
   _dif,
@@ -246,19 +175,20 @@ typedef enum {
 #endif
 #define OpCodeSize   sizeof(OPCODE)
 
-
 /*
 
   Types of possible YAAM instructions.
 
   The meaning and type of the symbols in a abstract machine instruction is:
 
+  A: Atom
   b: arity (Int)
   b: bitmap (CELL *)
   c: constant, is a Term
   d: double (functor + unaligned double)
   f: functor
   F: Function, CPredicate
+  J: JIT interface
   i: large integer (functor + long)
   I: logic upd index (struct logic_upd_index *)
   l: label, yamop *
@@ -271,6 +201,7 @@ typedef enum {
   p: predicate, struct pred_entry *
   s: small integer, COUNT
   t: pointer to table entry, used by yaptab, struct table_entry *
+  u: utf-8 string
   x: wam register, wamreg
   y: environment slot
 
@@ -282,6 +213,10 @@ typedef enum {
 */
 typedef struct yami {
   OPCODE opc;
+#if YAP_JIT
+  CELL next_native_r;
+  CELL next_native_w;
+#endif
   union {
     struct {
       CELL next;
@@ -382,21 +317,17 @@ typedef struct yami {
       CELL next;
     } Otapl;
     struct {
-      /* call counter */
-      COUNT                n;
-      /* native code pointer */
-      CPredicate           native;
-      /* next instruction to execute after native code if the predicate was not fully compiled */
-      struct yami *native_next;
-      /* Pointer to pred */
-      struct pred_entry   *p;
-      CELL next;              
-    } aFlp;
+    /* jit_handler */
+#if YAP_JIT
+      struct jit_handl_context *jh;
+#endif
+      CELL next;
+    } J;
     /* The next two instructions are twin: they both correspond to the old ldd. */
     /* The first one, aLl, handles try_logical and retry_logical, */
     /* Ill handles trust_logical. */
     /* They must have the same fields. */
-    
+
     struct {
 #ifdef YAPOR
       unsigned int               or_arg;
@@ -558,6 +489,11 @@ typedef struct yami {
     } os;
     struct {
       OPCODE              opcw;
+      Term    ut;
+      CELL next;
+    } ou;
+    struct {
+      OPCODE              opcw;
       wamreg                x;
       CELL next;
     } ox;
@@ -576,11 +512,6 @@ typedef struct yami {
       struct pred_entry   *p;
       CELL next;
     } p;
-    struct {
-      struct pred_entry   *p;
-      struct pred_entry   *p0;
-      CELL next;
-    } pp;
     struct {
       COUNT               s;
       CELL next;
@@ -611,8 +542,9 @@ typedef struct yami {
       COUNT               s;
       struct yami        *l;
       struct pred_entry  *p;
+      struct pred_entry  *p0;
       CELL next;
-    } slp;
+    } slpp;
     struct {
       COUNT               s;
       Int                 I;
@@ -775,12 +707,17 @@ typedef struct yami {
       struct yami	       *l1;
       struct yami	       *l2;
       CELL next;
-    } xll; 
+    } xll;
     struct {
       wamreg                xl;
       wamreg                xr;
       CELL next;
     } xx;
+    struct {
+      wamreg                x;
+      Term                  ut;
+      CELL next;
+    } xu;
     struct {
       wamreg                x;
       wamreg                xi;
@@ -863,7 +800,13 @@ typedef struct yami {
       Int                  c;
       CELL next;
     } yxn;
-  } u;
+    struct {
+      yslot                y;
+      wamreg               xi;
+      Term                 c;
+      CELL next;
+    } yxc;
+  } y_u;
 } yamop;
 
 typedef yamop yamopp;
@@ -872,12 +815,12 @@ typedef yamop yamopp;
 #define OPCW                u.ox.opcw
 
 
-#define NEXTOP(V,TYPE)    ((yamop *)(&((V)->u.TYPE.next)))
+#define NEXTOP(V,TYPE)    ((yamop *)(&((V)->y_u.TYPE.next)))
 
 #define PREVOP(V,TYPE)    ((yamop *)((CODEADDR)(V)-(CELL)NEXTOP((yamop *)NULL,TYPE)))
 
 #if defined(TABLING) || defined(YAPOR_SBA)
-typedef struct trail_frame {
+    typedef struct trail_frame {
   Term term;
   CELL value;
 } *tr_fr_ptr;
@@ -902,7 +845,7 @@ typedef Term *tr_fr_ptr;
 struct deterministic_choicept {
   yamop *cp_ap;
   struct choicept *cp_b;
-  tr_fr_ptr cp_tr;  
+  tr_fr_ptr cp_tr;
 #ifdef DEPTH_LIMIT
   CELL cp_depth;
 #endif /* DEPTH_LIMIT */
@@ -916,7 +859,7 @@ struct deterministic_choicept {
 typedef struct choicept {
   yamop *cp_ap;
   struct choicept *cp_b;
-  tr_fr_ptr cp_tr;  
+  tr_fr_ptr cp_tr;
 #ifdef DEPTH_LIMIT
   CELL cp_depth;
 #endif /* DEPTH_LIMIT */
@@ -945,6 +888,15 @@ typedef struct choicept {
   CELL *cp_env;
   /* GNUCC understands empty arrays */
   CELL cp_args[MIN_ARRAY];
+#else
+  /* Otherwise, we need a very dirty trick to access the arguments */
+  union {
+    CELL *cp_uenv;
+    CELL  cp_xargs[1];
+  } cp_last;
+#define cp_env		cp_last.cp_uenv
+#define cp_args		cp_last.cp_xargs
+#endif
 #define cp_a1		cp_args[0]
 #define cp_a2		cp_args[1]
 #define cp_a3		cp_args[2]
@@ -956,23 +908,6 @@ typedef struct choicept {
 #define cp_a9		cp_args[8]
 #define cp_a10		cp_args[9]
 #define EXTRA_CBACK_ARG(Arity,Offset)  B->cp_args[(Arity)+(Offset)-1]
-#else
-  /* Otherwise, we need a very dirty trick to access the arguments */
-  union {
-    CELL *cp_uenv;
-    CELL  cp_args[1];
-  } cp_last;
-#define cp_env		cp_last.cp_uenv
-#define cp_a1		cp_last.cp_args[1]
-#define cp_a2		cp_last.cp_args[2]
-#define cp_a3		cp_last.cp_args[3]
-#define cp_a4		cp_last.cp_args[4]
-#define cp_a5		cp_last.cp_args[5]
-#define cp_a6		cp_last.cp_args[6]
-#define cp_a7		cp_last.cp_args[7]
-#define cp_a8		cp_last.cp_args[8]
-#define EXTRA_CBACK_ARG(Arity,Offset)  B->cp_last.cp_args[(Arity)+(Offset)]
-#endif
 } *choiceptr;
 
 /* This has problems with \+ \+ a, !, b. */
@@ -1050,40 +985,40 @@ CELL *ENV_Parent(CELL *env)
   return (CELL *)env[E_E];
 }
 
-static inline 
-UInt ENV_Size(yamop *cp)
+static inline
+Int ENV_Size(yamop *cp)
 {
-  return (((yamop *)((CODEADDR)(cp) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->u.Osbpp.s);
+  return (((yamop *)((CODEADDR)(cp) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->y_u.Osbpp.s);
 }
 
-static inline 
+static inline
 struct pred_entry *ENV_ToP(yamop *cp)
 {
-  return (((yamop *)((CODEADDR)(cp) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->u.Osbpp.p);
+  return (((yamop *)((CODEADDR)(cp) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->y_u.Osbpp.p);
 }
 
-static inline 
+static inline
 OPCODE ENV_ToOp(yamop *cp)
 {
   return (((yamop *)((CODEADDR)(cp) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->opc);
 }
 
-static inline 
-UInt EnvSize(yamop *cp)
+static inline
+int64_t EnvSize(yamop *cp)
 {
-  return ((-ENV_Size(cp))/(OPREG)sizeof(CELL));
+  return (-ENV_Size(cp)/sizeof(CELL));
 }
 
-static inline 
+static inline
 CELL *EnvBMap(yamop *p)
 {
-  return (((yamop *)((CODEADDR)(p) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->u.Osbpp.bmap);
+  return (((yamop *)((CODEADDR)(p) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->y_u.Osbpp.bmap);
 }
 
-static inline 
+static inline
 struct pred_entry *EnvPreg(yamop *p)
 {
-  return (((yamop *)((CODEADDR)(p) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->u.Osbpp.p0);
+  return (((yamop *)((CODEADDR)(p) - (CELL)NEXTOP((yamop *)NULL,Osbpp)))->y_u.Osbpp.p0);
 }
 
 /* access to instructions */
@@ -1096,17 +1031,16 @@ extern void **Yap_ABSMI_OPCODES;
 #define absmadr(i) ((OPCODE)(i))
 #endif
 
-
-
+  bool  is_cleanup_cp(choiceptr cp_b);
 
 #if DEPTH_LIMIT
 /*
   Make this into an even number so that the system will know
   it should ignore the depth limit
-*/   
+*/
 #define RESET_DEPTH() MkIntTerm(MAX_ABS_INT-1)
 #else
 
 #endif
 
-
+#endif

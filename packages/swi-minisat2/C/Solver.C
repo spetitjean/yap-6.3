@@ -63,8 +63,8 @@ Solver::Solver() :
 
 Solver::~Solver()
 {
-    for (int i = 0; i < learnts.size(); i++) free(learnts[i]);
-    for (int i = 0; i < clauses.size(); i++) free(clauses[i]);
+  for (int i = 0; i < learnts.size(); i++) std::free(learnts[i]);
+  for (int i = 0; i < clauses.size(); i++) std::free(clauses[i]);
 }
 
 
@@ -163,7 +163,7 @@ void Solver::detachClause(Clause& c) {
 
 void Solver::removeClause(Clause& c) {
     detachClause(c);
-    free(&c); }
+    std::free(&c); }
 
 
 bool Solver::satisfied(const Clause& c) const {
@@ -580,7 +580,7 @@ lbool Solver::search(int nof_conflicts, int nof_learnts)
 
     starts++;
 
-    bool first = true;
+    // bool first = true;
 
     for (;;){
         Clause* confl = propagate();
@@ -589,7 +589,7 @@ lbool Solver::search(int nof_conflicts, int nof_learnts)
             conflicts++; conflictC++;
             if (decisionLevel() == 0) return l_False;
 
-            first = false;
+	    //            first = false;
 
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level);

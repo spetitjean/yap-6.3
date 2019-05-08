@@ -1,45 +1,50 @@
-#ifndef HORUS_HORUS_H
-#define HORUS_HORUS_H
-
-#include <limits>
-
-#include <vector>
+#ifndef YAP_PACKAGES_CLPBN_HORUS_HORUS_H_
+#define YAP_PACKAGES_CLPBN_HORUS_HORUS_H_
 
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&);               \
   void operator=(const TypeName&)
 
-using namespace std;
+#define DISALLOW_COPY(TypeName)   \
+  TypeName(const TypeName&)
+
+#define DISALLOW_ASSIGN(TypeName) \
+  void operator=(const TypeName&)
+
+#include <vector>
+#include <string>
+
+
+namespace Horus {
 
 class Var;
 class Factor;
 class VarNode;
 class FacNode;
 
-typedef vector<double>      Params;
-typedef unsigned            VarId;
-typedef vector<VarId>       VarIds;
-typedef vector<Var*>        Vars;
-typedef vector<VarNode*>    VarNodes;
-typedef vector<FacNode*>    FacNodes;
-typedef vector<Factor*>     Factors;
-typedef vector<string>      States;
-typedef vector<unsigned>    Ranges;
-typedef unsigned long long  ullong;
+typedef std::vector<double>      Params;
+typedef unsigned                 VarId;
+typedef std::vector<VarId>       VarIds;
+typedef std::vector<Var*>        Vars;
+typedef std::vector<VarNode*>    VarNodes;
+typedef std::vector<FacNode*>    FacNodes;
+typedef std::vector<Factor*>     Factors;
+typedef std::vector<std::string> States;
+typedef std::vector<unsigned>    Ranges;
+typedef unsigned long long       ullong;
 
 
-enum LiftedSolver
-{
-  FOVE, // first order variable elimination
-  LBP,  // lifted belief propagation
+enum class LiftedSolverType {
+  lveSolver,  // generalized counting first-order variable elimination
+  lbpSolver,  // lifted first-order belief propagation
+  lkcSolver   // lifted first-order knowledge compilation
 };
 
 
-enum GroundSolver
-{
-  VE,   // variable elimination
-  BP,   // belief propagation
-  CBP   // counting belief propagation
+enum class GroundSolverType {
+  veSolver,   // variable elimination
+  bpSolver,   // belief propagation
+  CbpSolver   // counting belief propagation
 };
 
 
@@ -50,37 +55,25 @@ extern bool logDomain;
 // level of debug information
 extern unsigned verbosity;
 
-extern LiftedSolver liftedSolver;
-extern GroundSolver groundSolver;
+extern LiftedSolverType liftedSolver;
+extern GroundSolverType groundSolver;
 
-};
+}
 
 
 namespace Constants {
 
 // show message calculation for belief propagation
-const bool SHOW_BP_CALCS = false;
+const bool showBpCalcs = false;
 
-const int NO_EVIDENCE = -1;
+const int unobserved = -1;
 
 // number of digits to show when printing a parameter
-const unsigned PRECISION = 6;
+const unsigned precision = 8;
 
-};
-
-
-namespace BpOptions
-{
-  enum Schedule {
-    SEQ_FIXED,
-    SEQ_RANDOM,
-    PARALLEL,
-    MAX_RESIDUAL
-  };
-  extern Schedule  schedule;
-  extern double    accuracy;
-  extern unsigned  maxIter;
 }
 
-#endif // HORUS_HORUS_H
+}  // namespace Horus
+
+#endif  // YAP_PACKAGES_CLPBN_HORUS_HORUS_H_
 

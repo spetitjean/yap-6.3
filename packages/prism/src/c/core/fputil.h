@@ -33,9 +33,15 @@
 #elif defined DARWIN
 /* (empty) */
 #else
+#ifndef isfinite
 #define isfinite(x) (0.0 * (x) != 0.0)
+#endif
+#ifndef isnan
 #define isnan(x)    ((x) != (x))
+#endif
+#ifndef INFINITY
 #define INFINITY    HUGE_VAL
+#endif
 #endif
 
 #define SNAN fputil_snan()
