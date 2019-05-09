@@ -479,6 +479,39 @@ is_IntVarBranch_(X, X) :-
 is_IntVarBranch(X,Y) :- nonvar(X), is_IntVarBranch_(X,Y).
 is_IntVarBranch(X) :- is_IntVarBranch(X,_).
 
+is_BoolVarBranch_('BOOL_VAR_NONE').
+is_BoolVarBranch_('BOOL_VAR_RND'(_)).
+is_BoolVarBranch_('BOOL_VAR_MERIT_MIN'(_)).
+is_BoolVarBranch_('BOOL_VAR_MERIT_MAX'(_)).
+is_BoolVarBranch_('BOOL_VAR_DEGREE_MIN').
+is_BoolVarBranch_('BOOL_VAR_DEGREE_MAX').
+is_BoolVarBranch_('BOOL_VAR_AFC_MIN'(_)).
+is_BoolVarBranch_('BOOL_VAR_AFC_MAX'(_)).
+is_BoolVarBranch_('BOOL_VAR_ACTIVITY_MIN'(_)).
+is_BoolVarBranch_('BOOL_VAR_ACTIVITY_MAX'(_)).
+is_BoolVarBranch_('BOOL_VAR_MIN_MIN').
+is_BoolVarBranch_('BOOL_VAR_MIN_MAX').
+is_BoolVarBranch_('BOOL_VAR_MAX_MIN').
+is_BoolVarBranch_('BOOL_VAR_MAX_MAX').
+is_BoolVarBranch_('BOOL_VAR_SIZE_MIN').
+is_BoolVarBranch_('BOOL_VAR_SIZE_MAX').
+is_BoolVarBranch_('BOOL_VAR_DEGREE_SIZE_MIN').
+is_BoolVarBranch_('BOOL_VAR_DEGREE_SIZE_MAX').
+is_BoolVarBranch_('BOOL_VAR_AFC_SIZE_MIN'(_)).
+is_BoolVarBranch_('BOOL_VAR_AFC_SIZE_MAX'(_)).
+is_BoolVarBranch_('BOOL_VAR_ACTIVITY_SIZE_MIN'(_)).
+is_BoolVarBranch_('BOOL_VAR_ACTIVITY_SIZE_MAX'(_)).
+is_BoolVarBranch_('BOOL_VAR_REGRET_MIN_MIN').
+is_BoolVarBranch_('BOOL_VAR_REGRET_MIN_MAX').
+is_BoolVarBranch_('BOOL_VAR_REGRET_MAX_MIN').
+is_BoolVarBranch_('BOOL_VAR_REGRET_MAX_MAX').
+
+is_BoolVarBranch_(X, X) :-
+	is_BoolVarBranch_(X).
+
+is_BoolVarBranch(X,Y) :- nonvar(X), is_BoolVarBranch_(X,Y).
+is_BoolVarBranch(X) :- is_BoolVarBranch(X,_).
+
 is_SetVarBranch_('SET_VAR_NONE').
 is_SetVarBranch_('SET_VAR_RND'(_)).
 is_SetVarBranch_('SET_VAR_MERIT_MIN'(_)).
