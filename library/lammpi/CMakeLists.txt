@@ -67,7 +67,7 @@ set (MPI_YAP_SOURCES
   # program, EXECUTABLE is the MPI program, and ARGS are the arguments to
   # pass to the MPI program.
   #
-add_lib(yap_mpi ${MPI_YAP_SOURCES})
+add_library(yap_mpi ${MPI_YAP_SOURCES})
 
  target_link_libraries(yap_mpi libYap ${MPI_C_LIBRARIES})
 
@@ -78,9 +78,9 @@ set_property( DIRECTORY  APPEND PROPERTY COMPILE_DEFINITIONS  HAVE_MPI_H=1)
    PUBLIC ${MPI_C_COMPILE_FLAGS})
 
   install(TARGETS  yap_mpi
-    RUNTIME DESTINATION ${bindir}
-      LIBRARY DESTINATION ${YAP_INSTALL_DLLDIR}
-  ARCHIVE DESTINATION ${YAP_INSTALL_DLLDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${YAP_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${YAP_INSTALL_LIBDIR}
     )
 
   endif (MPI_C_FOUND)

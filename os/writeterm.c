@@ -231,8 +231,9 @@ static bool write_term(int output_stream, Term t, xarg *args USES_REGS) {
       goto end;
     }
   }
-  if (args[WRITE_CYCLES].used && args[WRITE_CYCLES].tvalue == TermFalse) {
-    flags |= Ignore_cyclics_f;
+  if (!args[WRITE_CYCLES].used || (args[WRITE_CYCLES].used
+				   && args[WRITE_CYCLES].tvalue == TermTrue)) {
+    flags |= Handle_cyclics_f;
   }
   if (args[WRITE_QUOTED].used && args[WRITE_QUOTED].tvalue == TermTrue) {
     flags |= Quote_illegal_f;
@@ -573,6 +574,8 @@ static Int writeln1(USES_REGS1) {
   args[WRITE_NL].tvalue = TermTrue;
   args[WRITE_NUMBERVARS].used = true;
   args[WRITE_NUMBERVARS].tvalue = TermTrue;
+  args[WRITE_CYCLES].used = true;
+  args[WRITE_CYCLES].tvalue = TermTrue;
   LOCK(GLOBAL_Stream[output_stream].streamlock);
   write_term(output_stream, ARG1, args PASS_REGS);
   UNLOCK(GLOBAL_Stream[output_stream].streamlock);
@@ -603,6 +606,8 @@ static Int writeln(USES_REGS1) {
   args[WRITE_NL].tvalue = TermTrue;
   args[WRITE_NUMBERVARS].used = true;
   args[WRITE_NUMBERVARS].tvalue = TermTrue;
+ args[WRITE_CYCLES].used = true;
+  args[WRITE_CYCLES].tvalue = TermTrue;
   write_term(output_stream, ARG2, args PASS_REGS);
   UNLOCK(GLOBAL_Stream[output_stream].streamlock);
   free(args);
@@ -680,12 +685,13 @@ static Int term_to_string(USES_REGS1) {
     }
     return Yap_unify(ARG2, MkStringTerm(s));
   } else if (!IsStringTerm(t2)) {
-    Yap_Error(TYPE_ERROR_STRING, t2, "string_to_ter®m/2");
+    Yap_Error(TYPE_ERROR_STRING, t2, "term_to_string/3");
     return false;
   } else {
     s = StringOfTerm(t2);
   }
-  return (rc = readFromBuffer(s, TermNil)) != 0L && Yap_unify(rc, ARG1);
+  yhandle_t y1 = Yap_InitHandle( t1 );
+  return (rc = readFromBuffer(s, TermNil)) != 0L && Yap_unify(rc, Yap_PopHandle(y1));
 }
 
 static Int term_to_atom(USES_REGS1) {
@@ -723,6 +729,7 @@ char *Yap_TermToBuffer(Term t, int flags) {
     t = Deref(t);
   GLOBAL_Stream[sno].encoding = LOCAL_encoding;
   GLOBAL_Stream[sno].status |= CloseOnException_Stream_f;
+  GLOBAL_Stream[sno].status &= ~FreeOnClose_Stream_f;
   Yap_plwrite(t, GLOBAL_Stream + sno, 0, flags, GLOBAL_MaxPriority);
 
   char *new = Yap_MemExportStreamPtr(sno);

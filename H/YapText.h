@@ -46,22 +46,31 @@ extern const void *MallocExportAsRO(const void *blk);
 /* Character types for tokenizer and write.c */
 extern int AllocLevel(void);
 
+#if 0
 #define push_text_stack()						\
-  (/* fprintf(stderr, " + *** %d %s:%s:%d\n", AllocLevel(),*/		\
-      /*   __FILE__,  __FUNCTION__, __LINE__), */	    \
+  ( fprintf(stderr, " + *** %d %s:%s:%d\n", AllocLevel(),		\
+         __FILE__,  __FUNCTION__, __LINE__), 	    \
    push_text_stack__(PASS_REGS1))
-extern int push_text_stack__(USES_REGS1);
 
-#define pop_text_stack(lvl)						\
-  (/* fprintf(stderr, " - *** %d %s:%s:%d\n", AllocLevel(), __FILE__,*/	\
-   /*  __FUNCTION__, __LINE__),				*/		\
-   pop_text_stack__(lvl))
+   #define pop_text_stack(lvl)						\
+  ( fprintf(stderr, " - *** %d %s:%s:%d\n", AllocLevel(), __FILE__,	\
+     __FUNCTION__, __LINE__),						\
+   pop_text_stack__(lvl PASS_REGS))
+
+   #define pop_output_text_stack(lvl,p)					\
+  (fprintf(stderr, "-- *** %d %s:%s:%d\n", AllocLevel(), __FILE__,	\
+     __FUNCTION__, __LINE__),					\
+   pop_output_text_stack__(lvl,p))
+#else
+#define push_text_stack() push_text_stack__(PASS_REGS1)
+#define pop_text_stack(lvl)	 pop_text_stack__(lvl PASS_REGS)
+#define pop_output_text_stack(lvl,p) pop_output_text_stack__(lvl,p PASS_REGS)
+#endif
+
+extern int push_text_stack__(USES_REGS1);
 extern int pop_text_stack__(int lvl USES_REGS);
 
-#define pop_output_text_stack(lvl,p)					\
-  (/*fprintf(stderr, "-- *** %d %s:%s:%d\n", AllocLevel(), __FILE__,*/	\
-   /*  __FUNCTION__, __LINE__),*/					\
-   pop_output_text_stack__(lvl,p))
+
 extern void *pop_output_text_stack__(int lvl, const void *ox USES_REGS);
 
 /****************** character definition table **************************/
@@ -175,7 +184,10 @@ INLINE_ONLY char_kind_t chtype(Int ch) {
 #endif
 
 extern const char *Yap_tokText(void *tokptr);
-extern Term Yap_tokRep(void *tokptr);
+/// represent  token *_tokptr_ in string s, maxlength is sz-1
+///
+/// conversion is based on token type.
+extern Term Yap_tokRep(void *tokptrXS);
 
 // standard strings
 
@@ -830,7 +842,7 @@ static inline Term Yap_CharsToTBQ(const char *s, Term mod,
 static inline Atom Yap_ListOfAtomsToAtom(Term t0 USES_REGS) {
   seq_tv_t inp, out;
   inp.val.t = t0;
-  inp.type = YAP_STRING_ATOMS;
+  inp.type = YAP_STRING_ATOMS|YAP_STRING_CODES;
   out.type = YAP_STRING_ATOM;
   out.val.uc = NULL;
   out.enc = ENC_ISO_UTF8;
@@ -842,7 +854,7 @@ static inline Atom Yap_ListOfAtomsToAtom(Term t0 USES_REGS) {
 static inline Term Yap_ListOfAtomsToNumber(Term t0 USES_REGS) {
   seq_tv_t inp, out;
   inp.val.t = t0;
-  inp.type = YAP_STRING_ATOMS;
+  inp.type = YAP_STRING_ATOMS|YAP_STRING_CODES;
   out.type =
     YAP_STRING_INT | YAP_STRING_FLOAT | YAP_STRING_BIG | YAP_STRING_TERM;
   out.val.uc = NULL;
@@ -855,7 +867,7 @@ static inline Term Yap_ListOfAtomsToNumber(Term t0 USES_REGS) {
 static inline Term Yap_ListOfAtomsToString(Term t0 USES_REGS) {
   seq_tv_t inp, out;
   inp.val.t = t0;
-  inp.type = YAP_STRING_ATOMS;
+  inp.type = YAP_STRING_ATOMS|YAP_STRING_CODES;
   out.type = YAP_STRING_STRING;
   out.val.uc = NULL;
   out.enc = ENC_ISO_UTF8;
@@ -867,7 +879,7 @@ static inline Term Yap_ListOfAtomsToString(Term t0 USES_REGS) {
 static inline Atom Yap_ListOfCodesToAtom(Term t0 USES_REGS) {
   seq_tv_t inp, out;
   inp.val.t = t0;
-  inp.type = YAP_STRING_CODES;
+  inp.type = YAP_STRING_CODES|YAP_STRING_ATOMS;
   out.type = YAP_STRING_ATOM;
   out.val.uc = NULL;
   out.enc = ENC_ISO_UTF8;
@@ -879,7 +891,7 @@ static inline Atom Yap_ListOfCodesToAtom(Term t0 USES_REGS) {
 static inline Term Yap_ListOfCodesToNumber(Term t0 USES_REGS) {
   seq_tv_t inp, out;
   inp.val.t = t0;
-  inp.type = YAP_STRING_CODES;
+  inp.type = YAP_STRING_CODES|YAP_STRING_ATOMS;
   out.type = YAP_STRING_INT | YAP_STRING_FLOAT | YAP_STRING_BIG;
   out.enc = ENC_ISO_UTF8;
   out.val.uc = NULL;
@@ -892,7 +904,7 @@ static inline Term Yap_ListOfCodesToString(Term t0 USES_REGS) {
   seq_tv_t inp, out;
 
   inp.val.t = t0;
-  inp.type = YAP_STRING_CODES;
+  inp.type = YAP_STRING_CODES|YAP_STRING_ATOMS;
   out.val.uc = NULL;
   out.type = YAP_STRING_STRING;
   out.enc = ENC_ISO_UTF8;
@@ -1444,7 +1456,7 @@ static inline Term Yap_WCharsToString(const wchar_t *s USES_REGS) {
 static inline Atom Yap_ConcatAtoms(Term t1, Term t2 USES_REGS) {
   seq_tv_t inpv[2], out;
   inpv[0].val.t = t1;
-  inpv[0].type = YAP_STRING_ATOM | YAP_STRING_TERM;
+  inpv[0].type = YAP_STRING_ATOM ;
   inpv[1].val.t = t2;
   inpv[1].type = YAP_STRING_ATOM;
   out.type = YAP_STRING_ATOM;

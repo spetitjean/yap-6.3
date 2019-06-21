@@ -50,6 +50,7 @@ static char SccsId[] = "%W% %G%";
  *    as `stderr`, just accessed in different ways.
  *  + loop_stream: refers to the stream for the file or object being current consulted
  *  + debugger_input: refers to the stream used to send debugger commands, by default `user_input`.
+ *  + debugger_output: refers to the stream used to output debugging, by default `user_error`.
  *    It must always be interactive.
  */
 
@@ -345,11 +346,12 @@ Yap_FindStreamForAlias (Atom al)
 
   while (aliasp < aliasp_max) {
     if (aliasp->name == al) {
-      return aliasp->alias_stream;
+      return aliasp->alias_stream > 0;
     }
     aliasp++;
   }
-  return true;
+  LOCAL_Error_TYPE = DOMAIN_ERROR_STREAM;
+  return false;
 }
 
 /* create a new alias arg for stream sno */

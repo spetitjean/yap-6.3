@@ -18,6 +18,7 @@
 #include "Yap.h"
 #include "YapEval.h"
 #include "YapHeap.h"
+#include "YapStreams.h"
 #include "YapText.h"
 #include "Yatom.h"
 #include "yapio.h"
@@ -59,54 +60,6 @@ typedef struct TextBuffer_manager {
 } text_buffer_t;
 
 int AllocLevel(void) { return LOCAL_TextBuffer->lvl; }
-int push_text_stack__(USES_REGS1) {
-  int i = LOCAL_TextBuffer->lvl;
-  i++;
-  LOCAL_TextBuffer->lvl = i;
-
-  return i;
-}
-
-int pop_text_stack__(int i) {
-  int lvl = LOCAL_TextBuffer->lvl;
-  while (lvl >= i) {
-    struct mblock *p = LOCAL_TextBuffer->first[lvl];
-    while (p) {
-      struct mblock *np = p->next;
-      free(p);
-      p = np;
-    }
-    LOCAL_TextBuffer->first[lvl] = NULL;
-    LOCAL_TextBuffer->last[lvl] = NULL;
-    lvl--;
-  }
-  LOCAL_TextBuffer->lvl = lvl;
-  return lvl;
-}
-
-void *pop_output_text_stack__(int i, const void *export) {
-  int lvl = LOCAL_TextBuffer->lvl;
-  while (lvl >= i) {
-    struct mblock *p = LOCAL_TextBuffer->first[lvl];
-    while (p) {
-      struct mblock *np = p->next;
-      if (p + 1 == export) {
-        size_t sz = p->sz - sizeof(struct mblock);
-        memmove(p, p + 1, sz);
-        export = p;
-      } else {
-        free(p);
-      }
-      p = np;
-    }
-    LOCAL_TextBuffer->first[lvl] = NULL;
-    LOCAL_TextBuffer->last[lvl] = NULL;
-    lvl--;
-  }
-  LOCAL_TextBuffer->lvl = lvl;
-  return (void *)export;
-}
-
 //	void pop_text_stack(int i) { LOCAL_TextBuffer->lvl = i; }
 void insert_block(struct mblock *o) {
   int lvl = o->lvl;
@@ -136,6 +89,68 @@ void release_block(struct mblock *o) {
     o->prev->next = o->next;
   if (o->next)
     o->next->prev = o->prev;
+}
+
+int push_text_stack__(USES_REGS1) {
+  int i = LOCAL_TextBuffer->lvl;
+  i++;
+  LOCAL_TextBuffer->lvl = i;
+
+  return i;
+}
+
+int pop_text_stack__(int i) {
+  int lvl = LOCAL_TextBuffer->lvl;
+  while (lvl >= i) {
+    struct mblock *p = LOCAL_TextBuffer->first[lvl];
+    while (p) {
+      struct mblock *np = p->next;
+      free(p);
+      p = np;
+    }
+    LOCAL_TextBuffer->first[lvl] = NULL;
+    LOCAL_TextBuffer->last[lvl] = NULL;
+    lvl--;
+  }
+  LOCAL_TextBuffer->lvl = lvl;
+  return lvl;
+}
+
+void *pop_output_text_stack__(int i, const void *export) {
+  int lvl = LOCAL_TextBuffer->lvl;
+  bool found = false;
+  while (lvl >= i) {
+    struct mblock *p = LOCAL_TextBuffer->first[lvl];
+    while (p) {
+      struct mblock *np = p->next;
+      if (p + 1 == export) {
+	found = true;
+      } else {
+        free(p);
+      }
+      p = np;
+    }
+    LOCAL_TextBuffer->first[lvl] = NULL;
+    LOCAL_TextBuffer->last[lvl] = NULL;
+    lvl--;
+  }
+  LOCAL_TextBuffer->lvl = lvl;
+  if (found) {
+  if (lvl) {
+    struct mblock *o = (struct mblock *)export-1;
+    o->lvl = lvl;
+    o->prev = o->next = 0;
+    insert_block(o);
+
+  } else {
+        struct mblock *p = (struct mblock *)export-1;
+	size_t sz = p->sz - sizeof(struct mblock);
+        memmove(p, p + 1, sz);
+        export = p;
+    
+  }
+  }
+  return (void *)export;
 }
 
 void *Malloc(size_t sz USES_REGS) {
@@ -177,8 +192,11 @@ void *MallocAtLevel(size_t sz, int atL USES_REGS) {
 
 void *Realloc(void *pt, size_t sz USES_REGS) {
   struct mblock *old = pt, *o;
+  if (!pt)
+    return Malloc(sz PASS_REGS);
   old--;
-  sz = ALIGN_BY_TYPE(sz + sizeof(struct mblock), CELL);
+  sz = ALIGN_BY_TYPE(sz, Yap_Max(CELLSIZE,sizeof(struct mblock)));
+  sz += 2*sizeof(struct mblock);
   o = realloc(old, sz);
   if (o->next) {
     o->next->prev = o;
@@ -275,8 +293,11 @@ static void *codes2buf(Term t0, void *b0, bool get_codes,
         Yap_ThrowError(REPRESENTATION_ERROR_CHARACTER_CODE, hd,
                        "scanning list of character codes, found %d", code);
         return NULL;
-      }
+      }else if (code == 0) {
+        length += 2;
+      } else {
       length += put_utf8(ar, code);
+    }
       t = TailOfTerm(t);
       if (IsVarTerm(t)) {
         Yap_ThrowError(INSTANTIATION_ERROR, t, "scanning list of codes");
@@ -302,8 +323,11 @@ static void *codes2buf(Term t0, void *b0, bool get_codes,
       if (code < 0) {
         Yap_ThrowError(TYPE_ERROR_CHARACTER, hd, "scanning list of atoms");
         return NULL;
+      } else if (code == 0) {
+          length += 2;
+      } else {
+          length += strlen(code);
       }
-      length += strlen(code);
       t = TailOfTerm(t);
       if (IsVarTerm(t)) {
         Yap_ThrowError(INSTANTIATION_ERROR, t, "scanning list of codes");
@@ -330,6 +354,11 @@ static void *codes2buf(Term t0, void *b0, bool get_codes,
       Term hd = HeadOfTerm(t);
       Int code = IntegerOfTerm(hd);
 
+      if (code == 0) {
+       st[0] = 0xC0;
+        st[1] = 0x80;
+st +=2;
+      } else
       st = st + put_utf8(st, code);
       t = TailOfTerm(t);
     }
@@ -433,15 +462,16 @@ unsigned char *Yap_readText(seq_tv_t *inp USES_REGS) {
   yap_error_number err0 = LOCAL_Error_TYPE;
   /* we know what the term is */
   if (!(inp->type & (YAP_STRING_CHARS | YAP_STRING_WCHARS))) {
-    if (!(inp->type & YAP_STRING_TERM)) {
+    seq_type_t inpt = inp->type & (YAP_STRING_TERM|YAP_STRING_ATOM|YAP_STRING_ATOMS_CODES);
+    if (!(inpt & YAP_STRING_TERM)) {
       if (IsVarTerm(inp->val.t)) {
         LOCAL_Error_TYPE = INSTANTIATION_ERROR;
-      } else if (!IsAtomTerm(inp->val.t) && inp->type == YAP_STRING_ATOM) {
+      } else if (!IsAtomTerm(inp->val.t) && inpt == YAP_STRING_ATOM) {
         LOCAL_Error_TYPE = TYPE_ERROR_ATOM;
-      } else if (!IsStringTerm(inp->val.t) && inp->type == YAP_STRING_STRING) {
+      } else if (!IsStringTerm(inp->val.t) && inpt == YAP_STRING_STRING) {
         LOCAL_Error_TYPE = TYPE_ERROR_STRING;
       } else if (!IsPairOrNilTerm(inp->val.t) && !IsStringTerm(inp->val.t) &&
-                 inp->type == (YAP_STRING_ATOMS_CODES | YAP_STRING_STRING)) {
+                 inpt == (YAP_STRING_ATOMS_CODES | YAP_STRING_STRING)) {
         LOCAL_ActiveError->errorRawTerm = inp->val.t;
       } else if (!IsPairOrNilTerm(inp->val.t) && !IsStringTerm(inp->val.t) &&
                  !IsAtomTerm(inp->val.t) && !(inp->type & YAP_STRING_DATUM)) {
@@ -449,10 +479,11 @@ unsigned char *Yap_readText(seq_tv_t *inp USES_REGS) {
       }
     }
     if (err0 != LOCAL_Error_TYPE) {
-      Yap_ThrowError(LOCAL_Error_TYPE, inp->val.t, "while reading text in");
+      Yap_ThrowError(LOCAL_Error_TYPE,
+       inp->val.t, "while converting term %s", Yap_TermToBuffer(
+         inp->val.t, Handle_cyclics_f|Quote_illegal_f | Handle_vars_f));
     }
   }
-
   if ((inp->val.t == TermNil) && inp->type & YAP_STRING_PREFER_LIST )
   {
     out = Malloc(4);
@@ -565,6 +596,7 @@ unsigned char *Yap_readText(seq_tv_t *inp USES_REGS) {
     }
 
       pop_text_stack(lvl);
+
       return inp->val.uc;
   }
   if (inp->type & YAP_STRING_WCHARS) {
@@ -576,7 +608,10 @@ unsigned char *Yap_readText(seq_tv_t *inp USES_REGS) {
 }
 
 static Term write_strings(unsigned char *s0, seq_tv_t *out USES_REGS) {
-  size_t min = 0, max = strlen((char *)s0);
+  size_t min = 0, max;
+
+  if (s0 && s0[0]) max = strlen((char *)s0);
+  else max = 0;
 
   if (out->type & (YAP_STRING_NCHARS | YAP_STRING_TRUNC)) {
     if (out->type & YAP_STRING_NCHARS)
@@ -947,7 +982,6 @@ bool Yap_CVT_Text(seq_tv_t *inp, seq_tv_t *out USES_REGS) {
       // else if (out->type & YAP_STRING_NCHARS &&
       // const unsigned char *ptr = skip_utf8(buf)
     }
-
     if (out->type & (YAP_STRING_UPCASE | YAP_STRING_DOWNCASE)) {
       if (out->type & YAP_STRING_UPCASE) {
         if (!upcase(buf, out)) {
@@ -976,7 +1010,7 @@ bool Yap_CVT_Text(seq_tv_t *inp, seq_tv_t *out USES_REGS) {
         else
         fprintf(stderr, "%s", out->val.c);
         fprintf(stderr, "\n]\n"); */
-  pop_text_stack(l);
+  out->val.uc = pop_output_text_stack(l,out->val.uc);
   return rc;
 }
 
@@ -1027,10 +1061,11 @@ bool Yap_Concat_Text(int tot, seq_tv_t inp[], seq_tv_t *out USES_REGS) {
   void **bufv;
   unsigned char *buf;
   int i, j;
-  // int lvl = push_text_stack();
+
+  int lvl = push_text_stack();
   bufv = Malloc(tot * sizeof(unsigned char *));
   if (!bufv) {
-    // pop_text_stack(lvl);
+     pop_text_stack(lvl);
     return NULL;
   }
   for (i = 0, j = 0; i < tot; i++) {
@@ -1038,7 +1073,7 @@ bool Yap_Concat_Text(int tot, seq_tv_t inp[], seq_tv_t *out USES_REGS) {
     unsigned char *nbuf = Yap_readText(inp + i PASS_REGS);
 
     if (!nbuf) {
-      // pop_text_stack(lvl);
+       pop_text_stack(lvl);
       return NULL;
     }
     //      if (!nbuf[0])
@@ -1054,7 +1089,7 @@ bool Yap_Concat_Text(int tot, seq_tv_t inp[], seq_tv_t *out USES_REGS) {
     buf = concat(tot, bufv PASS_REGS);
   }
   bool rc = write_Text(buf, out PASS_REGS);
-  // pop_text_stack( lvl );
+   pop_text_stack( lvl );
 
   return rc;
 }

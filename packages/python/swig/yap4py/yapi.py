@@ -1,22 +1,17 @@
 import readline
-from yap4py.yap import *
+import copy
+try:
+    from yap4py.yap import *
+except Exception as e:
+    print(e)
+    exit(0)
+from yap4py.systuples import python_query, show_answer, library, prolog_library, v0, compile, namedtuple
 from os.path import join, dirname
-from collections import namedtuple
+
 import sys
 
 yap_lib_path = dirname(__file__)
 
-bindvars = namedtuple('bindvars', 'list')
-compile = namedtuple('compile', 'file')
-jupyter_query = namedtuple('jupyter_query', 'vars dict')
-library = namedtuple('library', 'listfiles')
-prolog_library = namedtuple('prolog_library', 'listfiles')
-python_query = namedtuple('python_query', 'vars dict')
-set_prolog_flag = namedtuple('set_prolog_flag', 'flag new_value')
-show_answer = namedtuple('show_answer', 'vars dict')
-v0 = namedtuple('v', 'slot')
-yap_query = namedtuple('yap_query', 'query owner')
-yapi_query = namedtuple('yapi_query', 'vars dict')
 
 
 class Engine( YAPEngine ):
@@ -61,7 +56,7 @@ class JupyterEngine( Engine ):
             pass
 
 class EngineArgs( YAPEngineArgs ):
-    """ Interface to Engine Options class"""
+    """ Interface to EngneOptions class"""
     def __init__(self, args=None,**kwargs):
         super().__init__()
 
@@ -78,16 +73,20 @@ class Query (YAPQuery):
         super().__init__(g)
         self.engine = engine
         self.port = "call"
-        self.bindings = None
         self.answer = {}
 
     def __iter__(self):
         return self
 
+    def done(self):
+        return self.port == "fail" or self.port == "exit"
+
     def __next__(self):
-        if self.port == "fail":
-            raise IndexError()
-        return self.next()
+        if self.port == "fail" or self.port == "exit":
+            raise StopIteration()
+        if self.next():
+            return True
+        raise StopIteration()
  
 def name( name, arity):
     try:
@@ -131,17 +130,17 @@ class YAPShell:
 
     def query_prolog(self, query):
         g = None
-        #import pdb; pdb.set_trace()
+        import pdb; pdb.set_trace()
         #
         # construct a query from a one-line string
         # q is opaque to Python
         #
-        #q = engine.query(python_query(self, s))
+        # q = engine.query(python_query(self, s))
         #
         #        # vs is the list of variables
         # you can print it out, the left-side is the variable name,
         # the right side wraps a handle to a variable
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         #     #pdb.set_trace()
         # atom match either symbols, or if no symbol exists, sttrings, In this case
         # variable names should match strings
@@ -151,14 +150,15 @@ class YAPShell:
         #        return
         try:
             engine = self.engine
-            bindings   = []
+            bindings   = [] 
             loop = False
-            g = python_query(self, query)
-            self.q = Query( engine, g )
-            while self.q.next():
-                bindings += [self.q.answer]
-                if self.q.port == "exit":
-                    break
+            self.q = Query( engine, python_query( self, query) )
+            q = self.q
+            for answer in q:
+                bindings += [q.answer]
+                print(q.answer)
+                if q.done():
+                    return bindings
                 if loop:
                     continue
                 s = input("more(;), all(*), no(\\n), python(#)?  ").lstrip()
@@ -177,10 +177,8 @@ class YAPShell:
             if self.q:
                 self.q.close()
                 self.q = None
-            if bindings:
-                return True,bindings
-            print("No (more) answers")
-            return False, None
+            print("No (more) answers, found", bindings)
+            return bindings
         except Exception as e:
             if not self.q:
                 return False, None
@@ -191,34 +189,41 @@ class YAPShell:
             raise
 
     def live(self, engine, **kwargs):
-        loop = True
-        self.q = None
-        while loop:
-            try:
-                s = input("?- ")
-                if not s:
+        try:
+            loop = True
+            self.q = None
+            while loop:
+                try:
+                    s = input("?- ")
+                    if not s:
+                        continue
+                    else:
+                        self.query_prolog(s)
+                except SyntaxError as err:
+                    print("Syntax Error error: {0}".format(err))
                     continue
-                else:
-                    self.query_prolog(s)
-            except SyntaxError as err:
-                print("Syntax Error error: {0}".format(err))
-                continue
-            except EOFError:
-                return
-            except RuntimeError as err:
-                print("YAP Execution Error: {0}".format(err))
-            except ValueError:
-                print("Could not convert data to an integer.")
-            except:
-                print("Unexpected error:", sys.exc_info()[0])
-                raise
-        engine.close()
+                except EOFError:
+                    return
+                except RuntimeError as err:
+                    print("YAP Execution Error: {0}".format(err))
+                except ValueError:
+                   print("Could not convert data to an integer.")
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    raise
+            engine.close()
+        except Exception as e:
+            print("Exception",e)
+            e.errorNo = 0
+            raise
+
     #
     # initialize engine
     # engine = yap.YAPEngine();
     # engine = yap.YAPEngine(yap.YAPParams());
     #
     def __init__(self, engine, **kwargs):
+        #import pdb; pdb.set_trace()
         self.engine = engine
 
         self.live(engine)

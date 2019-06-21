@@ -18,7 +18,7 @@
 /**
   @file attributes.yap
 
-@defgroup New_Style_Attribute_Declarations SWI Compatible attributes
+@defgroup New_Style_Attribute_Declarations hProlog and SWI-Prolog style Attribute Declarations
 @ingroup attributes
 
   @{
@@ -165,7 +165,7 @@ prolog:copy_term(Term, Copy, Gs) :-
 	->  Gs = [],
 	    copy_term(Term, Copy)
 	;   findall(Term-Gs,
-	            '$attributes':residuals_and_delete_attributes(Vs, Gs, Term),
+	            attributes:residuals_and_delete_attributes(Vs, Gs, Term),
 		    [Copy-Gs])
 	).
 

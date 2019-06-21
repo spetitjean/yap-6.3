@@ -28,9 +28,51 @@
 
 */
 
+print_message(informational,_) :-
+	yap_flag(verbose, silent),
+	!.
+print_message(informational,E) :-
+	format('informational message ~q.~n',[E]),
+	!.
+%%
+% boot:print_message( Type, Error )
+%
+print_message(Type,error(error(_,_),exception(Desc))) :-
+    !,
+    '$print_exception'(Desc).
+print_message(Type,error(warning(_,_),exception(Desc))) :-
+	!,
+	'$print_exception'(Desc).
+print_message(Type,Error) :-
+	format( user_error, '~w while bootstraping: event is ~q~n',[Type,Error]).
 
-system_module(_Mod, _SysExps, _Decls).
-%    new_system_module(Mod).
+
+/**
+* @pred system_module( _Mod_, _ListOfPublicPredicates, ListOfPrivatePredicates * 
+ * Define a system module _Mod_. _ListOfPublicPredicates_ . Currentlt, all
+ * predicates are in the 'prolog' module. The first
+ * are visible outside the Prolog module, all others are hidden at the end of booting.
+ *
+*/
+system_module(Mod, SysExps) :-
+    system_module(Mod, SysExps, []).
+
+system_module(_Mod, _SysExps, _Decls) :- !.
+system_module(_Mod, _SysExps, _Decls) :-
+      % '$new_system_predicates'(SysExps),
+       fail.
+system_module(_Mod, _SysExps, _Decls) :-
+    stream_property(loop_stream,[file_name(File)]),
+    !,
+    recordz(system_file, File, _ ).
+system_module(_Mod, _SysExps, _Decls) :-
+    recordz(system_file, loop_stream, _ ).
+
+'$new_system_predicates'([]).
+'$new_system_predicates'([N/Ar|_Ps])  :-
+    '$new_system_predicate'(N, Ar, prolog).
+'$new_system_predicates'([_P|Ps]) :-
+    '$new_system_predicates'(Ps).
 
 use_system_module(_Module, _SysExps).
 
@@ -40,92 +82,61 @@ private(_).
 % boootstrap predicates.
 %
 :- system_module( '$_boot', [
+	!/0,
+        ':-'/1,
+        '?-'/1,
+        []/0,
         bootstrap/1,
         call/1,
         catch/3,
         catch_ball/2,
         expand_term/2,
+	print_message/2,
         import_system_module/2,
+	system_module/2,
+	private/1,
         incore/1,
         (not)/1,
         repeat/0,
         throw/1,
-        true/0], ['$$compile'/4,
-        '$call'/4,
-        '$catch'/3,
-        '$check_callable'/2,
-        '$check_head_and_body'/4,
-        '$check_if_reconsulted'/2,
-        '$clear_reconsulting'/0,
-        '$command'/4,
-        '$cut_by'/1,
-        '$disable_debugging'/0,
-        '$do_live'/0,
-        '$'/0,
-        '$find_goal_definition'/4,
-        '$head_and_body'/3,
-        '$inform_as_reconsulted'/2,
-        '$init_system'/0,
-        '$init_win_graphics'/0,
-        '$loop'/2,
-        '$meta_call'/2,
-        '$prompt_alternatives_on'/1,
-        '$run_at_thread_start'/0,
-        '$system_catch'/4,
-        '$undefp'/1,
-		  '$version'/0]).
+	true/0,
+        extensions_to_present_answer/1,
+        fail/0,
+        false/0,
+        goal_expansion/2,
+        goal_expansion/3,
+        otherwise/0,
+        term_expansion/2,
+        version/2],
+	[
+	'$do_log_upd_clause'/6,
+        '$do_log_upd_clause0'/6,
+        '$do_log_upd_clause_erase'/6,
+        '$do_static_clause'/5,
+        '$system_module'/1]).
 
-:- use_system_module( '$_absf', ['$system_library_directories'/2]).
-
-:- use_system_module( '$_checker', ['$check_term'/5,
-        '$sv_warning'/2]).
-
-:- use_system_module( '$_consult', ['$csult'/2]).
-
-:- use_system_module( '$_control', ['$run_atom_goal'/1]).
-
-:- use_system_module( '$_directives', ['$all_directives'/1,
-        '$exec_directives'/5]).
-
-:- use_system_module( '$_errors', ['$do_error'/2]).
-
-:- use_system_module( '$_grammar', ['$translate_rule'/2]).
-
-:- use_system_module( '$_modules', ['$get_undefined_pred'/4,
-        '$meta_expansion'/6,
-        '$module_expansion'/6]).
-
-:- use_system_module( '$_preddecls', ['$dynamic'/2]).
-
-:- use_system_module( '$_preds', ['$assert_static'/5,
-				  '$assertz_dynamic'/4,
-        '$init_preds'/0,
-        '$unknown_error'/1,
-        '$unknown_warning'/1]).
-
-:- use_system_module( '$_qly', ['$init_state'/0]).
-
-:- use_system_module( '$_strict_iso', ['$check_iso_strict_clause'/1,
-        '$iso_check_goal'/2]).
 
 % be careful here not to generate an undefined exception..
 
-print_message(L,E) :-
-	'$number_of_clauses'(print_message(L,E), prolog_complete, 1),
+
+
+print_boot_message(Type,Error,Desc) :-		
+	'$query_exception'(parserFile, Desc, File),
+	'$query_exception'(parserLine, Desc, FilePos),
 	!,
-	(L = informational
-	->
-	 true
-	;
-	 format( user_error, '~w in bootstrap: got ~w~n',[L,E])
-	).
+	format(user_error,'~a:~d:  ~a: ~q~n', [File,FilePos,Type,Error]).
+print_boot_message(Type,Error,Desc) :-		
+	'$query_exception'(prologPredFile, Desc, File),
+	'$query_exception'(prologPredLine, Desc, FilePos),
+	format(user_error,'~a:~d:  ~a: ~q~n', [File,FilePos,Type,Error]).
+print_boot_message(Type,Error,Desc) :-
+	'$query_exception'(errorFile, Desc, File),
+	'$query_exception'(errorLine, Desc, FilePos),
+	format(user_error,'~a:~d:  ~a: ~q~n', [File,FilePos,Type,Error]).
 
 '$undefp0'([M|G], _Action) :-
-    stream_property( loop_stream, [file_name(F), line_number(L)]),
-    format(user_error,'~a:~d error undefined:',[F,L]),
-    fail
-    ;
-    format(user_error,' call to ~w~n',[M:G]),
+	functor(G,N,A),
+	print_message( error, error(error(unknown, M:N/A),M:G)),
 	fail.
 
 :- '$undefp_handler'('$undefp0'(_,_),prolog).
@@ -145,30 +156,15 @@ print_message(L,E) :-
 	'$compile'(G, assertz, G, prolog, _R),
 	'$system_meta_predicates'(L).
 
-  :- '$mk_dynamic'( '$meta_predicate'(_N,_M,_A,_P), prolog).
-  :- '$new_multifile'( '$meta_predicate'(_N,_M,_A,_P), prolog).
+:- '$mk_dynamic'( prolog_file_type(_Ext, _NType), user).
+:- '$new_multifile'( prolog_file_type(_Ext, _NType), user).
+
+:- '$mk_dynamic'( '$meta_predicate'(_N,_M,_A,_P), prolog).
+:- '$new_multifile'( '$meta_predicate'(_N,_M,_A,_P), prolog).
+
 :-  '$new_multifile'('$full_clause_optimisation'(_H, _M, _B0, _BF), prolog).
 :-  '$new_multifile'('$exec_directive'(_,_,_,_,_), prolog).
 
-:- system_module( '$_init', [!/0,
-        ':-'/1,
-        '?-'/1,
-        []/0,
-        extensions_to_present_answer/1,
-        fail/0,
-        false/0,
-        goal_expansion/2,
-        goal_expansion/3,
-        otherwise/0,
-        term_expansion/2,
-        version/2,
-	    '$do_log_upd_clause'/6,
-        '$do_log_upd_clause0'/6,
-        '$do_log_upd_clause_erase'/6,
-        '$do_static_clause'/5], [
-        '$system_module'/1]).
-
-:- use_system_module( '$_boot', ['$cut_by'/1]).
 
 
 %:- start_low_level_trace.
@@ -218,15 +214,19 @@ print_message(L,E) :-
    '$execute_command'(EG,EM,VL,Pos,Con,_Source).
 '$command'(C,VL,Pos,Con) :-
 	( (Con = top ; var(C) ; C = [_|_])  ->
-	 '$yap_strip_module'(C, EM, EG),
+	  '$yap_strip_module'(C, EM, EG),
 	  '$execute_command'(EG,EM,VL,Pos,Con,C) ;
 	  % do term expansion
 	  '$expand_term'(C, Con, EC),
-    '$yap_strip_module'(EC, EM2, EG2),
+	  ( nonvar(EC) ->
+	    '$yap_strip_module'(EC, EM2, EG2)
+	  ;
+	    '$yap_strip_module'(C, EM2, EG2)
+	  ),
 	  % execute a list of commands
 	  '$execute_commands'(EG2,EM2,VL,Pos,Con,_Source)
 	),
-	  % succeed only if the *original* was at end of file.
+	% succeed only if the *original* was at end of file.
 	  C == end_of_file.
 
 :- c_compile('arith.yap').
@@ -305,181 +305,8 @@ initialize_prolog :-
 	 'yapor.yap',
      'qly.yap',
      'spy.yap',
-     'udi.yap'].
-
-%:- start_low_level_trace.
-
-:- meta_predicate(log_event(+,:)).
-
-:- dynamic prolog:'$user_defined_flag'/4.
-
-:- multifile prolog:debug_action_hook/1.
-
-:- multifile prolog:'$system_predicate'/2.
-
-:- '$opdec'(1150,fx,(mode),prolog).
-
-:- dynamic 'extensions_to_present_answer'/1.
-
-:- 	['arrays.yap'].
-
-:- multifile user:portray_message/2.
-
-:- dynamic user:portray_message/2.
-
-/** @pred prolog:goal_expansion( :G,+ M,- NG)
-    @pred user:goalexpansion(+ G,+ M,- NG)
-
-The goal_expansion/3 hook  is an user-defined
-procedure that is called after term expansion when compiling or
-asserting goals for each sub-goal in a clause. The first argument is
-bound to the goal and the second to the module under which the goal
- _G_ will execute. If goal_expansion/3 succeeds the new
-sub-goal  _NG_ will replace  _G_ and will be processed in the same
- way. If goal_expansion/3 fails the system will use the default
-expandion mechanism.
-
-This hook is called:
-- at compilation time;
-- when running a query in the top-level
-
-Older versions of YAP would call this procedure  at every meta-call.
-
-
-*/
-:- multifile user:goal_expansion/3.
-
-:- dynamic user:goal_expansion/3.
-
-:- multifile user:goal_expansion/2.
-
-:- dynamic user:goal_expansion/2.
-
-:- multifile system:goal_expansion/2.
-
-:- dynamic system:goal_expansion/2.
-
-:- multifile goal_expansion/2.
-
-:- dynamic goal_expansion/2.
-
-:- use_module('messages.yap').
-
-:- 	['undefined.yap'].
-
-:- use_module('hacks.yap').
-
-
-:- use_module('attributes.yap').
-:- use_module('corout.yap').
-:- use_module('dialect.yap').
-:- use_module('dbload.yap').
-:- use_module('ypp.yap').
-:- use_module('../os/chartypes.yap').
-:- ensure_loaded('../os/edio.yap').
-
-yap_hacks:cut_by(CP) :- '$$cut_by'(CP).
-
-:- '$change_type_of_char'(36,7). % Make $ a symbol character
-
-:-	set_prolog_flag(generate_debug_info,true).
-
-%
-% cleanup ensure loaded and recover some data-base space.
-%
-%:- ( recorded('$lf_loaded',_,R), erase(R), fail ; true ).
-%:- ( recorded('$module',_,R), erase(R), fail ; true ).
-
-:- set_value('$user_module',user), '$protect'.
-
-:- style_check([+discontiguous,+multiple,+single_var]).
-
-
-%
-% moved this to init_gc in gc.c to separate the alpha
-%
-% :- yap_flag(gc,on).
-
-% :- yap_flag(gc_trace,verbose).
-
-:- multifile
-	prolog:comment_hook/3.
-
-:- source.
-
-:- module(user).
-
-
-/** @pred  term_expansion( _T_,- _X_)
-    user:term_expansion( _T_,- _X_)
-
-
-This user-defined predicate is called by `expand_term/3` to
-preprocess all terms read when consulting a file. If it succeeds:
-
-+
-If  _X_ is of the form `:- G` or `?- G`, it is processed as
-a directive.
-+
-If  _X_ is of the form `$source_location`( _File_, _Line_): _Clause_` it is processed as if from `File` and line `Line`.
-
-+
-If  _X_ is a list, all terms of the list are asserted or processed
-as directives.
-+ The term  _X_ is asserted instead of  _T_.
-
-
-
-*/
-:- multifile term_expansion/2.
-
-:- dynamic term_expansion/2.
-
-:- multifile system:term_expansion/2.
-
-:- dynamic system:term_expansion/2.
-
-:- multifile system:swi_predicate_table/4.
-
-/** @pred  user:message_hook(+ _Term_, + _Kind_, + _Lines_)
-
-
-Hook predicate that may be define in the module `user` to intercept
-messages from print_message/2.  _Term_ and  _Kind_ are the
-same as passed to print_message/2.  _Lines_ is a list of
-format statements as described with print_message_lines/3.
-
-This predicate should be defined dynamic and multifile to allow other
-modules defining clauses for it too.
-
-
-*/
-:- multifile user:message_hook/3.
-
-:- dynamic user:message_hook/3.
-
-/** @pred  exception(+ _Exception_, + _Context_, - _Action_)
-
-
-Dynamic predicate, normally not defined. Called by the Prolog system on run-time exceptions that can be repaired `just-in-time`. The values for  _Exception_ are described below. See also catch/3 and throw/1.
-If this hook preodicate succeeds it must instantiate the  _Action_ argument to the atom `fail` to make the operation fail silently, `retry` to tell Prolog to retry the operation or `error` to make the system generate an exception. The action `retry` only makes sense if this hook modified the environment such that the operation can now succeed without error.
-
-+ `undefined_predicate`
- _Context_ is instantiated to a predicate-indicator ( _Module:Name/Arity_). If the predicate fails Prolog will generate an existence_error exception. The hook is intended to implement alternatives to the SWI built-in autoloader, such as autoloading code from a database. Do not use this hook to suppress existence errors on predicates. See also `unknown`.
-+ `undefined_global_variable`
- _Context_ is instantiated to the name of the missing global variable. The hook must call nb_setval/2 or b_setval/2 before returning with the action retry.
-
-*/
-
-:- multifile user:exception/3.
-
-:- dynamic user:exception/3.
-
-:- ensure_loaded('../pl/pathconf.yap').
-
-:- yap_flag(user:unknown,error).
-
-%:- ensure_loaded('../android.yap').
-
+     'udi.yap',
+     'boot2.yap'].
 
 %% @}
+

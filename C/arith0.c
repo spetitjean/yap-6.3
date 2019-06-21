@@ -173,7 +173,9 @@ eval0(Int fi) {
     }
   case op_heapused:
     /// - heapused
-    ///   Heap (data-base) space used, in bytes.
+    ///   Heap (data-base) space used, in bytes. In fact YAP either reports
+    ///   the total memory malloced, or the amount of allocated space in
+    ///   predicates.
     ///
     RINT(Yap_HeapUsed());
   case op_localsp:
@@ -184,18 +186,6 @@ eval0(Int fi) {
     RINT((Int)ASP);
 #else
     RINT(LCL0 - ASP);
-#endif
-  case op_b:
-    /// - $b
-    ///   current choicepoint
-    ///
-#if YAPOR_SBA
-    RINT((Int)B);
-#else
-      if (B)
-    RINT(LCL0 - (CELL *)B);
-      else
-        RINT(0);
 #endif
   case op_env:
     /// - $env
@@ -255,7 +245,6 @@ static InitConstEntry InitConstTab[] = {
   {"heapused", op_heapused},
   {"local_sp", op_localsp},
   {"global_sp", op_globalsp},
-  {"$last_choice_pt", op_b},
   {"$env", op_env},
   {"$tr", op_tr},
   {"stackfree", op_stackfree},

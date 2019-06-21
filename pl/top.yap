@@ -7,25 +7,29 @@
   *
   *   @addtogroup TopLevel Top-Level and Boot Predicates
   *   @ingroup YAPControl
-  *   @{
-*/
-
-:- '$system_meta_predicates'([
-	catch(0,?,0),
-  log_event(+,:)]).
+  * 
+  * [TOC]
+  * 
+  *    @{
+  *
+  */
+:- '$system_meta_predicates'([gated_call(0, 0, ?, 0), catch(0, ?, 0), log_event(+, :)]).
 
 % @pred live
 %
 % start a Prolog engine.
 live :-
     repeat,
-    '$current_module'(Module),
-    ( Module==user ->
-      true % '$compile_mode'(_,0)
-    ;
-    format(user_error,'[~w]~n', [Module])
+    yap_flag(verbose, normal),
+    current_source_module(Module, Module),
+    (   Module==user
+    ->  true % '$compile_mode'(_,0)
+    ;   format(user_error, '[~w]~n', [Module])
     ),
-    '$system_catch'('$enter_top_level',Module,Error,'$Error'(Error)).
+    '$system_catch'('$enter_top_level',
+                    Module,
+                    Error,
+                    '$Error'(Error)).
 
 % Start file for yap
 
@@ -40,66 +44,66 @@ live :-
 
 /* main execution loop							*/
 '$read_toplevel'(Goal, Bindings, Pos) :-
-	'$prompt',
-	catch(read_term(user_input,
-			Goal,
-			[variable_names(Bindings), syntax_errors(dec10), term_position(Pos)]),
-			 E, '$handle_toplevel_error'( E) ).
+'$prompt',
+    catch(read_term(user_input,
+                    Goal,
+                    
+                    [ variable_names(Bindings),
+                      syntax_errors(dec10),
+                      term_position(Pos),
+		      input_closing_blank(true)
+                    ]),
+          E,
+          '$handle_toplevel_error'(E)).
 
-'$handle_toplevel_error'( syntax_error(_)) :-
-	!,
-	fail.
-'$handle_toplevel_error'( error(io_error(read,user_input),_)) :-
-	!.
+'$handle_toplevel_error'(syntax_error(_)) :-
+    !,
+    fail.
+'$handle_toplevel_error'(error(io_error(read, user_input), _)) :-
+    !.
 '$handle_toplevel_error'(_, E) :-
-	throw(E).
+    throw(E).
 
-
-/** @pred  stream_property( Stream, Prop )
-
-*/
 
 % reset alarms when entering top-level.
 '$enter_top_level' :-
-	'$alarm'(0, 0, _, _),
-	fail.
+    '$alarm'(0, 0, _, _),
+    fail.
 '$enter_top_level' :-
-	'$clean_up_dead_clauses',
-	fail.
+    '$clean_up_dead_clauses',
+    fail.
 '$enter_top_level' :-
-	get_value('$top_level_goal',GA), GA \= [], !,
-	set_value('$top_level_goal',[]),
-	'$run_atom_goal'(GA),
-	fail.
+    get_value('$top_level_goal', GA),
+    GA\=[],
+    !,
+    set_value('$top_level_goal', []),
+    '$run_atom_goal'(GA),
+    fail.
 '$enter_top_level' :-
     flush_output,
-	'$run_toplevel_hooks',
-	prompt1(' ?- '),
-	'$read_toplevel'(Command,Varnames,Pos),
-	nb_setval('$spy_gn',1),
-				% stop at spy-points if debugging is on.
-	nb_setval('$debug_run',off),
-	nb_setval('$debug_jump',off),
-	'$command'(Command,Varnames,Pos,top),
-	current_prolog_flag(break_level, BreakLevel),
-	(
-	 BreakLevel \= 0
-	->
-	 true
-	;
-	 '$pred_exists'(halt(_), user)
-	->
-	 halt(0)
-	;
-	 '$halt'(0)
-	).
+    '$run_toplevel_hooks',
+    prompt1(' ?- '),
+    '$read_toplevel'(Command, Varnames, Pos),
+    '$init_debugger',
+   '$command'(Command, Varnames, Pos, top),
+    current_prolog_flag(break_level, BreakLevel),
+    (   BreakLevel\=0
+    ->  true
+    ;   '$pred_exists'(halt(_), user)
+    ->  halt(0)
+    ;   '$halt'(0)
+    ).
+
 
 '$erase_sets' :-
-                 eraseall('$'),
-		 eraseall('$$set'),
-		 eraseall('$$one'),
-		 eraseall('$reconsulted'), fail.
-'$erase_sets' :- \+ recorded('$path',_,_), recorda('$path',[],_).
+    eraseall($),
+    eraseall('$$set'),
+    eraseall('$$one'),
+    eraseall('$reconsulted'),
+    fail.
+'$erase_sets' :-
+    \+ recorded('$path', _, _),
+    recorda('$path', [], _).
 '$erase_sets'.
 
 '$start_corouts' :-
@@ -172,23 +176,21 @@ live :-
 	 '$expand_term'(T,top,O).
 
 '$expand_term'(T,Con,O) :-
-	catch( '$expand_term0'(T,Con,O), _,( '$disable_debugging', fail) ),
+	catch( '$expand_term0'(T,Con,O), _,( '$reenter_debugger'(exit), fail) ),
       	!.
 
-		'$expand_term0'(T,consult,O) :-
-		expand_term( T,  O).
-		'$expand_term0'(T,reconsult,O) :-
-		expand_term( T,  O).
-		'$expand_term0'(T,top,O) :-
+'$expand_term0'(T,consult,O) :-
+	expand_term( T,  O).
+'$expand_term0'(T,reconsult,O) :-
+	expand_term( T,  O).
+'$expand_term0'(T,top,O) :-
 	expand_term( T,  T1),
 	!,
  	'$expand_term1'(T1,O).
 '$expand_term0'(T,_,T).
 
 '$expand_term1'(T,O) :-
-        '$expand_meta_call'(T, [], O),
-	!.
-'$expand_term1'(O,O).
+        '$expand_meta_call'(T, none, O).
 
 '$continue_with_command'(Where,V,'$stream_position'(C,_P,A1,A2,A3),'$source_location'(_F,L):G,Source) :-
     !,
@@ -223,17 +225,17 @@ live :-
      throw(error(system, compilation_failed(G))).
 
 '$$compile'(C, Where, C0, R) :-
-    '$head_and_body'( C, MH, B ),
-    strip_module( MH, Mod, H),
+    '$head_and_body'( C, H, B ),
+    '$yap_strip_module'(H,Mod,H0),
    (
-     '$undefined'(H, Mod)
+     '$undefined'(H0, Mod)
     ->
-     '$init_pred'(H, Mod, Where)
+     '$init_pred'(H0, Mod, Where)
 	;
      true
     ),
 %    writeln(Mod:((H:-B))),
-    '$compile'((H:-B), Where, C0, Mod, R).
+    '$compile'((H0:-B), Where, C0, Mod, R).
 
 '$init_pred'(H, Mod, _Where ) :-
     recorded('$import','$import'(NM,Mod,NH,H,_,_),RI),
@@ -241,6 +243,7 @@ live :-
     functor(NH,N,Ar),
     print_message(warning,redefine_imported(Mod,NM,Mod:N/Ar)),
     erase(RI),
+    clause(Mod:H,_,R), erase(R),
     fail.
 '$init_pred'(H, Mod, Where ) :-
     '$init_as_dynamic'(Where),
@@ -294,7 +297,7 @@ live :-
      '$write_answer'(Vs, LGs, Written),
 	  '$write_query_answer_true'(Written),
 	  (
-	   '$prompt_alternatives_on'(determinism), CP == NCP, DCP = 0
+	   yap_flag(prompt_alternatives_on,determinism), CP == NCP, DCP = 0
 	   ->
 	   format(user_error, '.~n', []),
 	   !
@@ -325,21 +328,20 @@ live :-
 
 
 '$process_answer'(Vs, LGs, Bindings) :-
-'$purge_dontcares'(Vs,IVs),
-'$sort'(IVs, NVs),
-'$prep_answer_var_by_var'(NVs, LAnsw, LGs),
-'$name_vars_in_goals'(LAnsw, Vs, Bindings).
+    %'$purge_dontcares'(Vs,IVs),
+    '$sort'(Vs, NVs),
+    '$prep_answer_var_by_var'(NVs, LAnsw, LGs),
+    '$name_vars_in_goals'(LAnsw, Vs, Bindings).
 
 %
 % *-> at this point would require compiler support, which does not exist.
 %
 '$delayed_goals'(G, V, NV, LGs, NCP) :-
 	(
-	  CP is '$last_choice_pt',
-	 '$current_choice_point'(NCP1),
+	 '$$save_by'(NCP1),
 	 attributes:delayed_goals(G, V, NV, LGs),
-	 '$clean_ifcp'(CP),
-	 '$current_choice_point'(NCP2),
+	 '$clean_ifcp'(NCP1),
+	 '$$save_by'(NCP2),
 	 NCP is NCP2-NCP1
 	  ;
 	   copy_term_nat(V, NV),
@@ -376,21 +378,18 @@ live :-
 	current_prolog_flag(break_level, BL ),
 	( BL \= 0 -> 	format(user_error, '[~p] ',[BL]) ;
 			true ),
-        ( current_prolog_flag(toplevel_print_options, Opts) ->
-	   write_term(user_error,Answ,Opts) ;
-	   format(user_error,'~w',[Answ])
-        ),
-	format(user_error,'.~n', []).
+        current_prolog_flag(toplevel_print_options, Opts),
+	write_term(user_error,Answ,Opts).
 
 '$another' :-
-	format(user_error,' ? ',[]),
 	'$clear_input'(user_input),
+	prompt1(' ? '),
 	get_code(user_input,C),
 	'$do_another'(C).
 
 '$do_another'(C) :-
-	(   C=:= ";" ->
-         skip(user_input,10), %
+    (   C=:= ";" ->
+         skip(user_input,10),
 	%    '$add_nl_outside_console',
 	    fail
 	;
@@ -445,10 +444,12 @@ write_query_answer( Bindings ) :-
 
 '$purge_dontcares'([],[]).
 '$purge_dontcares'([Name=_|Vs],NVs) :-
-	atom_codes(Name, [C|_]), C is "_", !,
-	'$purge_dontcares'(Vs,NVs).
+    atom_codes(Name, [C|_]),
+    C is "_",
+    !,
+    '$purge_dontcares'(Vs,NVs).
 '$purge_dontcares'([V|Vs],[V|NVs]) :-
-	'$purge_dontcares'(Vs,NVs).
+    '$purge_dontcares'(Vs,NVs).
 
 
 '$prep_answer_var_by_var'([], L, L).
@@ -490,9 +491,7 @@ write_query_answer( Bindings ) :-
 	'$write_goal_output'(G1, First, NG, Next, IG),
 	'$write_vars_and_goals'(LG, Next, IG).
 
-'$goal_to_string'(Format, G, String) :-
-	format(codes(String),Format,G).
-
+ 
 '$write_goal_output'(var([V|VL]), First, [var([V|VL])|L], next, L) :- !,
     ( First = first -> true ; format(user_error,',~n',[]) ),
 	format(user_error,'~a',[V]),
@@ -512,14 +511,13 @@ write_query_answer( Bindings ) :-
 	G = [_|_], !,
 	% dump on string first so that we can check whether we actually
 	% had any output from the solver.
-	'$goal_to_string'(Format, G, String),
-	( String == [] ->
+	format(string(String),Format,G),
+	( String == `` ->
 	    % we didn't
 	    IG = NG, First = Next
 	;
 	    % we did
-	    ( First = first -> true ; format(user_error,',~n',[]) ),
-	    format(user_error, '~s', [String]),
+	    format(user_error, '~N~s', [String]),
 	    NG = [G|IG]
 	).
 '$write_goal_output'(_-G, First, [G|NG], next, NG) :- !,
@@ -534,8 +532,8 @@ write_query_answer( Bindings ) :-
 	   write_term(user_error,G,Opts) ;
 	   format(user_error,'~w',[G])
         ).
-'$write_goal_output'(G, First, [M:G|NG], next, NG) :-
-	'$current_module'(M),
+'$write_goal_output'(G0, First, [M:G|NG], next, NG) :-
+	'$yap_strip_module'(G0,M,G),
         ( First = first -> true ; format(user_error,',~n',[]) ),
         (  yap_flag(toplevel_print_options, Opts) ->
 	   write_term(user_error,G,Opts) ;
@@ -557,7 +555,7 @@ write_query_answer( Bindings ) :-
 
 '$name_vars_in_goals1'([], I, I).
 '$name_vars_in_goals1'([V|NGVL], I0, IF) :-
-	I is I0+1,
+	I is I0+1, 
 	'$gen_name_string'(I0,[],SName), !,
 	atom_codes(Name, [95|SName]),
 	V = '$VAR'(Name),
@@ -580,35 +578,8 @@ write_query_answer( Bindings ) :-
 	'$call'(G, CP, G, M).
 
 '$user_call'(G, M) :-
-        gated_call(
-                '$enable_debugging',
-                M:G,
-	         Port,
-  	         '$disable_debugging_on_port'(Port)
-       ).
-
-'$disable_debugging_on_port'(retry) :-
-    !,
-    '$enable_debugging'.
-'$disable_debugging_on_port'(_Port) :-
-    '$disable_debugging'.
-
-
-
-% enable creeping
-'$enable_debugging':-
-    current_prolog_flag(debug, false), !.
-'$enable_debugging' :-
-	'__NB_setval__'('$debug_status', state(creep, 0, stop)),
-    '$trace_on', !,
-    '$creep'.
-'$enable_debugging'.
-
-'$trace_on' :-
-    '__NB_getval__'('$trace', on, fail).
-
-'$trace_off' :-
-    '__NB_getval__'('$trace', off, fail).
+	'$current_choice_point'(CP),
+    gated_call('$start_user_code',M:G,Port,'$reenter_debugger'(Port)).
 
 '$cut_by'(CP) :- '$$cut_by'(CP).
 
@@ -627,12 +598,11 @@ write_query_answer( Bindings ) :-
 	'$iso_check_goal'(G,G0),
 	'$call'(G, CP, G0, M).
 
-
-'$call'(M:_,_,G0,_) :- var(M), !,
-	'$do_error'(instantiation_error,call(G0)).
 '$call'(M:G,CP,G0,_M0) :- !,
-'$expand_meta_call'(M:G, [], NG),
-'$yap_strip_module'(NG,NM,NC),
+	expand_goal(M:G, NG),
+	must_be_callable(NG),
+
+	    '$yap_strip_module'(M:NG,NM,NC),
         '$call'(NC,CP,G0,NM).
 '$call'((X,Y),CP,G0,M) :- !,
         '$call'(X,CP,G0,M),
@@ -644,8 +614,11 @@ write_query_answer( Bindings ) :-
 	 '$call'(Y,CP,G0,M)
 	).
 '$call'((X*->Y),CP,G0,M) :- !,
-	'$call'(X,CP,G0,M),
-	'$call'(Y,CP,G0,M).
+	(
+	'$call'(X,CP,G0,M)
+	*->
+	'$call'(Y,CP,G0,M)
+	).
 '$call'((X->Y; Z),CP,G0,M) :- !,
 	(
 	    '$call'(X,CP,G0,M)
@@ -699,16 +672,27 @@ write_query_answer( Bindings ) :-
 '$call'(not(X), _CP, G0, M) :- !,
 	\+ ('$current_choice_point'(CP),
 	  '$call'(X,CP,G0,M) ).
-'$call'(!, CP, _,_) :- !,
+'$call'(!, CP, _G0, _m) :- !,
 	'$$cut_by'(CP).
-'$call'([A|B], _, _, M) :- !,
-	'$csult'([A|B], M).
+'$call'(forall(X,Y), CP, _G0, _m) :- !,
+	\+ ('$call'(X, CP, G0, M),
+	     \+ '$call'(Y, CP, G0, M) ).
+'$call'(once(X), CP, G0, M) :- !,
+	( '$call'(X, CP, G0, M) -> true).
+'$call'(!, CP, _G0, _m) :- !,
+	'$$cut_by'(CP).
+'$call'([X|Y], _, _, M) :-
+    (Y == [] ->
+    consult(M:X)
+    ;
+ 	 '$csult'([X|Y] ,M)
+ 	 ).
 '$call'(G, _CP, _G0, CurMod) :-
 % /*
 % 	(
 %      '$is_metapredicate'(G,CurMod)
 %     ->
-%      '$disable_debugging',
+%      	'$reenter_debugger'(exit)',
 %      ( '$expand_meta_call'(CurMod:G, [], NG) ->  true ; true ),
 %      '$enable_debugging'
 %     ;
@@ -717,49 +701,36 @@ write_query_answer( Bindings ) :-
 % 	*/
     '$execute0'(G, CurMod).
 
-'$check_callable'(V,G) :- var(V), !,
-	'$do_error'(instantiation_error,G).
-'$check_callable'(M:_G1,G) :- var(M), !,
-	'$do_error'(instantiation_error,G).
-'$check_callable'(_:G1,G) :- !,
-	'$check_callable'(G1,G).
-'$check_callable'(A,G) :- number(A), !,
-	'$do_error'(type_error(callable,A),G).
-'$check_callable'(R,G) :- db_reference(R), !,
-	'$do_error'(type_error(callable,R),G).
-'$check_callable'(_,_).
-
-
 '$loop'(Stream,exo) :-
-	prolog_flag(agc_margin,Old,0),
-    prompt1(': '), prompt(_,'     '),
-	'$current_module'(OldModule),
-	repeat,
-		'$system_catch'(dbload_from_stream(Stream, OldModule, exo), '$db_load', Error,
-			 user:'$LoopError'(Error, top)),
-	prolog_flag(agc_margin,_,Old),
-	!.
+    prolog_flag(agc_margin,Old,0),
+    prompt1(': '), prompt(_,'|     '),
+    source_module(OldModule,OldModule),
+    repeat,
+    '$system_catch'(dbload_from_stream(Stream, OldModule, exo), '$db_load', Error,
+		    user:'$LoopError'(Error, top)),
+    prolog_flag(agc_margin,_,Old),
+    !.
 '$loop'(Stream,db) :-
-	prolog_flag(agc_margin,Old,0),
-    prompt1(': '), prompt(_,'     '),
-	'$current_module'(OldModule),
+    prolog_flag(agc_margin,Old,0),
+    prompt1(': '), prompt(_,'|     '),
+    source_module(OldModule,OldModule),
 	repeat,
-		'$system_catch'(dbload_from_stream(Stream, OldModule, db), '$db_load', Error,
-			 user:'$LoopError'(Error, top)),
-	prolog_flag(agc_margin,_,Old),
+		'$system_catch'(dbload_from_stream(Stream, OldModule, db), '$db_load', Error, user:'$LoopError'(Error, db)
+                   ),
+		prolog_flag(agc_margin,_,Old),
 	!.
 '$loop'(Stream,Status) :-
- 	repeat,
-  '$current_module'( OldModule, OldModule ),
-	'$system_catch'( '$enter_command'(Stream,OldModule,Status),
+    repeat,
+    '$current_module'( OldModule, OldModule ),
+    '$system_catch'( '$enter_command'(Stream,OldModule,Status),
                      OldModule, Error,
-			         user:'$LoopError'(Error, Status)
+		     user:'$LoopError'(Error, Status)
                    ),
-	!.
+    !.
 
 '$boot_loop'(Stream,Where) :-
 	repeat,
-	'$current_module'( OldModule, OldModule ),
+	source_module( OldModule, OldModule ),
 	read_clause(Stream, Command, [module(OldModule), syntax_errors(dec10),variable_names(_Vars), term_position(_Pos)]),
 	(Command == end_of_file
   ->
@@ -800,8 +771,6 @@ Command = (H --> B) ->
 '$boot_clause'( Command, _ ) :-
   format(user_error, ' ~w failed.~n', [Command]).
 
-
-
 '$enter_command'(Stream, Mod, Status) :-
     prompt1(': '), prompt(_,'     '),
 	Options = [module(Mod), syntax_errors(dec10),variable_names(Vars), term_position(Pos)],
@@ -812,7 +781,7 @@ Command = (H --> B) ->
     ;
       read_clause(Stream, Command, Options)
     ),
-	'$command'(Command,Vars,Pos, Status).
+    '$command'(Command,Vars,Pos, Status) .
 
 /** @pred  user:expand_term( _T_,- _X_) is dynamic,multifile.
 
@@ -827,6 +796,7 @@ Command = (H --> B) ->
 
 /* General purpose predicates				*/
 
+'$head_and_body'(M:(H:-B),M:H,M:B) :- !.
 '$head_and_body'((H:-B),H,B) :- !.
 '$head_and_body'(H,H,true).
 
@@ -846,16 +816,16 @@ gated_call(Setup, Goal, Catcher, Cleanup) :-
 %
 % split head and body, generate an error if body is unbound.
 %
-'$check_head_and_body'(C,M,H,B,P) :-
+'$check_head_and_body'(C,M,H,B,_P) :-
     '$yap_strip_module'(C,M1,(MH:-B0)),
     !,
     '$yap_strip_module'(M1:MH,M,H),
     ( M == M1 -> B = B0 ; B = M1:B0),
-    is_callable(M:H,P).
+    must_be_callable(M:H).
 
-'$check_head_and_body'(MH, M, H, true, P) :-
+'$check_head_and_body'(MH, M, H, true, _XsP) :-
     '$yap_strip_module'(MH,M,H),
-    is_callable(M:H,P).
+    must_be_callable(M:H).
                                 % term expansion
 %
 % return two arguments: Expanded0 is the term after "USER" expansion.
@@ -880,9 +850,7 @@ gated_call(Setup, Goal, Catcher, Cleanup) :-
 '$precompile_term'(Term, Term, Term).
 
 '$expand_clause'(InputCl, C1, CO) :-
-    source_module(SM),
-    '$yap_strip_clause'(SM:InputCl, M, ICl),
-    '$expand_a_clause'( M:ICl, SM, C1, CO),
+    '$expand_a_clause'( InputCl, C1, CO),
     !.
 '$expand_clause'(Cl, Cl, Cl).
 
@@ -894,7 +862,6 @@ It rewrites a term  _T_ to a term  _X_ according to the following
 rules: first try term_expansion/2  in the current module, and then try to use the user defined predicate user:term_expansion/2`. If this call fails then the translating process
 for DCG rules is applied, together with the arithmetic optimizer
 whenever the compilation of arithmetic expressions is in progress.
-
 
 */
 expand_term(Term,Expanded) :-
@@ -923,9 +890,9 @@ expand_term(Term,Expanded) :-
 
 %% @}
 
-%% @addto group YAPControl
-
-%% @{
+%% @addtogroup CathThrow Catch and Throw
+%  @ingroup YAPControl
+%  @{
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   catch/throw implementation
@@ -933,7 +900,9 @@ expand_term(Term,Expanded) :-
 % at each catch point I need to know:
 % what is ball;
 % where was the previous catch
-/** @pred  catch( : _Goal_,+ _Exception_,+ _Action_) is iso
+
+/** 
+@pred  catch( : _Goal_,+ _Exception_,+ _Action_) is iso
 
 
 The goal `catch( _Goal_, _Exception_, _Action_)` tries to
@@ -945,7 +914,6 @@ again throws the exception.
 
 The top-level of YAP maintains a default exception handler that
 is responsible to capture uncaught exceptions.
-
 
 */
 catch(G, C, A) :-
@@ -1044,28 +1012,29 @@ log_event( String, Args ) :-
 	  LF = ['Break (level ', BreakLevel, ')'|LD]
 	),
     current_prolog_flag(debug, DBON),
+    (
+	DBON = true
+	->
 	(
-	 '$trace_on'
-	->
-     (
-      var(LF)
-     ->
-      LD  = ['trace'|LP]
-     ;
-      LD  = [', trace '|LP]
-     )
+'$get_debugger_state'(  trace,on),
+	    (
+		var(LF)
+	    ->
+	    LD  = ['trace'|LP]
+	    ;
+	    LD  = [', trace '|LP]
+	    )
 	;
-	 DBON == true
+	(var(LF)
 	->
-     (var(LF)
-     ->
-      LD  = ['debug'|LP]
-     ;
-      LD  = [', debug'|LP]
-     )
+	    LD  = ['debug'|LP]
+	;
+	LD  = [', debug'|LP]
+	)
+	)
 	;
 	 LD = LP
-	),
+    ),
     (
      var(LF)
     ->

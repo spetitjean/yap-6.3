@@ -6,7 +6,7 @@
 
  /**
 
-  @ingroup ModuleBuiltins
+  @addtogroup ModuleBuiltins
 @{
   */
 
@@ -31,7 +31,7 @@ module(N) :-
 module(N) :-
 	atom(N), !,
 	% set it as current module.
-	'$current_module'(_,N).
+	'$change_module'(N).
 module(N) :-
 	'$do_error'(type_error(atom,N),module(N)).
 
@@ -66,7 +66,7 @@ name with the `:/2` operator.
    source_location(F,Line),
   '__NB_getval__'( '$user_source_file', F0 , fail),
 	'$add_module_on_file'(N, F, Line,F0, Ps),
-	'$current_module'(_M0,N).
+	current_source_module(_M0,N).
 
 '$mk_system_predicates'( Ps, _N ) :-
     lists:member(Name/A , Ps),

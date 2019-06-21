@@ -1,5 +1,3 @@
-
-
 /*************************************************************************
  *									 *
  *	 YAP Prolog 							 *
@@ -28,13 +26,20 @@
 
 START_LOCAL_FLAGS
 
-/** + `autoload`: set the system to look for undefined procedures */
-YAP_FLAG(AUTOLOAD_FLAG, "autoload", true, booleanFlag, "false", NULL),
-    /** + `read-only flag, that tells if Prolog is in an inner top-level */
-    YAP_FLAG(BREAK_LEVEL_FLAG, "break_level", true, nat, "0", NULL),
-    YAP_FLAG(CALL_COUNTING_FLAG, "call_counting", true, booleanFlag, "true",
-             NULL), /** + `call_counting`
+/**< Allow constructs such as 'Functor( V )'. Functor is parsed as an
+   atom. The token `V` is still understood as a variable.
 
+Originally a SWI-Prolog flag.
+ */
+YAP_FLAG(ALLOW_VARIABLE_NAME_AS_FUNCTOR_FLAG, "allow_variable_name_as_functor", true, booleanFlag, "false", NULL),
+
+/**< set the system to look for undefined procedures */
+YAP_FLAG(AUTOLOAD_FLAG, "autoload", true, booleanFlag, "false", NULL),
+
+/**<`read-only flag, that tells if Prolog is in an inner top-level */
+    YAP_FLAG(BREAK_LEVEL_FLAG, "break_level", true, nat, "0", NULL),
+
+ /**<
                      Predicates compiled with this flag set maintain a counter
                on the numbers of proceduree calls and of retries. These counters
                are  decreasing counters, and they can be used as timers. Three
@@ -51,28 +56,45 @@ YAP_FLAG(AUTOLOAD_FLAG, "autoload", true, booleanFlag, "false", NULL),
                If `on` `fileerrors` is `on`, if `off` (default)
                `fileerrors` is disabled.
                */
-    YAP_FLAG(ENCODING_FLAG, "encoding", true, isatom, "utf-8", getenc),
-    YAP_FLAG(FILEERRORS_FLAG, "fileerrors", true, booleanFlag, "true",
-             NULL), /** +  `fileerrors`
-
-                 If `on` `fileerrors` is `on`, if `off` (default)
-                 `fileerrors` is disabled.
-                 */
-    YAP_FLAG(LANGUAGE_MODE_FLAG, "language_mode", true, isatom, "yap",
-             NULL), /** +  `language_mode`
-
-                 wweter native mode or trying to emulate a different Prolog.
-                 */
-    YAP_FLAG(STACK_DUMP_ON_ERROR_FLAG, "stack_dump_on_error", true, booleanFlag,
-             "true", NULL), /** +  `stack_dump_on_error `
-
-If `true` show a stack dump when YAP finds an error. The default is
-`off`.
-*/
-    YAP_FLAG(STREAM_TYPE_CHECK_FLAG, "stream_type_check", true, isatom, "loose",
+  YAP_FLAG(CALL_COUNTING_FLAG, "call_counting", true, booleanFlag, "true",
              NULL),
-    YAP_FLAG(SYNTAX_ERRORS_FLAG, "syntax_errors", true, synerr, "error",
-             NULL), /** +  `syntax_errors`
+
+/**< Indicates YAP is running within the compiler. */
+  YAP_FLAG(COMPILING_FLAG, "compiling", false, booleanFlag,
+             "true", NULL),
+/**< support for coding systens, YAP relies on UTF-8 internally.
+ */
+    YAP_FLAG(ENCODING_FLAG, "encoding", true, isatom, "utf-8", getenc),
+
+/** + what to do if opening a file fails.
+
+ */
+  YAP_FLAG(FILEERRORS_FLAG, "fileerrors", true, booleanFlag, "true",
+             NULL),
+
+              /**<
+
+                 whether native mode or trying to emulate a different
+                 Prolog.
+                 */
+  YAP_FLAG(LANGUAGE_MODE_FLAG, "language_mode", true, isatom, "yap",
+             NULL),
+  /**< If true, quoted atoms, string, lists of codes and of chars may extend over several lines, without the need to escape the new-line characters. Otherwise, unquoted line breaks cause a syntax error.
+
+ The default was for it to be true, except if in iso mode. YAP-6.5 changed the default, in order to ensure compatibility.                                                                       
+  */
+  YAP_FLAG(MULTILINE_QUOTED_TEXT_FLAG, "multiline_quoted_text", false, booleanFlag, "false",              NULL),
+/**< Show the execution stack in exceptions. */
+  YAP_FLAG(STACK_DUMP_ON_ERROR_FLAG, "stack_dump_on_error", false, booleanFlag,
+             "true", NULL),
+             /**<
+
+        If `true` show a stack dump when YAP finds an error. The default is
+        `off`.
+        */
+        YAP_FLAG(STREAM_TYPE_CHECK_FLAG, "stream_type_check", true, isatom, "loose",
+             NULL),
+             /** +  `syntax_errors`
 
 Control action to be taken after syntax errors while executing read/1,
 `read/2`, or `read_term/3`:
@@ -85,51 +107,86 @@ Report the syntax error and generate an error (default).
 + `quiet`
 Just fail
 */
-    YAP_FLAG(TYPEIN_MODULE_FLAG, "typein_module", true, isatom, "user",
-             typein), /** +  `typein_module `
-
-If bound, set the current working or type-in module to the argument,
-which must be an atom. If unbound, unify the argument with the current
-working module.
-
+  YAP_FLAG(SYNTAX_ERRORS_FLAG, "syntax_errors", true, synerr, "error",
+	   NULL),
+/**<
+   If bound, set the current working or type-in module to the argument,
+   which must be an atom. If unbound, unify the argument with the current
+   working module.
+   
 */
-    YAP_FLAG(USER_ERROR_FLAG, "user_error", true, stream, "user_error",
-             set_error_stream), /** +  `user_error1`
+  YAP_FLAG(TYPEIN_MODULE_FLAG, "typein_module", true, isatom, "user",
+             typein),
 
-If the second argument is bound to a stream, set user_error to
-this stream. If the second argument is unbound, unify the argument with
-the current user_error stream.
-By default, the user_error stream is set to a stream
-corresponding to the Unix `stderr` stream.
-The next example shows how to use this flag:
 
-~~~{.prolog}
-?- open( '/dev/null', append, Error,
-[alias(mauri_tripa)] ).
 
-Error = '$stream'(3) ? ;
 
-no
-?- set_prolog_flag(user_error, mauri_tripa).
+/**<
 
-close(mauri_tripa).
+    If `normal` allow printing of informational and banner messages,
+    such as the ones that are printed when consulting. If `silent`
+    disable printing these messages. It is `normal` by default except if
+    YAP is booted with the `-q` or `-L` flag.
 
-yes
-?-
-~~~
-We execute three commands. First, we open a stream in write mode and
-give it an alias, in this case `mauri_tripa`. Next, we set
-user_error to the stream via the alias. Note that after we did so
-prompts from the system were redirected to the stream
-`mauri_tripa`. Last, we close the stream. At this point, YAP
-automatically redirects the user_error alias to the original
-`stderr`.
-*/
-    YAP_FLAG(USER_INPUT_FLAG, "user_input", true, stream, "user_input",
-             set_input_stream),
-    YAP_FLAG(USER_OUTPUT_FLAG, "user_output", true, stream, "user_output",
-             set_output_stream),
+ */
+	YAP_FLAG(VERBOSE_FLAG, "verbose", true, isatom, "normal", NULL),
 
+	/**<
+
+       If `true` allow printing of informational messages when
+       searching for file names. If `false` disable printing these
+       messages. It is `false` by default except if YAP is booted with
+       the `-L` flag.
+    */
+	YAP_FLAG(VERBOSE_FILE_SEARCH_FLAG, "verbose_file_search", true, booleanFlag,
+			 "false", NULL),
+
+	/**<
+
+        If `true` allow printing of informational messages when
+        consulting files. If `false` disable printing these messages. It
+        is `true` by default except if YAP is booted with the `-L`
+        flag.
+     */
+  YAP_FLAG(VERBOSE_LOAD_FLAG, "verbose_load", true, booleanFlag, "true", NULL),
+/**<
+
+  If the second argument is bound to a stream, set user_error to
+  this stream. If the second argument is unbound, unify the argument with
+  the current user_error stream.
+  By default, the user_error stream is set to a stream
+  corresponding to the Unix `stderr` stream.
+  The next example shows how to use this flag:
+
+  ~~~{.prolog}
+  ?- open( '/dev/null', append, Error,
+  [alias(mauri_tripa)] ).
+
+  Error = '$stream'(3) ? ;
+
+  no
+  ?- set_prolog_flag(user_error, mauri_tripa).
+
+  close(mauri_tripa).
+
+  yes
+  ?-
+  ~~~
+  We execute three commands. First, we open a stream in write mode and
+  give it an alias, in this case `mauri_tripa`. Next, we set
+  user_error to the stream via the alias. Note that after we did so
+  prompts from the system were redirected to the stream
+  `mauri_tripa`. Last, we close the stream. At this point, YAP
+  automatically redirects the user_error alias to the original
+  `stderr`.
+  */
+  YAP_FLAG(USER_ERROR_FLAG, "user_error", true, stream, "user_error",
+	   set_error_stream),
+  YAP_FLAG(USER_INPUT_FLAG, "user_input", true, stream, "user_input",
+	   set_input_stream),
+  YAP_FLAG(USER_OUTPUT_FLAG, "user_output", true, stream, "user_output",
+	   set_output_stream),
+  
     END_LOCAL_FLAGS
 
     /// @}

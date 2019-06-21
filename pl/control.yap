@@ -88,84 +88,85 @@
 */
 
 /** @pred  forall(: _Cond_,: _Action_)
-
-
-For all alternative bindings of  _Cond_  _Action_ can be
-proven. The example verifies that all arithmetic statements in the list
- _L_ are correct. It does not say which is wrong if one proves wrong.
-
-~~~~~{.prolog}
-?- forall(member(Result = Formula, [2 = 1 + 1, 4 = 2 * 2]),
-                 Result =:= Formula).
-~~~~~
-
-
-*/
+ *
+ *
+ * For all alternative bindings of  _Cond_  _Action_ can be
+ * proven. The example verifies that all arithmetic statements in the list
+ *  _L_ are correct. It does not say which is wrong if one proves wrong.
+ *
+ * ~~~~~{.prolog}
+ * ?- forall(member(Result = Formula, [2 = 1 + 1, 4 = 2 * 2]),
+ *                  Result =:= Formula).
+ * ~~~~~
+ *
+ *
+ */
 forall(Cond, Action) :- \+((Cond, \+(Action))).
 
 /** @pred  ignore(: _Goal_)
-
-
-Calls  _Goal_ as once/1, but succeeds, regardless of whether
-`Goal` succeeded or not. Defined as:
-
-~~~~~{.prolog}
-ignore(Goal) :-
-        Goal, !.
-ignore(_).
-~~~~~
-
-
-*/
+ *
+ *
+ * Calls  _Goal_ as once/1, but succeeds, regardless of whether
+ * `Goal` succeeded or not. Defined as:
+ *
+ * ~~~~~{.prolog}
+ * ignore(Goal) :-
+ *         Goal, !.
+ * ignore(_).
+ * ~~~~~
+ *
+ *
+ */
 ignore(Goal) :- (Goal->true;true).
 
 /** @pred  if(? _G_,? _H_,? _I_)
-
-Call goal  _H_ once per each solution of goal  _H_. If goal
- _H_ has no solutions, call goal  _I_.
-
-The built-in `if/3` is similar to `->/3`, with the difference
-that it will backtrack over the test. Consider the following
-small data-base:
-
-~~~~~{.prolog}
-a(1).        b(a).          c(x).
-a(2).        b(b).          c(y).
-~~~~~
-
-Execution of an `if/3` query will proceed as follows:
-
-~~~~~{.prolog}
-   ?- if(a(X),b(Y),c(Z)).
-
-X = 1,
-Y = a ? ;
-
-X = 1,
-Y = b ? ;
-
-X = 2,
-Y = a ? ;
-
-X = 2,
-Y = b ? ;
-
-no
-~~~~~
-
-The system will backtrack over the two solutions for `a/1` and the
-two solutions for `b/1`, generating four solutions.
-
-Cuts are allowed inside the first goal  _G_, but they will only prune
-over  _G_.
-
-If you want  _G_ to be deterministic you should use if-then-else, as
-it is both more efficient and more portable.
-
-*/
-if(X,Y,Z) :-
-	(
-	 CP is '$last_choice_pt',
+ *
+ * Call goal  _H_ once per each solution of goal  _H_. If goal
+ *  _H_ has no solutions, call goal  _I_.
+ *
+ * The built-in `if/3` is similar to `->/3`, with the difference
+ * that it will backtrack over the test. Consider the following
+ * small data-base:
+ *
+ * ~~~~~{.prolog}
+ * a(1).        b(a).          c(x).
+ * a(2).        b(b).          c(y).
+ * ~~~~~
+ *
+ * Execution of an `if/3` query will proceed as follows:
+ *
+ * ~~~~~{.prolog}
+ *    ?- if(a(X),b(Y),c(Z)).
+ *
+ * X = 1,
+ * Y = a ? ;
+ *
+ * X = 1,
+ * Y = b ? ;
+ *
+ * X = 2,
+ * Y = a ? ;
+ *
+ * X = 2,
+ * Y = b ? ;
+ *
+ * no
+ * ~~~~~
+ *
+ * The system will backtrack over the two solutions for `a/1` and the
+ * two solutions for `b/1`, generating four solutions.
+ *
+ * Cuts are allowed inside the first goal  _G_, but they will only prune
+ * over  _G_.
+ *
+ * If you want  _G_ to be deterministic you should use if-then-else, as
+ * it is both more efficient and more portable.
+ *
+ */
+if(X0,Y,Z) :-
+    '$yap_strip_module'(X0,M,X),
+    (
+	'$$save_by'(CP),
 	 '$call'(X,CP,if(X,Y,Z),M),
 	 '$execute'(X),
 	 '$clean_ifcp'(CP),
@@ -174,75 +175,14 @@ if(X,Y,Z) :-
 	 '$call'(Z,CP,if(X,Y,Z),M)
 	).
 
-/** @pred  call(
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  Closure,...,? Ai,...) is iso
-
-
-Meta-call with extractpattern arguments, where _Closure_ is a closure
-that is converted into a goal by appending the _Ai_ additional
-arguments. YAP supports up to 10 extra arguments.
-
-*/
+/** @pred  call( Closure,...,? Ai,...) is iso
+ *
+ *
+ * Meta-call with extra pattern arguments, where _Closure_ is a closure
+ * that is converted into a goal by appending the _Ai_ additional
+ * arguments. YAP supports up to 10 extra arguments.
+ *
+ */
 call(X,A) :- '$execute'(X,A).
 
 call(X,A1,A2) :- '$execute'(X,A1,A2).
@@ -266,11 +206,11 @@ call(X,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10) :- '$execute'(X,A1,A2,A3,A4,A5,A6,A7,A8,A
 call(X,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11) :- '$execute'(X,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11).
 
 /** @pred call_cleanup(: _Goal_, : _CleanUpGoal_)
-
-This is similar to call_cleanup/1 but with an additional
- _CleanUpGoal_ which gets called after  _Goal_ is finished.
-
-*/
+ *
+ * This is similar to call_cleanup/1 but with an additional
+ *  _CleanUpGoal_ which gets called after  _Goal_ is finished.
+ *
+ */
 call_cleanup(Goal, Cleanup) :-
 '$gated_call'( false , Goal,_Catcher, Cleanup)  .
 
@@ -450,50 +390,30 @@ version(T) :-
 	fail.
 '$set_toplevel_hook'(_).
 
-query_to_answer(G, V, Status, Bindings) :-
-	gated_call( true, (G,'$delayed_goals'(G, V, Vs, LGs, _DCP)), Status, '$answer'( Status, LGs, Vs, Bindings) ).
-
-  '$answer'( exit, LGs, Vs, Bindings) :-
-      !,
-      '$process_answer'(Vs, LGs, Bindings).
-      '$answer'( answer, LGs, Vs, Bindings) :-
-          !,
-          '$process_answer'(Vs, LGs, Bindings).
-'$answer'(!, _, _, _).
-'$answer'(fail,_,_,_).
-'$answer'(exception(E),_,_,_) :-
-        '$LoopError'(E,error).
-'$answer'(external_exception(_),_,_,_).
-
+query_to_answer(G, V, Status, LGs) :-
+    gated_call(true,
+		G,
+		Status,
+	       true),
+    '$delayed_goals'(G, V, NV, LVGs, _DCP),
+    lists:append(NV, LVGs, LGs).
 
 %% @}
 
-%% @{
 
 %% @addtogroup Global_Variables
+%% @{
 
-/** @pred  nb_getval(+ _Name_, - _Value_)
-
-
-The nb_getval/2 predicate is a synonym for b_getval/2,
-introduced for compatibility and symmetry. As most scenarios will use
-a particular global variable either using non-backtrackable or
-backtrackable assignment, using nb_getval/2 can be used to
-document that the variable is used non-backtrackable.
-
-
-*/
 /** @pred nb_getval(+ _Name_,- _Value_)
-
-
-The nb_getval/2 predicate is a synonym for b_getval/2, introduced for
-compatibility and symmetry.  As most scenarios will use a particular
-global variable either using non-backtrackable or backtrackable
-assignment, using nb_getval/2 can be used to document that the
-variable is used non-backtrackable.
-
-
-*/
+ *
+ *
+ * The nb_getval/2 predicate is a synonym for b_getval/2, introduced for
+ * compatibility and symmetry.  As most scenarios will use a particular
+ * global variable either using non-backtrackable or backtrackable
+ * assignment, using nb_getval/2 can be used to document that the
+ * variable is used non-backtrackable.
+ *
+ */
 nb_getval(GlobalVariable, Val) :-
 	'__NB_getval__'(GlobalVariable, Val, Error),
 	(var(Error)
@@ -508,31 +428,19 @@ nb_getval(GlobalVariable, Val) :-
 
 
 /** @pred  b_getval(+ _Name_, - _Value_)
-
-
-Get the value associated with the global variable  _Name_ and unify
-it with  _Value_. Note that this unification may further
-instantiate the value of the global variable. If this is undesirable
-the normal precautions (double negation or copy_term/2) must be
-taken. The b_getval/2 predicate generates errors if  _Name_ is not
-an atom or the requested variable does not exist.
-
-Notice that for compatibility with other systems  _Name_ <em>must</em> be already associated with a term: otherwise the system will generate an error.
-
-
-*/
-/** @pred b_getval(+ _Name_,- _Value_)
-
-
-Get the value associated with the global variable  _Name_ and unify
-it with  _Value_. Note that this unification may further instantiate
-the value of the global variable. If this is undesirable the normal
-precautions (double negation or copy_term/2) must be taken. The
-b_getval/2 predicate generates errors if  _Name_ is not an atom or
-the requested variable does not exist.
-
-
-*/
+ *
+ *
+ * Get the value associated with the global variable  _Name_ and unify
+ * it with  _Value_. Note that this unification may further
+ * instantiate the value of the global variable. If this is undesirable
+ * the normal precautions (double negation or copy_term/2) must be
+ * taken. The b_getval/2 predicate generates errors if  _Name_ is not
+ * an atom or the requested variable does not exist.
+ *
+ * Notice that for compatibility with other systems  _Name_ <em>must</em> be already associated with a term: otherwise the system will generate an error.
+ *
+ *
+ */
 b_getval(GlobalVariable, Val) :-
 	'__NB_getval__'(GlobalVariable, Val, Error),
 	(var(Error)
@@ -548,38 +456,35 @@ b_getval(GlobalVariable, Val) :-
 
 %% @}
 
-%% @{
 
 %% @addtogroup YAPControl
+%% @{
 
 /* This is the break predicate,
 	it saves the importante data about current streams and
 	debugger state */
 
-'$debug_state'(state(Trace, Debug, State, SPY_GN, GList, GDList)) :-
+'$debug_state'(state(Trace, Debug, State, SPY_GN, GList)) :-
 	'$init_debugger',
 	nb_getval('$trace',Trace),
 	nb_getval('$debug_state',State),
 	current_prolog_flag(debug, Debug),
 	nb_getval('$spy_gn',SPY_GN),
-	b_getval('$spy_glist',GList),
-	b_getval('$spy_depth',GDList).
+	b_getval('$spy_glist',GList).
 
 
 '$debug_stop' :-
-	nb_setval('$debug_state', state(creep,0,stop)),
+'$set_debugger_state'( zip,0,stop,off ),
 	b_setval('$trace',off),
 	set_prolog_flag(debug, false),
 	b_setval('$spy_glist',[]),
-	b_setval('$spy_gdlist',[]),
 	'$disable_debugging'.
 
-'$debug_restart'(state(Trace, Debug, State, SPY_GN, GList, GDList)) :-
+'$debug_restore'(state(Trace, Debug, State, SPY_GN, GList)) :-
 	b_setval('$spy_glist',GList),
-	b_setval('$spy_gdlist',GDList),
 	b_setval('$spy_gn',SPY_GN),
 	set_prolog_flag(debug, Debug),
-    nb_setval('$debug_state',State),
+	nb_setval('$debug_state',State),
 	b_setval('$trace',Trace),
 	'$enable_debugging'.
 
@@ -601,14 +506,14 @@ debugging.
 */
 break :-
         '$debug_state'(DState),
-        '$debug_start',
-	'$break'( true ),
+        '$debug_stop',
+        '$break'( true ),
 	current_output(OutStream), current_input(InpStream),
 	current_prolog_flag(break_level, BL ),
         NBL is BL+1,
 	set_prolog_flag(break_level, NBL ),
 	format(user_error, '% Break (level ~w)~n', [NBL]),
-	'$do_live',
+	live,
 	!,
 	set_value('$live','$true'),
         '$debug_restore'(DState),

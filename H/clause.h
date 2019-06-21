@@ -95,8 +95,9 @@ INLINE_ONLY int VALID_TIMESTAMP(UInt, struct logic_upd_clause *);
 
 INLINE_ONLY int VALID_TIMESTAMP(UInt timestamp,
                                               struct logic_upd_clause *cl) {
+  //  printf("%lu %lu %lu\n",cl->ClTimeStart, timestamp, cl->ClTimeEnd);
   return IN_BETWEEN(cl->ClTimeStart, timestamp, cl->ClTimeEnd);
-}
+	 }
 
 typedef struct dynamic_clause {
   /* A set of flags describing info on the clause */
@@ -463,6 +464,8 @@ extern yamop *Yap_udi_search(PredEntry *);
 extern yap_error_descriptor_t *Yap_bug_location(yap_error_descriptor_t *t, yamop *p, yamop *cp, choiceptr b_ptr, void *env);
 extern yap_error_descriptor_t *Yap_pc_add_location(yap_error_descriptor_t *t, void *p, void *b_ptr, void *env); 
 extern yap_error_descriptor_t * Yap_env_add_location(yap_error_descriptor_t *t, void *p, void *b_ptr, void *env, YAP_Int ignore_first);
+
+void Yap_split_megaclause(PredEntry *ap);
 
 #if LOW_PROF
 void Yap_InformOfRemoval(void *);

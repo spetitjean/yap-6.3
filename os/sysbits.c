@@ -355,7 +355,7 @@ bool Yap_ChDir(const char *path) {
   int lvl = push_text_stack();
 
     const char *qpath = Yap_AbsoluteFile(path, true);
-  //__android_log_print(ANDROID_LOG_INFO, "YAPDroid", "chdir %s", path);
+    __android_log_print(ANDROID_LOG_INFO, "YAPDroid", "chdir %s", path);
   VFS_t *v;
   if ((v = vfs_owner(qpath))) {
     rc = v->chdir(v, (qpath));
@@ -769,11 +769,11 @@ static Int real_path(USES_REGS1) {
   int lvl = push_text_stack();
   rc0 = myrealpath(cmd PASS_REGS);
   if (!rc0) {
+    pop_text_stack(lvl);
     PlIOError(SYSTEM_ERROR_OPERATING_SYSTEM, ARG1, NULL);
   }
   bool out = Yap_unify(MkAtomTerm(Yap_LookupAtom(rc0)), ARG2);
-  pop_output_text_stack(lvl, rc0);
-
+  pop_text_stack(lvl);
   return out;
 }
 
@@ -799,6 +799,7 @@ static const param_t expand_filename_defs[] = {EXPAND_FILENAME_DEFS()};
 static Term do_expand_file_name(Term t1, Term opts USES_REGS) {
   xarg *args;
   expand_filename_enum_choices_t i;
+
   bool use_system_expansion = true;
   const char *tmpe = NULL;
   const char *spec;
@@ -1046,10 +1047,10 @@ static bool initSysPath(Term tlib, Term tcommons, bool dir_done,
                         bool commons_done) {
   CACHE_REGS
 
-  if (!Yap_unify(tlib, MkAtomTerm(Yap_LookupAtom(Yap_PLDIR))))
+  if (!Yap_PLDIR || !Yap_unify(tlib, MkAtomTerm(Yap_LookupAtom(Yap_PLDIR))))
     return false;
 
-  return Yap_unify(tcommons, MkAtomTerm(Yap_LookupAtom(Yap_COMMONSDIR)));
+  return Yap_COMMONSDIR && Yap_unify(tcommons, MkAtomTerm(Yap_LookupAtom(Yap_COMMONSDIR)));
 }
 
 static Int libraries_directories(USES_REGS1) {
@@ -1057,21 +1058,7 @@ static Int libraries_directories(USES_REGS1) {
 }
 
 static Int system_library(USES_REGS1) {
-#if __ANDROID__
-  static Term dir = 0;
-  Term t;
-  if (IsVarTerm(t = Deref(ARG1))) {
-    if (dir == 0)
-      return false;
-    return Yap_unify(dir, ARG1);
-  }
-  if (!IsAtomTerm(t))
-    return false;
-  dir = t;
-  return true;
-#else
   return initSysPath(ARG1, MkVarTerm(), false, true);
-#endif
 }
 
 static Int commons_library(USES_REGS1) {
@@ -1150,6 +1137,19 @@ const char *Yap_getcwd(char *cwd, size_t cwdlen) {
 return rc;
 }
 
+/** @pred  working_directory( ?_CurDir_,? _NextDir_)
+
+
+Fetch the current directory at  _CurDir_. If  _NextDir_ is bound
+to an atom, make its value the current working directory.
+
+Unifies  _Old_ with an absolute path to the current working directory
+and change working directory to  _New_.  Use the pattern
+`working_directory(CWD, CWD)` to get the current directory.  See
+also `absolute_file_name/2` and chdir/1.
+
+
+*/
 static Int working_directory(USES_REGS1) {
   char dir[YAP_FILENAME_MAX + 1];
   Term t1 = Deref(ARG1), t2;
@@ -1872,7 +1872,7 @@ static Int p_sleep(USES_REGS1) {
   Term ts = ARG1;
 #if defined(__MINGW32__) || _MSC_VER
   {
-    unsigned long int secs = 0, usecs = 0, msecs, out;
+    unsigned long int secs = 0, usecs = 0, msecs;
     if (IsIntegerTerm(ts)) {
       secs = IntegerOfTerm(ts);
     } else if (IsFloatTerm(ts)) {
@@ -1902,7 +1902,7 @@ static Int p_sleep(USES_REGS1) {
       req.tv_sec = IntOfTerm(ts);
     }
     out = nanosleep(&req, NULL);
-    return true;
+    return out == 0;
   }
 #elif HAVE_USLEEP
   {
@@ -1933,6 +1933,22 @@ static Int p_sleep(USES_REGS1) {
   return FALSE:
 #endif
 }
+
+#if MCHECK_H
+#include <mcheck.h>
+#endif
+
+static Int
+  p_mtrace()
+  {
+#ifdef HAVE_MTRACE
+    Term t = Deref(ARG1);
+    if (t == TermTrue) mtrace();
+    else if (t == TermFalse) return muntrace();
+    else return false;
+#endif
+    return true;
+  }
  
 void Yap_InitSysPreds(void) {
   Yap_InitCPred("log_event", 1, p_log_event, SafePredFlag | SyncPredFlag);
@@ -1972,5 +1988,6 @@ void Yap_InitSysPreds(void) {
   Yap_InitCPred("rmdir", 2, p_rmdir, SyncPredFlag);
   Yap_InitCPred("sleep", 1, p_sleep, SyncPredFlag);
   Yap_InitCPred("make_directory", 1, make_directory, SyncPredFlag);
+  Yap_InitCPred("mtrace", 1, p_mtrace, SyncPredFlag);
 }
    

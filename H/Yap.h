@@ -50,7 +50,7 @@
 #endif /* THREADS && (YAPOR_COW || YAPOR_SBA || YAPOR_COPY) */
 
 // Bad export from Python
-#include "config.h"
+#include "YapConfig.h"
 
 #ifndef COROUTINING
 #define COROUTINING 1
@@ -74,6 +74,27 @@
 #include <stdint.h>
 #endif
 
+typedef YAP_Int Int;
+typedef YAP_UInt UInt;
+typedef YAP_Short Short;
+typedef YAP_UShort UShort;
+
+typedef uint16_t BITS16;
+typedef int16_t SBITS16;
+typedef uint32_t BITS32;
+
+typedef YAP_CELL CELL;
+
+typedef YAP_Term Term;
+
+#define WordSize sizeof(BITS16)
+#define CellSize sizeof(CELL)
+#define SmallSize sizeof(SMALLUNSGN)
+
+typedef YAP_Float Float;
+typedef YAP_handle_t yhandle_t;
+
+#define TermZERO ((Term)0)
 /*
 
 #define RATIONAL_TREES 1
@@ -153,7 +174,7 @@ typedef void *(*fptr_t)(void);
 
 extern const char *Yap_BINDIR, *Yap_ROOTDIR, *Yap_SHAREDIR, *Yap_LIBDIR, *Yap_DLLDIR,
         *Yap_PLDIR, *Yap_COMMONSDIR, *Yap_STARTUP,*Yap_INPUT_STARTUP,*Yap_OUTPUT_STARTUP,
-        *Yap_BOOTFILE, *Yap_INCLUDEDIR;
+        *Yap_SOURCEBOOT, *Yap_INCLUDEDIR;
 
 
 /* Basic exports */
@@ -754,7 +775,7 @@ extern struct worker_local Yap_local;
 #define REMOTE(wid) (&Yap_local)
 #endif
 
-#include "encoding.h"
+#include "YapEncoding.h"
 
 #include <stdio.h>
 #define YP_FILE FILE

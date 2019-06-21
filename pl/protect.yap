@@ -42,23 +42,35 @@ prolog:'$protect' :-
     new_system_module( M ),
     fail.
 prolog:'$protect' :-
-	'$current_predicate'(Name,M,P,_),
+   '$current_predicate'(Name,M,P,_),
     '$is_system_module'(M),
     functor(P,Name,Arity),
     '$new_system_predicate'(Name,Arity,M),
-    sub_atom(Name,0,1,_, '$'),
-    functor(P,Name,Arity),
-    '$hide_predicate'(P,M),
+%    '$hide_predicate'(P,M),
     fail.
+prolog:'$protect' :-
+   '$current_predicate'(Name,M,P,_),
+    '$is_system_module'(M),
+    functor(P,Name,Arity),
+    \+ '$visible'(Name), 
+    '$set_private'(P,M).
 prolog:'$protect' :-
     current_atom(Name),
 	sub_atom(Name,0,1,_, '$'),
     \+ '$visible'(Name),
     hide_atom(Name),
     fail.
+
+prolog:'$protect' :-
+    recorded('$module','$module'(_F,_DonorM,_SourceF, _AllExports, _Line), R),erase(R), fail.
+prolog:'$protect' :-
+    recorded('$source_file','$source_file'( _F, _Age, _M), R),erase(R), fail.
+prolog:'$protect' :-
+    recorded('$lf_loaded','$lf_loaded'( _F, _M, _Reconsult, _UserFile, _OldF, _Line, _Opts), R),erase(R), fail. 
+
 prolog:'$protect'.
 
-
+/*
 % hide all atoms who start by '$'
 '$visible'('$').			/* not $VAR */
 '$visible'('$VAR').			/* not $VAR */
@@ -81,5 +93,106 @@ prolog:'$protect'.
 '$visible'('$qq_open').
 '$visible'('$live').
 '$visible'('$init_prolog').
+'$visible'('$x_yap_flag' ).
+'$visible'(X) :- \+ atomic_concat('$',_,X).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 %% @}
+

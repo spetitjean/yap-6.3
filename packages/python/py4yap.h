@@ -23,9 +23,13 @@
 #undef _XOPEN_SOURCE // python does its own thing
 #endif
 
+
+#undef _POSIX_C_SOURCE
+
 #include <Python.h>
 
 #include <Yap.h>
+
 
 #include <SWI-Prolog.h>
 #ifdef HAVE_STAT
@@ -70,16 +74,16 @@ extern bool init_python_vfs(void);
 
 extern atom_t ATOM_true, ATOM_false, ATOM_colon, ATOM_dot, ATOM_none, ATOM_t,
     ATOM_comma, ATOM_builtin, ATOM_V, ATOM_A, ATOM_self, ATOM_nil,
-    ATOM_brackets, ATOM_curly_brackets;
+  ATOM_brackets, ATOM_curly_brackets;
 
 extern functor_t FUNCTOR_dollar1, FUNCTOR_abs1, FUNCTOR_all1, FUNCTOR_any1,
     FUNCTOR_as2, FUNCTOR_bin1, FUNCTOR_brackets1, FUNCTOR_comma2, FUNCTOR_dir1,
-    FUNCTOR_float1, FUNCTOR_int1, FUNCTOR_iter1, FUNCTOR_iter2, FUNCTOR_long1,
+  FUNCTOR_float1, FUNCTOR_int1, FUNCTOR_iter1, FUNCTOR_var1, FUNCTOR_iter2, FUNCTOR_long1, FUNCTOR_var1,
     FUNCTOR_len1, FUNCTOR_curly1, FUNCTOR_ord1, FUNCTOR_range1, FUNCTOR_range2,
     FUNCTOR_range3, FUNCTOR_sum1, FUNCTOR_pointer1, FUNCTOR_complex2,
     FUNCTOR_plus2, FUNCTOR_sub2, FUNCTOR_mul2, FUNCTOR_div2, FUNCTOR_hat2,
     FUNCTOR_colon2, FUNCTOR_comma2, FUNCTOR_equal2, FUNCTOR_sqbrackets2,
-    FUNCTOR_dot2;
+  FUNCTOR_dot2, FUNCTOR_var1;
 
 extern X_API PyObject *py_Main;
 extern X_API PyObject *py_Yapex;
@@ -95,7 +99,7 @@ extern PyObject *py_Sys;
 extern X_API bool python_in_python;
 extern bool pyStringToString;
 
-extern bool python_release_GIL(term_t gstate);
+extern bool  python_release_GIL(term_t gstate);
 extern term_t python_acquire_GIL(void);
 
 static inline Py_ssize_t get_p_int(PyObject *o, Py_ssize_t def) {
@@ -201,22 +205,21 @@ extern PyObject *YEC(PyObject *c,PyObject *a ,PyObject *d , int line, const char
 extern void YEM(const char *ex, int line, const char *file, const char *code);
 extern void pyErrorHandler__(int line, const char *file, const char *code);
 
-#define pyErrorHandler()                                                       \
-  {                                                                            \
-    if (PyErr_Occurred()) {                                                    \
+#define PyStart()   PyErr_Clear()
+
+
+#define pyErrorHandler()                if (PyErr_Occurred()) {                                               \
       pyErrorHandler__(__LINE__, __FILE__, __FUNCTION__);                      \
     }                                                                          \
-  }
+
 
 #define pyErrorAndReturn(x)                                                    \
-  {                                                                            \
     if (PyErr_Occurred()) {                                                    \
       pyErrorHandler__(__LINE__, __FILE__, __FUNCTION__);                      \
     }                                                                          \
-    return (x);                                                                \
-  }
+    return (x)                         
+                                      
 // #define pyErrorAndReturn( x, y ) return x
-
 extern PyObject *compound_to_pyeval(term_t t, PyObject *context, bool cvt);
 extern PyObject *compound_to_pytree(term_t t, PyObject *context, bool cvt);
 

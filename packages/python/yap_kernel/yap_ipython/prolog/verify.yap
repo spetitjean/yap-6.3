@@ -1,5 +1,5 @@
 /**
-  * @file jupyter.yap4py
+  * @file verify.yap
   *
   * @brief JUpyter support.
   */
@@ -16,16 +16,16 @@
 :-	 use_module(library(lists)).
 :-	 use_module(library(maplist)).
 
- :-	 use_module(library(python)).
+%% :-	 use_module(library(python)).
 %% :-	 use_module(library(yapi)).
 
 :- dynamic jupyter/1.
 jupyter( []).
 
 ready( Engine, Query) :-
-     errors( Engine , Cell ),
+     errors( Engine , Query ),
      Es := Engine.errors,
-     not Es == [].
+      Es \== [].
 
 
 
@@ -50,11 +50,11 @@ open_esh(Engine , Text, Stream, Name) :-
     Name := Engine.stream_name,
     open_mem_read_stream( Text, Stream ).
 
-esh(Engine , Name, Stream) :-
+esh(Engine , _Name, Stream) :-
   repeat,
   catch(
-   read_clause(Stream, Cl, [ syntax_errors(dec10)]),
-     error(C,E),
+      read_clause(Stream, Cl, [ syntax_errors(dec10)]),
+      error(C,E),
       p3_message(C,Engine,E)
   ),
   Cl == end_of_file,
@@ -72,24 +72,25 @@ jupyter(En),
 close_esh( _Engine , Stream ) :-
 	   retractall(jupyter(_)),
 	   assertz(jupyter([])),
-  close(Stream).
+	   close(Stream),
+	   python_clear_errors.
 
 
 
 p3_message( _Severity,  Engine, error(syntax_error(Cause),info(between(_,LN,_), _FileName, CharPos, Details))) :-
-			   python_clear_errors,
-			   !,
-			   Engine.errors := [t(Cause,LN,CharPos,Details)]+Engine.errors.
-p3_message(error, Engine, E) :-
+    python_clear_errors,
+    !,
+    Engine.errors := [t(Cause,LN,CharPos,Details)]+Engine.errors .
+p3_message(error, _Engine, _E) :-
      python_clear_errors,
      !.
-        p3_message(warning, Engine, E) :-
-          !.
-        p3_message(error, Engine, E) :-
-          Engine.errors := [E] + Engine.errors.
-          p3_message(warning, Engine, E) :-
-              Engine.errors := [E] + Engine.errors.
-    %% ready(_Self, Line ) :-
+p3_message(warning, _Engine, _E) :-
+    !.
+p3_message(error, Engine, E) :-
+    Engine.errors := [E] + Engine.errors.
+p3_message(warning, Engine, E) :-
+    Engine.errors := [E] + Engine.errors.
+%% ready(_Self, Line ) :-
 %%             blank( Line ),
 %%             !.
 %% ready(Self, Line ) :-

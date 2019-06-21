@@ -218,7 +218,7 @@ static char **prolog_completion(const char *text, int start, int end) {
   } else if (start == 0) {
     int i = 0;
     const char *p;
-    while (isblank(text[i++]) && i <= end)
+    while (isspace(text[i++]) && i <= end)
       ;
     p = text + i;
 
@@ -322,10 +322,11 @@ static bool getLine(int inp) {
   rl_instream = GLOBAL_Stream[inp].file;
   const unsigned char *myrl_line = NULL;
   StreamDesc *s = GLOBAL_Stream + inp;
+  bool shouldPrompt = Yap_DoPrompt(s);
 
   /* window of vulnerability opened */
   LOCAL_PrologMode |= ConsoleGetcMode;
-  if (Yap_DoPrompt(s)) { // no output so far
+  if (true || shouldPrompt) { // no output so far
     rl_set_signals();
     myrl_line = (unsigned char *)readline(LOCAL_Prompt);
     rl_clear_signals();

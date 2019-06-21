@@ -1574,11 +1574,12 @@ void Yap_InitCPreds(void) {
   Yap_InitCmpPreds();
   Yap_InitCoroutPreds();
   Yap_InitDBPreds();
-  Yap_InitErrorPreds();
   Yap_InitExecFs();
+  Yap_InitErrorPreds();
   Yap_InitGlobals();
   Yap_InitInlines();
   Yap_InitIOPreds();
+  Yap_InitDBLoadPreds();
   Yap_InitExoPreds();
   Yap_InitLoadForeign();
   Yap_InitModulesC();
@@ -1592,6 +1593,7 @@ void Yap_InitCPreds(void) {
   Yap_udi_init();
   Yap_udi_Interval_init();
   Yap_InitSignalCPreds();
+  Yap_InitTermCPreds();
   Yap_InitUserCPreds();
   Yap_InitUtilCPreds();
   Yap_InitSortPreds();
@@ -1618,9 +1620,6 @@ void Yap_InitCPreds(void) {
     while (*p)
       (*(*p++))();
   }
-#if USE_MYDDAS
-  init_myddas();
-#endif
 #if CAMACHO
   {
     extern void InitForeignPreds(void);

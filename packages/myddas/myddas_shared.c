@@ -20,7 +20,7 @@
 #include <stdlib.h>
 
 
-#ifdef USE_MYDDAS
+#ifdef MYDDAS
 
 #include "myddas.h"
 
@@ -51,6 +51,8 @@ static Int c_db_check(USES_REGS1);
 #endif
 
 void Yap_InitMYDDAS_SharedPreds(void) {
+  Term cm = CurrentModule;
+  CurrentModule = MkAtomTerm(Yap_LookupAtom("myddas"));
   /* c_db_initialize_myddas */
   Yap_InitCPred("c_db_initialize_myddas", 0, c_db_initialize_myddas, 0);
 
@@ -86,15 +88,19 @@ void Yap_InitMYDDAS_SharedPreds(void) {
 #ifdef DEBUG
   Yap_InitCPred("c_db_check", 0, c_db_check, 0);
 #endif
+  CurrentModule = cm;
 }
 
 void Yap_InitBackMYDDAS_SharedPreds(void) {
+  Term cm = CurrentModule;
+  CurrentModule = MkAtomTerm(Yap_LookupAtom("myddas"));
   /* Gives all the predicates associated to a given connection */
   Yap_InitCPredBack("c_db_preds_conn", 4, sizeof(Int), c_db_preds_conn_start,
                     c_db_preds_conn_continue, 0);
   /* Gives all the connections stored on the MYDDAS Structure*/
   Yap_InitCPredBack("c_db_connection", 1, sizeof(Int), c_db_connection_start,
                     c_db_connection_continue, 0);
+  CurrentModule = cm;
 }
 
 static bool myddas_initialised;
@@ -124,22 +130,32 @@ static Int c_db_connection_type(USES_REGS1) {
 
   Int *con = (Int *)IntegerOfTerm(arg_con);
   MYDDAS_API type = myddas_util_connection_type(con);
-
   switch (type) {
+#if MYDDAS_MYSQL
   case API_MYSQL:
     /* MYSQL Connection */
     return Yap_unify(arg_type, MkAtomTerm(Yap_LookupAtom("mysql")));
+#endif
+    #if MYDDAS_ODBC
   case API_ODBC:
     /* ODBC Connection */
     return Yap_unify(arg_type, MkAtomTerm(Yap_LookupAtom("odbc")));
+    #endif
+#if USE_MYDDAS_SQLITE3
   case API_SQLITE3:
     /* SQLITE3 Connection */
     return Yap_unify(arg_type, MkAtomTerm(Yap_LookupAtom("sqlite3")));
-  case API_POSTGRES:
+#endif
+#if MYDDAS_POSTGRES
+    case API_POSTGRES:
     /* SQLITE3 Connection */
     return Yap_unify(arg_type, MkAtomTerm(Yap_LookupAtom("postgres")));
+
+#endif
+      default:
+          return FALSE;
+
   }
-  return FALSE;
 }
 
 /* db_add_preds: PredName * Arity * Module * Connection*/
@@ -689,9 +705,9 @@ void init_myddas(void) {
   {
     return;
   }
-#if USE_MYDDAS
-  Term cm=CurrentModule;
-  CurrentModule = USER_MODULE;
+#if MYDDAS
+Yap_InitMYDDAS_SharedPreds();
+  Yap_InitBackMYDDAS_SharedPreds();
 #define stringify(X) _stringify(X)
 #define _stringify(X) #X
   Yap_REGS.MYDDAS_GLOBAL_POINTER = NULL;
@@ -699,26 +715,15 @@ void init_myddas(void) {
                MkAtomTerm(Yap_LookupAtom(stringify(MYDDAS_VERSION))));
   Yap_HaltRegisterHook((HaltHookFunc)Yap_MYDDAS_delete_all_myddas_structs,
                        NULL);
-  Yap_InitMYDDAS_SharedPreds();
-  Yap_InitBackMYDDAS_SharedPreds();
 #undef stringify
 #undef _stringify
   Yap_MYDDAS_delete_all_myddas_structs();
-#if defined MYDDAS_ODBC
-  Yap_InitBackMYDDAS_ODBCPreds();
-  Yap_InitMYDDAS_ODBCPreds();
-#endif
 #if defined MYDDAS_TOP_LEVEL &&                                                \
     defined MYDDAS_MYSQL // && defined HAVE_LIBREADLINE
   Yap_InitMYDDAS_TopLevelPreds();
 #endif
-  c_db_initialize_myddas(PASS_REGS1);
-#ifdef __ANDROID__
- init_sqlite3();
-#endif
 #endif
   myddas_initialised = true;
-  CurrentModule = cm;
 }
 
 #ifdef _WIN32

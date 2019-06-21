@@ -641,18 +641,20 @@ X_API int PL_get_atom_chars(term_t ts, char **a) /* SAM check type */
     return 0;
   }
   src = (char *)RepAtom(AtomOfTerm(t))->StrOfAE;
-  if (!a)
-    return 0;
-  if (*a && *a != src)
-    strcpy(*a, src);
-  else
-    *a = src;
+  if (!src)
+      return 0;
+   if ( !*a ) {
+      *a = src;
+  } else if (src[0] == '\0') {
+       (*a)[0] = src[0];
+   } else {
+      strcpy(*a, src);
+  }
   return 1;
 }
-
-/** @brief *a is assigned the string representation of the atom in term  ts, and
- * *len its size, or the operation fails
- *
+                                                                                                                                                                                                                                                                                                                                                    /** @brief *a is assigned the string representation of the atom in term  ts, and
+                                                                                                                                                                                                                                                                                                                                                     * *len its size, or the operation fails
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             *
  */
 X_API int PL_get_atom_nchars(term_t ts, size_t *len,
                              char **s) /* SAM check type */
@@ -2216,7 +2218,7 @@ X_API int PL_initialise(int myargc, char **myargv) {
   init_args.INPUT_STARTUP = NULL;
 #endif
   init_args.LIBDIR = NULL;
-  init_args.BOOTFILE = NULL;
+  init_args.SOURCEBOOT = NULL;
   init_args.HaltAfterBoot = true;
   init_args.FastBoot = FALSE;
   init_args.MaxTableSpaceSize = 0;

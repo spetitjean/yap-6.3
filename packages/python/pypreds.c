@@ -1,4 +1,6 @@
 
+
+
 #include "Yap.h"
 
 #include "py4yap.h"
@@ -18,6 +20,7 @@ void pyErrorHandler__(int line, const char *file, const char *code) {
 static foreign_t python_len(term_t tobj, term_t tf) {
   Py_ssize_t len;
   PyObject *o;
+  PyStart();
 
   o = term_to_python(tobj, true, NULL, true);
   if (o == NULL) {
@@ -26,6 +29,24 @@ static foreign_t python_len(term_t tobj, term_t tf) {
   len = PyObject_Length(o);
   pyErrorAndReturn(PL_unify_int64(tf, len));
 }
+
+static foreign_t python_represent( term_t name, term_t tobj) {
+  term_t stackp = python_acquire_GIL();
+  PyObject *e;
+  PyStart();
+
+  e = term_to_python(tobj, false, NULL, false);
+  if (e == NULL) {
+    python_release_GIL(stackp);
+    pyErrorAndReturn(false);
+  }
+  foreign_t b = python_assign(name, e, NULL);
+  python_release_GIL(stackp);
+  pyErrorAndReturn(b);
+}
+
+
+
 static foreign_t python_clear_errors(void) {
   PyErr_Clear();
   return true;
@@ -34,6 +55,7 @@ static foreign_t python_clear_errors(void) {
 static foreign_t python_dir(term_t tobj, term_t tf) {
   PyObject *dir;
   PyObject *o;
+  PyStart();
 
   o = term_to_python(tobj, true, NULL, true);
   if (o == NULL) {
@@ -51,6 +73,7 @@ static foreign_t python_index(term_t tobj, term_t tindex, term_t val) {
   PyObject *i;
   PyObject *o;
   PyObject *f;
+  PyStart();
 
   o = term_to_python(tobj, true, NULL, true);
   if (o == NULL) {
@@ -77,6 +100,7 @@ static foreign_t python_index(term_t tobj, term_t tindex, term_t val) {
 
 static foreign_t python_is(term_t tobj, term_t tf) {
   PyObject *o;
+  PyStart();
 
   term_t lim = python_acquire_GIL();
 
@@ -93,13 +117,13 @@ static foreign_t python_is(term_t tobj, term_t tf) {
 }
 
 static foreign_t python_proc(term_t tobj) {
+  PyStart();
   PyObject *o;
-
   term_t lim = python_acquire_GIL();
 
   o = term_to_python(tobj, true, NULL, true);
   python_release_GIL(lim);
-  bool rc = o != NULL;
+  foreign_t rc = o != NULL;
   pyErrorAndReturn(rc);
 }
 
@@ -115,9 +139,7 @@ static foreign_t python_slice(term_t parent, term_t indx, term_t tobj) {
   p = term_to_python(parent, true, NULL, true);
   // Exp
   if (!pI || !p) {
-    {
-      pyErrorAndReturn(false);
-    }
+       pyErrorAndReturn(false);
   } else if ((pF = PySequence_GetSlice(p, 0, 0)) == NULL) {
     PyErr_Print();
     { pyErrorAndReturn(false); }
@@ -134,6 +156,7 @@ static foreign_t python_slice(term_t parent, term_t indx, term_t tobj) {
 
 static foreign_t python_apply(term_t tin, term_t targs, term_t keywds,
                               term_t tf) {
+  PyStart();
   PyObject *pF;
   PyObject *pArgs, *pKeywords;
   PyObject *pValue;
@@ -143,7 +166,6 @@ static foreign_t python_apply(term_t tin, term_t targs, term_t keywds,
   term_t targ = PL_new_term_ref();
 
   pF = term_to_python(tin, true, NULL, true);
-  PyErr_Clear();
   if (pF == NULL) {
     {
       pyErrorAndReturn(false);
@@ -218,6 +240,7 @@ static foreign_t python_apply(term_t tin, term_t targs, term_t keywds,
 }
 
 static foreign_t assign_python(term_t exp, term_t name) {
+  PyStart();
   term_t stackp = python_acquire_GIL();
   PyObject *e = term_to_python(exp, true, NULL, true);
 
@@ -225,7 +248,7 @@ static foreign_t assign_python(term_t exp, term_t name) {
     python_release_GIL(stackp);
     pyErrorAndReturn(false);
   }
-  bool b = python_assign(name, e, NULL);
+  foreign_t b = python_assign(name, e, NULL);
   python_release_GIL(stackp);
   pyErrorAndReturn(b);
 }
@@ -250,7 +273,7 @@ static foreign_t python_string_to(term_t f) {
 }
 
 static foreign_t python_builtin_eval(term_t caller, term_t dict, term_t out) {
-  PyErr_Clear();
+  PyStart();
   PyObject *pI, *pArgs, *pOut;
   PyObject *env;
   atom_t name;
@@ -312,7 +335,7 @@ static foreign_t python_builtin_eval(term_t caller, term_t dict, term_t out) {
 }
 
 static foreign_t python_access(term_t obj, term_t f, term_t out) {
-  PyErr_Clear();
+  PyStart();
   PyObject *o = term_to_python(obj, true, NULL, true), *pValue, *pArgs, *pF;
   atom_t name;
   char *s = NULL;
@@ -381,7 +404,7 @@ static foreign_t python_field(term_t parent, term_t att, term_t tobj) {
   atom_t name;
   char *s;
   int arity;
-
+  PyStart();
   if (!PL_get_name_arity(att, &name, &arity)) {
     {
       pyErrorAndReturn(false);
@@ -429,14 +452,14 @@ static foreign_t python_field(term_t parent, term_t att, term_t tobj) {
 static foreign_t python_main_module(term_t mod) {
   {
     foreign_t rc;
-    PyErr_Clear();
+    PyStart();
     rc = address_to_term(py_Main, mod);
     pyErrorAndReturn(rc);
   }
 }
 
 static foreign_t python_function(term_t tobj) {
-  PyErr_Clear();
+  PyStart();
   PyObject *obj = term_to_python(tobj, true, NULL, true);
   foreign_t rc = PyFunction_Check(obj);
 
@@ -446,7 +469,7 @@ static foreign_t python_function(term_t tobj) {
 foreign_t python_builtin(term_t out) {
   {
     foreign_t rc;
-    PyErr_Clear();
+    PyStart();
     rc = address_to_term(py_Builtin, out);
     pyErrorAndReturn(rc);
   }
@@ -457,7 +480,7 @@ static foreign_t python_run_file(term_t file) {
   size_t len;
   char si[256];
   s = si;
-  PyErr_Clear();
+  PyStart();
   if (PL_get_nchars(file, &len, &s, CVT_ALL | CVT_EXCEPTION)) {
 #if PY_MAJOR_VERSION < 3
     PyObject *PyFileObject = PyFile_FromString(si, "r");
@@ -480,11 +503,11 @@ extern PyThreadState *YAP_save;
 
 static foreign_t python_run_command(term_t cmd) {
   char *s;
-  bool rc = false;
+  foreign_t rc = false;
   size_t len;
   char si[256];
 
-  PyErr_Clear();
+  PyStart();
   s = si;
   if (PL_get_nchars(cmd, &len, &s, CVT_ALL | CVT_EXCEPTION)) {
     PyRun_SimpleString(s);
@@ -500,7 +523,7 @@ static foreign_t python_run_script(term_t cmd, term_t fun) {
   PyObject *pArgs = NULL, *pValue;
   char *s;
 
-  PyErr_Clear();
+  PyStart();
   s = si;
   if (PL_get_nchars(cmd, &len, &s, CVT_ALL | CVT_EXCEPTION) &&
       (s = sf) != NULL &&
@@ -552,7 +575,7 @@ static foreign_t python_run_script(term_t cmd, term_t fun) {
 
 static foreign_t python_export(term_t t, term_t pl) {
   foreign_t rc = false;
-  PyErr_Clear();
+  PyStart();
   if (PL_is_functor(t, FUNCTOR_pointer1)) {
     void *ptr;
     term_t targ = PL_new_term_ref();
@@ -581,7 +604,8 @@ static foreign_t python_export(term_t t, term_t pl) {
  */
 static int python_import(term_t mname, term_t mod) {
   PyObject *pName;
-  bool do_as = false;
+  foreign_t do_as = false;
+  PyStart();
 
   char s0[MAXPATHLEN], *s = s0;
   s[0] = '\0';
@@ -654,7 +678,7 @@ static int python_import(term_t mname, term_t mod) {
 
 static foreign_t python_to_rhs(term_t inp, term_t t) {
   PyObject *pVal;
-  PyErr_Clear();
+  PyStart();
   pVal = term_to_python(inp, true, NULL, true);
   if (pVal == NULL)
     pyErrorAndReturn(false);
@@ -662,7 +686,7 @@ static foreign_t python_to_rhs(term_t inp, term_t t) {
 }
 
 // static PyThreadState *_saveP = NULL;
-static bool _threaded = true;
+static foreign_t _threaded = true;
 
 /*
 static YAP_Int
@@ -688,7 +712,7 @@ PyThreadState *tstate;
 
 static YAP_Int p_python_threaded(void) {
 
-  PyErr_Clear();
+  PyStart();
   // PyEval_ReleaseThread(tstate);
   // _threaded = true;
   //    _locked = 0;
@@ -711,7 +735,6 @@ term_t python_acquire_GIL(void) {
   PL_put_integer(curSlot, gstatei++);
   return curSlot;
 }
-
 bool python_release_GIL(term_t curBlock) {
   int gstateix;
   gstatei--;
@@ -733,30 +756,33 @@ bool python_release_GIL(term_t curBlock) {
 }
 
 install_t install_pypreds(void) {
-  PL_register_foreign("python_builtin_eval", 3, python_builtin_eval, 0);
-  PL_register_foreign("python_builtin", 1, python_builtin, 0);
-  PL_register_foreign("python_import", 2, python_import, 0);
-  PL_register_foreign("python_to_rhs", 2, python_to_rhs, 0);
-  PL_register_foreign("python_len", 2, python_len, 0);
-  PL_register_foreign("python_is", 2, python_is, 0);
-  PL_register_foreign("python_dir", 2, python_dir, 0);
-  PL_register_foreign("python_apply", 4, python_apply, 0);
-  PL_register_foreign("python_index", 3, python_index, 0);
-  PL_register_foreign("python_field", 3, python_field, 0);
-  PL_register_foreign("python_assign", 2, assign_python, 0);
-  PL_register_foreign("python_export", 2, python_export, 0);
-  PL_register_foreign("python_function", 1, python_function, 0);
-  PL_register_foreign("python_slice", 4, python_slice, 0);
-  PL_register_foreign("python_run_file", 1, python_run_file, 0);
-  PL_register_foreign("python_proc", 1, python_proc, 0);
-  PL_register_foreign("python_run_command", 1, python_run_command, 0);
-  PL_register_foreign("python_run_script", 2, python_run_script, 0);
-  PL_register_foreign("python_main_module", 1, python_main_module, 0);
-  PL_register_foreign("python_import", 2, python_import, 0);
-  PL_register_foreign("python_access", 3, python_access, 0);
-  PL_register_foreign("python_threaded", 0, p_python_threaded, 0);
-  PL_register_foreign("python_clear_errors", 0, python_clear_errors, 0);
-  PL_register_foreign("python_string_to", 1, python_string_to, 0);
 
+  PL_register_foreign_in_module("python", "python_builtin_eval", 3, python_builtin_eval, 0);
+  PL_register_foreign_in_module("python", "python_builtin", 1, python_builtin, 0);
+  PL_register_foreign_in_module("python", "python_import", 2, python_import, 0);
+  PL_register_foreign_in_module("python", "python_to_rhs", 2, python_to_rhs, 0);
+  PL_register_foreign_in_module("python", "python_len", 2, python_len, 0);
+  PL_register_foreign_in_module("python", "python_is", 2, python_is, 0);
+  PL_register_foreign_in_module("python", "python_dir", 2, python_dir, 0);
+  PL_register_foreign_in_module("python", "python_apply", 4, python_apply, 0);
+  PL_register_foreign_in_module("python", "python_index", 3, python_index, 0);
+  PL_register_foreign_in_module("python", "python_field", 3, python_field, 0);
+  PL_register_foreign_in_module("python", "python_assign", 2, assign_python, 0);
+  PL_register_foreign_in_module("python", "python_represents", 2, python_represent, 0);
+  PL_register_foreign_in_module("python", "python_export", 2, python_export, 0);
+  PL_register_foreign_in_module("python", "python_function", 1, python_function, 0);
+  PL_register_foreign_in_module("python", "python_slice", 4, python_slice, 0);
+  PL_register_foreign_in_module("python", "python_run_file", 1, python_run_file, 0);
+  PL_register_foreign_in_module("python", "python_proc", 1, python_proc, 0);
+  PL_register_foreign_in_module("python", "python_run_command", 1, python_run_command, 0);
+  PL_register_foreign_in_module("python", "python_run_script", 2, python_run_script, 0);
+  PL_register_foreign_in_module("python", "python_main_module", 1, python_main_module, 0);
+  PL_register_foreign_in_module("python", "python_import", 2, python_import, 0);
+  PL_register_foreign_in_module("python", "python_access", 3, python_access, 0);
+  PL_register_foreign_in_module("python", "python_threaded", 0, p_python_threaded, 0);
+  PL_register_foreign_in_module("python", "python_clear_errors", 0, python_clear_errors, 0);
+  PL_register_foreign_in_module("python", "python_string_to", 1, python_string_to, 0);
+
+  
   init_python_vfs();
 }

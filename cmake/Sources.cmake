@@ -5,17 +5,6 @@
 
 set (ABSMI_SOURCES
   C/absmi.c
-  C/absmi_insts.h
-  C/fli_absmi_insts.h
-  C/or_absmi_insts.h
-  C/control_absmi_insts.h
-  C/index_absmi_insts.h
-  C/prim_absmi_insts.h
-  C/cp_absmi_insts.h
-  C/lu_absmi_insts.h
-  C/unify_absmi_insts.h
-  C/fail_absmi_insts.h
-  C/meta_absmi_insts.h
   )
 
 set (ENGINE_SOURCES
@@ -42,6 +31,7 @@ set (ENGINE_SOURCES
   C/corout.c
   C/cut_c.c
   C/dbase.c
+        C/dbload.c
   C/dlmalloc.c
   C/errors.c
   C/eval.c
@@ -76,6 +66,7 @@ set (ENGINE_SOURCES
   C/tracer.c
   C/unify.c
   C/userpreds.c
+  C/terms.c
   C/utilpreds.c
   C/yap-args.c
   C/write.c
@@ -253,8 +244,6 @@ set (OPTYap_HEADERS
   )
 
 set (YAPOS_HEADERS
-	${CMAKE_SOURCE_DIR}/os/encoding.h
-	${CMAKE_SOURCE_DIR}/os/fmemopen.h
 	${CMAKE_SOURCE_DIR}/os/format.h
 	${CMAKE_SOURCE_DIR}/os/getw.h
 	${CMAKE_SOURCE_DIR}/os/iopreds.h

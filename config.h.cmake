@@ -942,6 +942,11 @@ function. */
 #cmakedefine HAVE_MPI_H ${HAVE_MPI_H}
 #endif
 
+/* Define to 1 if you have the <mtrace> glibc extension. */
+#ifndef HAVE_MPI_H
+#cmakedefine HAVE_MTRACE ${HAVE_TRACE}
+#endif
+
 /* Older versions of MPZ didn't have XOR */
 #ifndef HAVE_MPZ_XOR
 #cmakedefine HAVE_MPZ_XOR ${HAVE_MPZ_XOR}
@@ -1884,7 +1889,9 @@ signal. */
 #endif
 
 /* use bignums/rationals in YAP code. */
-#ifndef USE_GMP
+#if defined( __ANDROID__ ) && !defined(USE_GMP)
+#define USE_GMP 1
+#elif !defined(USE_GMP)
 #define USE_GMP ${GMP_FOUND}
 #endif
 
@@ -2028,18 +2035,18 @@ significant byte first (like Motorola and SPARC, unlike Intel). */
 
 /* name of Commons library */
 #ifndef YAP_COMMONSDIR
-#define YAP COMMONSDIR "${YAP_DATADIR}/PrologCommmons"
+#define YAP_COMMONSDIR "${YAP_DATADIR}/PrologCommmons"
 #endif
 
 
 /* run-time boot */
-#ifndef YAP_BOOTFILE
-#define YAP_BOOTFILE "${YAP_PLDIR}/pl/boot.yap"
+#ifndef YAP_SOURCEBOOT
+#define YAP_SOURCEBOOT "${CMAKE_SOURCE_DIR}/pl/boot.yap"
 #endif
 
 /* init-time boot */
 #ifndef YAP_BOOTSTRAP
-#define YAP_BOOTSTRAP "${CMAKE_SOURCE_DIR}/pl/boot.yap"
+#define YAP_BOOTSTRAP "${YAP_PLDIR}/pl/boot.yap"
 #endif
 
 
@@ -2114,5 +2121,7 @@ calls it, or to nothing if 'inline' is not supported under any name.  */
 #define __WINDOWS__ 1
 #endif
 #endif
+
+#include "YapTermConfig.h"
 
 #endif

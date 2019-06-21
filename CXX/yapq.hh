@@ -39,7 +39,6 @@ class X_API YAPQuery : public YAPPredicate {
   bool q_open;
   int q_state;
   yhandle_t q_handles;
-  struct yami *q_p, *q_cp;
   int q_flags;
   YAP_dogoalinfo q_h;
   YAPPairTerm names;
@@ -54,10 +53,10 @@ class X_API YAPQuery : public YAPPredicate {
     q_state = 0;
     q_flags = true; // PL_Q_PASS_EXCEPTION;
 
-    q_p = P;
-    q_cp = CP;
+    q_h.p = P;
+    q_h.cp = CP;
     // make sure this is safe
-    q_handles = LOCAL_CurSlot;
+    q_h.CurSlot = LOCAL_CurSlot;
   };
 
   void openQuery();
@@ -76,6 +75,7 @@ public:
   /// least
   /// the same arity as the functor.
   YAPQuery(YAPPredicate p, YAPTerm t[]);
+  ///
   /// full constructor,
   ///
   ///
@@ -83,6 +83,9 @@ public:
   /// least
   /// the same arity as the functor.
   YAPQuery(YAPFunctor f, YAPTerm mod, YAPTerm t[]);
+  /// often, this is more efficient
+  ///
+  YAPQuery(YAPFunctor f, YAPTerm mod, Term t[]);
   /// functor/term constructor,
   ///
   /// It is given a functor, and an array of terms that must have at least
@@ -158,7 +161,8 @@ public:
   };
 };
 
-// Java support
+
+
 
 /// This class implements a callback Prolog-side. It will be inherited by the
 /// Java or Python
@@ -175,11 +179,11 @@ struct X_API YAPEngineArgs : YAP_init_args {
 
 public:
   YAPEngineArgs() {
+    memset(this,0,sizeof(YAPEngineArgs));
     // const std::string *s = new std::string("startup.yss");
     Embedded = true;
     install = false;
-
-    Yap_InitDefaults(this, nullptr, 0, nullptr);
+    Yap_InitDefaults(&this->start, nullptr, 0, nullptr);
 #if YAP_PYTHON
     Embedded = true;
     python_in_python = Py_IsInitialized();
@@ -211,46 +215,56 @@ public:
   inline bool creatingSavedState() { return install; };
 
   inline void setPLDIR(const char *fl) {
-    LIBDIR = (const char *)malloc(strlen(fl) + 1);
-    strcpy((char *)LIBDIR, fl);
+    std::string *s = new std::string(fl);
+    LIBDIR = s->c_str();
   };
 
   inline const char *getPLDIR() { return PLDIR; };
 
   inline void setINPUT_STARTUP(const char *fl) {
-    INPUT_STARTUP = (const char *)malloc(strlen(fl) + 1);
-    strcpy((char *)INPUT_STARTUP, fl);
+    std::string *s = new std::string(fl);
+    INPUT_STARTUP = s->c_str();
   };
 
   inline const char *getINPUT_STARTUP() { return INPUT_STARTUP; };
 
+  inline void setOUTPUT_STARTUP(const char *fl) {
+    std::string *s = new std::string(fl);
+    OUTPUT_STARTUP = s->c_str();
+  };
+
   inline void setOUTPUT_RESTORE(const char *fl) {
-    OUTPUT_STARTUP = (const char *)malloc(strlen(fl) + 1);
-    strcpy((char *)OUTPUT_STARTUP, fl);
+    std::string *s = new std::string(fl);
+    OUTPUT_STARTUP = s->c_str();
   };
 
   inline const char *getOUTPUT_STARTUP() { return OUTPUT_STARTUP; };
 
-  inline void setBOOTFILE(const char *fl) {
-    BOOTFILE = (const char *)malloc(strlen(fl) + 1);
-    strcpy((char *)BOOTFILE, fl);
+  inline void setSOURCEBOOT(const char *fl) {
+    std::string *s = new std::string(fl);
+    SOURCEBOOT = s->c_str();
   };
 
-  inline const char *getBOOTFILE() { return BOOTFILE; };
+  inline const char *getSOURCEBOOT() { return SOURCEBOOT; };
 
   inline void setPrologBOOTSTRAP(const char *fl) {
-    BOOTSTRAP = (const char *)malloc(strlen(fl) + 1);
-    strcpy((char *)BOOTSTRAP, fl);
+  std::string *s = new std::string(fl);
+    BOOTSTRAP = s->c_str();
   };
 
   inline const char *getBOOTSTRAP() { return BOOTSTRAP; };
 
-  inline void setPrologGoal(const char *fl) { PrologGoal = fl; };
+  inline void setPrologGoal(const char *fl) {
+    std::string *s = new std::string(fl);
+    PrologGoal = s->c_str();
+
+  }
 
   inline const char *getPrologGoal() { return PrologGoal; };
 
   inline void setPrologTopLevelGoal(const char *fl) {
-    PrologTopLevelGoal = fl;
+    std::string *s = new std::string(fl);
+    PrologTopLevelGoal = s->c_str() ;
   };
 
   inline const char *getPrologTopLevelGoal() { return PrologTopLevelGoal; };
@@ -270,6 +284,28 @@ public:
   inline void setArgv(char **fl) { Argv = fl; };
 
   inline char **getArgv() { return Argv; };
+
+  inline void setBOOTDIR(const char *fl) {
+    std::string *s = new std::string(fl);
+    BOOTDIR = s->c_str() ;
+  }
+  
+   inline const char *getBOOTDIR() { return BOOTDIR; };
+
+   inline const char *getBOOTFILE() { return BOOTSTRAP; };
+
+   inline void setBOOTFILE(const char *fl) {
+    std::string *s = new std::string(fl);
+    BOOTSTRAP = s->c_str() ;
+
+   }
+   
+   inline void setROOTDIR(const char *fl) {
+    std::string *s = new std::string(fl);
+    ROOTDIR = s->c_str() ;
+
+   }
+
 };
 
 /**
@@ -284,7 +320,6 @@ private:
   YAPCallback *_callback;
   YAPError yerror;
   void doInit(YAP_file_type_t BootMode, YAPEngineArgs *cargs);
-  YAP_dogoalinfo q;
   YAPError e;
   PredEntry *rewriteUndefEngineQuery(PredEntry *ap, Term &t, Term tmod);
 
@@ -293,7 +328,14 @@ public:
   YAPEngine(YAPEngineArgs *cargs) {
     engine_args = cargs;
     // doInit(cargs->boot_file_type);
+    __android_log_print(
+    ANDROID_LOG_INFO, "YAPDroid", "start engine  ");
+#ifdef __ANDROID__
+    doInit(YAP_PL, cargs);
+
+#else
     doInit(YAP_QLY, cargs);
+#endif
   }; /// construct a new engine, including aaccess to callbacks
   /// construct a new engine using argc/argv list of arguments
   YAPEngine(int argc, char *argv[],
@@ -343,7 +385,8 @@ public:
   bool mgoal(Term t, Term tmod, bool release = false);
   /// current directory for the engine
 
-  bool goal(Term t, bool release = false) {
+    bool goal(YAPTerm t, bool release = false) { return goal(t.term(), release); }
+    bool goal(Term t, bool release = false) {
     return mgoal(t, Yap_CurrentModule(), release);
   }
   /// reset Prolog state

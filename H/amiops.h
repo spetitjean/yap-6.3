@@ -418,6 +418,12 @@ extern void Yap_WakeUp(CELL *v);
     *(VP) = (D);                                                               \
   }
 
+#define TrailedMaBind(VP, D)                                                          \
+  {                                                                            \
+    DO_MATRAIL((VP), *(VP), (D));                                                 \
+    *(VP) = (D);                                                               \
+  }
+
 /************************************************************
 
 Unification Routines
@@ -570,5 +576,6 @@ static inline int do_cut(int i) {
 #define cut_succeed() return do_cut(TRUE)
 
 #define cut_fail() return do_cut(FALSE)
+
 
 #endif

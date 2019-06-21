@@ -94,7 +94,7 @@ error_handler(Error, Level) :-
     '$LoopError'(Error, Level).
 
 '$LoopError'(_, _) :-
-	flush_output(user_output),
+    flush_output(user_output),
 	flush_output(user_error),
 	fail.
 '$LoopError'(Error, Level) :- !,
@@ -108,22 +108,16 @@ error_handler(Error, Level) :-
 '$process_error'('$forward'(Msg),  _) :-
 	!,
 	throw( '$forward'(Msg) ).
-'$process_error'(abort, Level) :-
+'$process_error'(error(event(abort,I),C), Level) :-
 	!,
 	(
+  current_prolog_flag(break_level, 0),
 	 Level \== top
 	->
-	 throw( abort )
-	;
-	 current_prolog_flag(break_level, 0)
-	->
-	 print_message(informational,abort(user)),
-	 fail
-	;
-	 current_prolog_flag(break_level, I0),
-	 I is I0-1,
-	 current_prolog_flag(break_level, I),
-	 throw(abort)
+    print_message(informational,abort(user)),
+ 	 fail
+ 	;
+	 throw( error(event(abort,I),C) )
 	).
 '$process_error'(error(permission_error(module,redefined,A),B), Level) :-
         Level \= top, !,

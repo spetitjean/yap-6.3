@@ -230,12 +230,15 @@ typedef struct struct_param2 {
   const char *scope;
 } param2_t;
 
+/// @brief prolog_flag/2 support, notice flag is initialized as text.
+/// 
+/// 
 typedef struct {
-  char *name;
-  bool writable;
-  flag_func def;
-  const char *init;
-  flag_helper_func helper;
+  char *name;                 //< user visible name
+  bool writable;              //< read-write or read-only
+  flag_func def;              //< call on definition
+  const char *init;           //< initial value as string
+  flag_helper_func helper;    //< operations triggered by writing the flag.
 } flag_info;
 
 typedef struct {
@@ -244,6 +247,8 @@ typedef struct {
   const char *init;
 } arg_info;
 
+/// @brief
+///  a flag is represented as a Prolog term.
 typedef union flagTerm {
   Term at;
   struct DB_TERM *DBT;
@@ -354,8 +359,11 @@ static inline bool verboseMode(void) {
   return GLOBAL_Flags[VERBOSE_FLAG].at != TermSilent;
 }
 
+
 static inline void setVerbosity(Term val) {
   GLOBAL_Flags[VERBOSE_FLAG].at = val;
+  if (val == TermSilent)
+    GLOBAL_Flags[VERBOSE_LOAD_FLAG].at = TermFalse;
 }
 
 static inline bool setSyntaxErrorsFlag(Term val) {
@@ -378,9 +386,9 @@ static inline bool setReadTermBackQuotesFlag(Term val) {
   return true;
 }
 
-static inline Term getReadTermBackQuotesFlag(void) {
+static inline Term getBackQuotesFlag(Term mod) {
   Term val;
-  unsigned int flags = Yap_GetModuleEntry(CurrentModule)->flags;
+  unsigned int flags = Yap_GetModuleEntry(mod)->flags;
   if (flags & BCKQ_ATOM) {
     val = TermAtom;
   } else if (flags & BCKQ_STRING) {
@@ -390,7 +398,37 @@ static inline Term getReadTermBackQuotesFlag(void) {
   } else {
     val = TermCodes;
   }
-return GLOBAL_Flags[BACK_QUOTES_FLAG].at = val;
+return val;
+}
+
+static inline Term getSingleQuotesFlag(Term mod) {
+    Term val;
+    unsigned int flags = Yap_GetModuleEntry(mod)->flags;
+    if (flags & SNGQ_ATOM) {
+        val = TermAtom;
+    } else if (flags & SNGQ_STRING) {
+        val = TermString;
+    } else if (flags & SNGQ_CHARS) {
+        val = TermChars;
+    } else {
+        val = TermCodes;
+    }
+    return  val;
+}
+
+static inline Term getDoubleQuotesFlag(Term mod) {
+    Term val;
+    unsigned int flags = Yap_GetModuleEntry(mod)->flags;
+    if (flags & DBLQ_ATOM) {
+        val = TermAtom;
+    } else if (flags & DBLQ_STRING) {
+        val = TermString;
+    } else if (flags & DBLQ_CHARS) {
+        val = TermChars;
+    } else {
+        val = TermCodes;
+    }
+    return val;
 }
 
 static inline Term indexingMode(void) { return GLOBAL_Flags[INDEX_FLAG].at; }
@@ -417,12 +455,12 @@ extern  xarg *Yap_ArgListToVector__(const char *file, const char *function, int 
 
 #define Yap_ArgListToVector(l, def, n, e)				\
   Yap_ArgListToVector__(__FILE__, __FUNCTION__, __LINE__, l, def, n, e)
-                                
+
 extern xarg *Yap_ArgList2ToVector__(const char *file, const char *function, int lineno, Term listl, const param2_t *def, int n, yap_error_number e);
 
 #define Yap_ArgList2ToVector(l, def, n, e)           \
   Yap_ArgList2ToVector__(__FILE__, __FUNCTION__, __LINE__, l, def, n, e)
-                                
+
 #endif // YAP_FLAGS_H
 
 /// @}

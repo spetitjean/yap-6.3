@@ -1,7 +1,7 @@
-set (PYTHON_SOURCES backcall/__init__.py
-core/yap_kernel/__init__.py
-core/yap_kernel/getipython.py
-core/__init__.py
+set (PYTHON_SOURCES 
+#core/yap_kernel/__init__.py
+#core/yap_kernel/getipython.py
+#core/__init__.py
 _version.py
 yap_kernel/datapub.py
 yap_kernel/serialize.py
@@ -62,10 +62,9 @@ yap_kernel/pylab/__init__.py
 yap_kernel/__main__.py
 yap_kernel.py
 kernelspec.py
-__init__.py
+#__init__.py
 yap_kernel_launcher.py
 docs/conf.py
-backcall.py
 setup.py
 interactiveshell.py
 examples/embedding/internal_ipkernel.py
@@ -154,7 +153,6 @@ yap_ipython/core/logger.py
 yap_ipython/core/excolors.py
 yap_ipython/core/completer.py
 yap_ipython/core/ultratb.py
-yap_ipython/core/backcall.py
 yap_ipython/core/display.py
 yap_ipython/core/prompts.py
 yap_ipython/core/debugger.py
@@ -413,8 +411,13 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/kerne
   )
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/prolog.js
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/misc/editors/yap.js  ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/prolog.js
-  DEPENDS ${CMAKE_SOURCE_DIR}/misc/editors/yap.js
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/misc/editors/codemirror/prolog.js  ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/prolog.js
+  DEPENDS ${CMAKE_SOURCE_DIR}/misc/editors/codemirror/prolog.js
+  )
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/meta.js
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/misc/editors/codemirror/meta.js  ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/meta.js
+  DEPENDS ${CMAKE_SOURCE_DIR}/misc/editors/codemirror/meta.js
   )
 
 
@@ -428,18 +431,18 @@ endforeach()
 
 
 
-add_custom_target(YAP_KERNEL ALL
+add_custom_target(YAP_KERNEL
+  ALL
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/logo-32x32.png ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/logo-64x64.png ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/kernel.js ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/prolog.js  ${OUTS} YAP4PY
+ DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/logo-32x32.png ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/logo-64x64.png ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/kernel.js ${CMAKE_CURRENT_BINARY_DIR}/yap_kernel/resources/prolog.js  ${OUTS} YAP4PY
+   COMMAND ${PYTHON_EXECUTABLE}  ${SETUP_PY} sdist ${bdist}
 )
 
-
-    install(CODE "execute_process(
-  COMMAND ${PYTHON_EXECUTABLE}  ${SETUP_PY} build sdist bdist
-         COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_USER_INSTALL}    --ignore-installed --no-deps  .
+   install(CODE "execute_process(
+         COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_USER_INSTALL}    --ignore-installed   .
         COMMAND ${PYTHON_EXECUTABLE} -m yap_kernel.kernelspec
         ERROR_VARIABLE setupErr
         OUTPUT_VARIABLE setupOut
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
-    install(FILES ${PL_SOURCES} DESTINATION ${libpl} )
+    install(FILES ${PL_SOURCES} DESTINATION ${YAP_INSTALL_DATADIR} )

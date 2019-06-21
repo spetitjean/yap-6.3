@@ -1,3 +1,4 @@
+
 /*************************************************************************
  *									 *
  *	 YAP Prolog 							 *
@@ -950,7 +951,8 @@ restart_aux:
     ot = ARG1;
   } else if (g3) {
     Int len = Yap_AtomToUnicodeLength(t3 PASS_REGS);
-    if (len <= 0) {
+    if (len < 0) {
+      Yap_ThrowError(-len,ARG3,"atom_concat(-X,-Y,+atom:Z");
       cut_fail();
     }
     EXTRA_CBACK_ARG(3, 1) = MkIntTerm(0);
@@ -1318,6 +1320,7 @@ restart_aux:
   cut_fail();
 }
 
+
 static Int atom_concat2(USES_REGS1) {
   Term t1;
   Term *tailp;
@@ -1340,6 +1343,7 @@ restart_aux:
 
     while (t1 != TermNil) {
       inpv[i].type = YAP_STRING_ATOM, inpv[i].val.t = HeadOfTerm(t1);
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       t1 = TailOfTerm(t1);
     }
@@ -1388,6 +1392,7 @@ restart_aux:
     while (t1 != TermNil) {
       inpv[i].type = YAP_STRING_STRING;
       inpv[i].val.t = HeadOfTerm(t1);
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       t1 = TailOfTerm(t1);
     }
@@ -1427,8 +1432,6 @@ restart_aux:
   if (*tailp != TermNil) {
     LOCAL_Error_TYPE = TYPE_ERROR_LIST;
   } else {
-    seq_tv_t *inpv = (seq_tv_t *)Malloc(n * sizeof(seq_tv_t));
-    seq_tv_t *out = (seq_tv_t *)Malloc(sizeof(seq_tv_t));
     int i = 0;
     Atom at;
 
@@ -1437,6 +1440,8 @@ restart_aux:
       pop_text_stack(l);
       return rc;
     }
+    seq_tv_t *inpv = (seq_tv_t *)Malloc(n * sizeof(seq_tv_t));
+    seq_tv_t *out = (seq_tv_t *)Malloc(sizeof(seq_tv_t));
     if (!inpv) {
       LOCAL_Error_TYPE = RESOURCE_ERROR_HEAP;
       goto error;
@@ -1447,6 +1452,7 @@ restart_aux:
                      YAP_STRING_FLOAT | YAP_STRING_BIG | YAP_STRING_CHARS |
                      YAP_STRING_CODES;
       inpv[i].val.t = HeadOfTerm(t1);
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       t1 = TailOfTerm(t1);
     }
@@ -1463,6 +1469,7 @@ restart_aux:
   }
 error:
   /* Error handling */
+    pop_text_stack(l);
   if (LOCAL_Error_TYPE && Yap_HandleError("atom_concat/3")) {
     goto restart_aux;
   }
@@ -1493,6 +1500,7 @@ restart_aux:
       inpv[i].type = YAP_STRING_STRING | YAP_STRING_ATOM | YAP_STRING_INT |
                      YAP_STRING_FLOAT | YAP_STRING_BIG | YAP_STRING_TERM;
       inpv[i].val.t = HeadOfTerm(t1);
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       t1 = TailOfTerm(t1);
     }
@@ -1542,10 +1550,12 @@ restart_aux:
       inpv[i].type = YAP_STRING_STRING | YAP_STRING_ATOM | YAP_STRING_INT |
                      YAP_STRING_FLOAT | YAP_STRING_BIG | YAP_STRING_TERM;
       inpv[i].val.t = HeadOfTerm(t1);
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       inpv[i].type = YAP_STRING_STRING | YAP_STRING_ATOM | YAP_STRING_INT |
                      YAP_STRING_FLOAT | YAP_STRING_BIG | YAP_STRING_TERM;
       inpv[i].val.t = t2;
+      inpv[i].enc = ENC_ISO_UTF8;
       i++;
       t1 = TailOfTerm(t1);
     }
@@ -2761,12 +2771,11 @@ void Yap_InitAtomPreds(void) {
   Yap_InitCPred("atomics_to_string", 3, atomics_to_string3, 0);
   Yap_InitCPred("get_string_code", 3, get_string_code3, 0);
 
-  Yap_InitCPred("downcase_text_to_atom", 2, downcase_text_to_atom, 0);
-  Yap_InitCPred("downcase_atom", 2, downcase_text_to_atom, 0);
-  Yap_InitCPred("upcase_text_to_atom", 2, upcase_text_to_atom, 0);
+    Yap_InitCPred("downcase_atom", 2, downcase_text_to_atom, 0);
   Yap_InitCPred("upcase_atom", 2, upcase_text_to_atom, 0);
-  Yap_InitCPred("text_to_string", 2, downcase_text_to_string, 0);
-  Yap_InitCPred("text_to_atom", 2, downcase_text_to_string, 0);
+
+  Yap_InitCPred("downcase_text_to_atom", 2, downcase_text_to_atom, 0);
+  Yap_InitCPred("upcase_text_to_atom", 2, upcase_text_to_atom, 0);
   Yap_InitCPred("downcase_text_to_string", 2, downcase_text_to_string, 0);
   Yap_InitCPred("upcase_text_to_string", 2, upcase_text_to_string, 0);
   Yap_InitCPred("downcase_text_to_codes", 2, downcase_text_to_codes, 0);

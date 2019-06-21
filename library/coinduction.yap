@@ -1,16 +1,3 @@
-/**
- * @file   coinduction.yap
- * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>, Arvin Bansal,
- *          
- *         
- * @date   Tue Nov 17 14:55:02 2015
- * 
- * @brief  Co-inductive execution
- * 
- * 
-*/
-
-
 /*************************************************************************
 *									 *
 *	 YAP Prolog 							 *
@@ -27,6 +14,20 @@
 * comments:	coinduction support for Prolog				 *
 *									 *
 *************************************************************************/
+
+/**
+ * @file   coinduction.yap
+ * @author VITOR SANTOS COSTA <vsc@VITORs-MBP.lan>, Arvin Bansal,
+ *
+ *
+ * @date   Tue Nov 17 14:55:02 2015
+ *
+ * @brief  Co-inductive execution
+ *
+ *
+*/
+
+
 
 % :- yap_flag(unknown,error).
 % :- style_check(all).
@@ -80,6 +81,8 @@ regardless of the cycle-length.
 @see    "Co-Logic Programming: Extending Logic  Programming with Coinduction"
         by Luke Somin et al.
 
+@addtogroup coinduction Co-induction
+@ingroup library
 @{
 
 */
@@ -152,6 +155,10 @@ co_term_expansion((H :- B), M, (NH :- B)) :- !,
 co_term_expansion(H, M, NH) :-
 	coinductive(H, M, NH), !.
 
+/** user:term_expansion(+M:Cl,-M:NCl ) 
+
+rule preprocessor
+*/
 user:term_expansion(M:Cl,M:NCl ) :- !,
 	co_term_expansion(Cl, M, NCl).
 
