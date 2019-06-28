@@ -67,6 +67,7 @@ static char SccsId[] = "%W% %G%";
 /* Yap workspace management                                             */
 
 #define MASK 0x968e00
+
 #if USE_SYSTEM_MALLOC
 
 #if 1
@@ -79,7 +80,6 @@ int write_malloc = 0;
 
 void *my_malloc(size_t sz) {
   void *p;
-
   p = malloc(sz);
   //    Yap_DebugPuts(stderr,"gof\n");
   if (Yap_do_low_level_trace) {
@@ -105,8 +105,9 @@ void *my_realloc(void *ptr, size_t sz) {
   return p;
 }
 
+
 void my_free(void *p) {
-  // printf("f %p\n",p);
+  //printf("\nf %p\n",p);
   if (Yap_do_low_level_trace)
     fprintf(stderr, "- %p\n @%p %ld\n", p, TR, (long int)(LCL0 - (CELL *)B) );
   //if (write_malloc && write_malloc++ > 0)

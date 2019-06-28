@@ -127,7 +127,7 @@ static int MemGetc(int sno) {
   }
   return ch;
 }
-
+prt.
 /* peek from memory */
 int Yap_MemPeekc(int sno) {
   StreamDesc *s = &GLOBAL_Stream[sno];

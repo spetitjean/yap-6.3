@@ -54,8 +54,10 @@ Dereferencing macros
   }
 
 #define deref_head(D, Label)                                                   \
-  if (IsVarTerm(D))                                                            \
-  goto Label
+  if (IsVarTerm(D)){							       \
+    goto Label;}							
+ 
+
 
 #define profiled_deref_body(D, A, LabelUnk, LabelNonVar)                       \
   do {                                                                         \
@@ -86,14 +88,14 @@ Dereferencing macros
     (D) = *(CELL *)(D);                                                        \
   } while (Unsigned(A) != (D))
 
-#define deref_body(D, A, LabelUnk, LabelNonVar)                                \
-  do {                                                                         \
-    if (!IsVarTerm(D))                                                         \
-      goto LabelNonVar;                                                        \
-  LabelUnk:                                                                    \
-    (A) = (CELL *)(D);                                                         \
-    (D) = *(CELL *)(D);                                                        \
-  } while (Unsigned(A) != (D))
+/* #define deref_body(D, A, LabelUnk, LabelNonVar)                                \ */
+/*   do {                                                                         \ */
+/*     if (!IsVarTerm(D))                                                         \ */
+/*       goto LabelNonVar;                                                        \ */
+/*   LabelUnk:                                                                    \ */
+/*     (A) = (CELL *)(D);                                                         \ */
+/*     (D) = *(CELL *)(D);                                                        \ */
+/*   } while (Unsigned(A) != (D)) */
 
 #define do_derefa(D, A, LabelUnk, LabelDone)                                   \
   (D) = *(CELL *)(A);                                                          \

@@ -372,7 +372,6 @@ static Int p_table(USES_REGS1) {
     int pos_first = 0;
     int i;
     int *aux_mode_directed;
-
     aux_mode_directed = malloc(arity * sizeof(int));
     for (i = 0; i < arity; i++) {
       int mode = IntOfTerm(HeadOfTerm(list));

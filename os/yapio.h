@@ -173,7 +173,6 @@ extern char *GLOBAL_cwd;
 
 INLINE_ONLY char *Yap_VF(const char *path) {
   char *out;
-
   out = (char *)malloc(YAP_FILENAME_MAX + 1);
   if (GLOBAL_cwd == NULL || GLOBAL_cwd[0] == 0 ||
       !Yap_IsAbsolutePath(path, false)) {
@@ -187,7 +186,6 @@ INLINE_ONLY char *Yap_VF(const char *path) {
 
 INLINE_ONLY char *Yap_VFAlloc(const char *path) {
   char *out;
-
   out = (char *)malloc(YAP_FILENAME_MAX + 1);
   if (GLOBAL_cwd == NULL || GLOBAL_cwd[0] == 0 ||
       !Yap_IsAbsolutePath(path, false)) {

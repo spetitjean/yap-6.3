@@ -116,8 +116,9 @@ extern char * Yap_output_bug_location(yamop *yap_pc, int where_from, int psize);
 static PredEntry *PredForChoicePt(yamop *p_code, op_numbers *opn) {
   while (TRUE) {
     op_numbers opnum;
-    if (!p_code)
+    if (!p_code){
       return NULL;
+    }
     opnum = Yap_op_from_opcode(p_code->opc);
     if (opn)
       *opn = opnum;
@@ -143,6 +144,7 @@ static PredEntry *PredForChoicePt(yamop *p_code, op_numbers *opn) {
       return p_code->y_u.OtaLl.d->ClPred;
 #ifdef TABLING
     case _trie_trust_var:
+      fprintf(stderr,"This");
     case _trie_retry_var:
     case _trie_trust_var_in_pair:
     case _trie_retry_var_in_pair:
@@ -201,6 +203,7 @@ static PredEntry *PredForChoicePt(yamop *p_code, op_numbers *opn) {
       p_code = NEXTOP(p_code, l);
       break;
     default:
+      p_code->y_u.Otapl.p;
       return p_code->y_u.Otapl.p;
     }
   }

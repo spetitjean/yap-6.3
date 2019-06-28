@@ -201,12 +201,18 @@ static void SearchForTrailFault(void *ptr, int sure) {
     /*    my_signal_info(SIGSEGV, HandleSIGSEGV); */
   } else
 #endif /* OS_HANDLES_TR_OVERFLOW */
-      if (sure)
+    fprintf(stderr," HERE IN SIG ");
+  if (sure){
+    fprintf(stderr,"\nIllegal address %p", ptr);
     Yap_Error(SYSTEM_ERROR_FATAL, TermNil,
               "tried to access illegal address %p!!!!", ptr);
-  else
-    Yap_Error(SYSTEM_ERROR_FATAL, TermNil,
+  }
+    else{
+	fprintf(stderr,"Segmentation violation");
+	Yap_Error(SYSTEM_ERROR_FATAL, TermNil,
               "likely bug in YAP, segmentation violation");
+	
+      }
 }
 
 /* This routine believes there is a continuous space starting from the

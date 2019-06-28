@@ -368,6 +368,7 @@ static yamop *release_wcls(yamop *cop, OPCODE ecs) {
       }
       UNLOCK(ExpandClausesListLock);
       Yap_InformOfRemoval(cop);
+
       Yap_FreeCodeSpace((char *)cop);
     }
   }
@@ -822,7 +823,9 @@ static void retract_all(PredEntry *p, int in_use) {
         } else {
           Yap_InformOfRemoval(cl);
           Yap_ClauseSpace -= cl->ClSize;
-          Yap_FreeCodeSpace((char *)cl);
+	  //fprintf(stderr,"\nCDMGR 8");
+	  // Simon: I had to remove that
+	  //Yap_FreeCodeSpace((char *)cl);
         }
         p->cs.p_code.NOfClauses--;
         if (!ncl)
@@ -1202,7 +1205,7 @@ static void expand_consult(void) {
   memmove((void *)new_cs, (void *)LOCAL_ConsultLow,
           OldConsultCapacity * sizeof(consult_obj));
   /* copying done, release old space */
-  Yap_FreeCodeSpace((char *)LOCAL_ConsultLow);
+      Yap_FreeCodeSpace((char *)LOCAL_ConsultLow);
   /* next, set up pointers correctly */
   new_cs += (LOCAL_ConsultSp - LOCAL_ConsultLow);
   /* put LOCAL_ConsultBase at same offset as before move */

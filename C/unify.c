@@ -492,13 +492,11 @@ CACHE_REGS
 #define Yap_REGS (*regp)
 #endif /* defined(B) || defined(TR) */
 #endif
-
 #if SHADOW_HB
   register CELL *HBREG = HB;
 #endif
 
   register CELL *pt0, *pt1;
-
   deref_head(d0, unify_unk);
 
 unify_nvar:
@@ -506,6 +504,7 @@ unify_nvar:
   deref_head(d1, unify_nvar_unk);
 unify_nvar_nvar:
   /* both arguments are bound */
+    deref_head(d1, unify_nvar_unk);
   if (d0 == d1)
     return TRUE;
   if (IsPairTerm(d0)) {

@@ -211,7 +211,7 @@ ExtendAliasArray(void)
 
   new = (AliasDesc)Yap_AllocCodeSpace(sizeof(AliasDesc *)*new_size);
   memmove((void *)new, (void *)GLOBAL_FileAliases, sizeof(AliasDesc *)*GLOBAL_SzOfFileAliases);
-  Yap_FreeCodeSpace((ADDR) GLOBAL_FileAliases);
+  //Yap_FreeCodeSpace((ADDR) GLOBAL_FileAliases);
   GLOBAL_FileAliases = new;
   GLOBAL_SzOfFileAliases = new_size;
 }
